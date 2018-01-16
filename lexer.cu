@@ -19,6 +19,14 @@ import cobre.string {
   string itos(int);
 }
 
+import cobre.array(token) {
+  type array as TkArr;
+  TkArr new (token, int) as TkArrNew;
+  token get (TkArr, int) as TkArrGet;
+  void set (TkArr, int, token) as TkArrSet;
+  int len (TkArr) as TkArrLen;
+}
+
 void printToken (token tk) {
   print(getType(tk) + " " + getVal(tk));
 }
@@ -118,7 +126,15 @@ bool isQuote (char ch) {
   return 0<0; // false
 }
 
-void tokens (string input) {
+TkArr tokens (string input) {
+
+  // To fix a very horrible bug where the last character is not counted
+  input = input + " ";
+
+  // Temporary stack array with A LOT of spaces
+  TkArr arr = TkArrNew(newToken("", ""), 5000);
+  int arrlen = 0;
+
   int len = strlen(input);
   int pos = 0;
   char ch;
@@ -234,14 +250,33 @@ void tokens (string input) {
       goto end;
     }
 
-    printToken(tk);
+    // Push the token
+    TkArrSet(arr, arrlen, tk);
+    arrlen = arrlen + 1;
   }
   end:
-  return;
+
+  // Build the finished array
+  TkArr result = TkArrNew(newToken("", ""), arrlen+1);
+  int i = 0;
+  while (i < arrlen) {
+    TkArrSet(result, i, TkArrGet(arr, i));
+    i = i+1;
+  }
+  TkArrSet(result, arrlen, newToken("eof", ""));
+
+  return result;
 }
 
 void main () {
-  string src = readall("../culang/lexer.cu");
-  tokens(src);
-  //tokens(" 756 3 void _a if ifn {.}() =<=<+ `x` \"\\\"\"");
+  string src = " 756 3 void _a if ifn {.}() =<=<+ `x` \"\\\"\" }";
+  //string src = readall("../culang/lexer.cu");
+  TkArr tks = tokens(src);
+  int len = TkArrLen(tks);
+  print(itos(len) + " tokens:");
+  int i = 0;
+  while (i < len) {
+    printToken(TkArrGet(tks, i));
+    i = i+1;
+  }
 }
