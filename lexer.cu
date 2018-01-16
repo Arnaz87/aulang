@@ -128,7 +128,7 @@ bool isQuote (char ch) {
 
 TkArr tokens (string input) {
 
-  // To fix a very horrible bug where the last character is not counted
+  // Nasty bug where the last character is omited
   input = input + " ";
 
   // Temporary stack array with A LOT of spaces
@@ -163,7 +163,20 @@ TkArr tokens (string input) {
         endlinecom:
         if (pos < len) ch, pos = charat(input, pos); // skip newline
         goto skipspace;
-
+      } else if (codeof(ch) == 42) { // '*' start multiline comment
+        multicom:
+          if (codeof(ch) == 42) { // '*'
+            if (pos >= len) goto end;
+            ch, pos = charat(input, pos);
+            if (codeof(ch) == 47) // '/'
+              goto endmulticom;
+          }
+          if (pos >= len) goto end;
+          ch, pos = charat(input, pos);
+          goto multicom;
+        endmulticom:
+        if (pos < len) ch, pos = charat(input, pos); // skip newline
+        goto skipspace;
       } else {
         tk = newToken("/", "");
       }
@@ -269,8 +282,8 @@ TkArr tokens (string input) {
 }
 
 void main () {
-  string src = " 756 3 void _a if ifn {.}() =<=<+ `x` \"\\\"\" }";
-  //string src = readall("../culang/lexer.cu");
+  //string src = " 756 3 void _a if ifn {.}() =<=<+ `x` \"\\\"\" }";
+  string src = readall("../culang/lexer.cu");
   TkArr tks = tokens(src);
   int len = TkArrLen(tks);
   print(itos(len) + " tokens:");

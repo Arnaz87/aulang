@@ -6,6 +6,7 @@
 import cobre.system {
   void print (string);
   void quit (int);
+  string readall (string);
 }
 
 import cobre.array (int) {
@@ -119,7 +120,122 @@ void assert (bool arg, string msg) {
 
 
 // =============================== //
-//              Parsers            //
+//            Expressions          //
+// =============================== //
+
+Node parseCall (Parser parser, int base) {
+  next(parser); // Skip (
+  int explist = parseMaybeExprList(parser, ")");
+  assert(TkType(next(parser)) == ")", "Expected ) for function call");
+  IntArr children = IntArrNew(0, 2);
+  IntArrSet(children, 0, base);
+  IntArrSet(children, 1, explist);
+  return newNode("call", "", children);
+}
+
+bool isUnop (string ty) {
+  if (ty == "-") return 0<1;
+  if (ty == "!") return 0<1;
+  return 0<0;
+}
+
+bool isBinop (string ty) {
+  if (ty == "+") return 0<1;
+  if (ty == "-") return 0<1;
+  if (ty == "*") return 0<1;
+  if (ty == "/") return 0<1;
+  if (ty == "<") return 0<1;
+  if (ty == "=") return 0<1;
+  if (ty == ">") return 0<1;
+  if (ty == "<=") return 0<1;
+  if (ty == "==") return 0<1;
+  if (ty == ">=") return 0<1;
+  if (ty == "!=") return 0<1;
+  return 0<0;
+}
+
+int parseBaseExpr (Parser parser) {
+  Token tk = next(parser);
+  string ty = TkType(tk);
+  IntArr iarr = IntArrNew(0, 0);
+  Node node;
+  if (ty == "(") {
+    int nodeId = parseExpr(parser);
+    assert(TkType(next(parser)) == ")", "closing ) expected for expression");
+    return nodeId;
+  } else if (isUnop(ty)) {
+    string op = ty;
+    int base = parseBaseExpr(parser);
+    IntArr children = IntArrNew(base, 1);
+    node = newNode("unop", op, children);
+  } else if (ty == "num") {
+    node = newNode("num", TkVal(tk), iarr);
+  } else if (ty == "str") {
+    node = newNode("str", TkVal(tk), iarr);
+  } else if (ty == "true") {
+    node = newNode("true", "", iarr);
+  } else if (ty == "false") {
+    node = newNode("true", "", iarr);
+  } else if (ty == "name") {
+    node = newNode("name", TkVal(tk), iarr);
+    if (TkType(peek(parser)) == "(") {
+      node = parseCall(parser, putNode(parser, node));
+    }
+  } else {
+    print("Invalid expression");
+    quit(1);
+  }
+  return putNode(parser, node);
+}
+
+int parseExpr (Parser parser) {
+  int left = parseBaseExpr(parser);
+  while (isBinop(TkType(peek(parser)))) {
+    string op = TkType(next(parser));
+    int right = parseBaseExpr(parser);
+    IntArr children = IntArrNew(0, 2);
+    IntArrSet(children, 0, left);
+    IntArrSet(children, 1, right);
+    Node node = newNode("binop", op, children);
+    left = putNode(parser, node);
+  }
+  return left;
+}
+
+int parseExprList (Parser parser) {
+  IntArr explist = IntArrNew(0, 30);
+  IntArrSet(explist, 0, parseExpr(parser));
+  int count = 1;
+
+  while (TkType(peek(parser)) == ",") {
+    next(parser); // Skip ,
+    IntArrSet(explist, count, parseExpr(parser));
+    count = count+1;
+  }
+
+  IntArr children = IntArrNew(0, count);
+  int i = 0;
+  while (i < count) {
+    IntArrSet(children, i, IntArrGet(explist, i));
+    i = i+1;
+  }
+
+  Node node = newNode("exprlist", "", children);
+  return putNode(parser, node);
+}
+
+int parseMaybeExprList (Parser parser, string end) {
+  if (TkType(peek(parser)) == end) {
+    Node node = newNode("exprlist", "", IntArrNew(0,0));
+    return putNode(parser, node);
+  } else return parseExprList(parser);
+}
+
+
+
+
+// =============================== //
+//            Statements           //
 // =============================== //
 
 int parseNameList (Parser parser, string first, string sep, string nodename, string msg) {
@@ -171,21 +287,56 @@ int, string, int parseFuncSig (Parser parser, Token first, string errmsg) {
   string name = TkVal(tk);
 
   // ----------------- Arguments
-  assert(TkType(next(parser)) == "(", "Expected opening paren for function args");
+  assert(TkType(next(parser)) == "(", "( expected in function args");
 
-  tk = next(parser);
+  tk = peek(parser);
 
   int argsId;
   if (TkType(tk) == ")") {
+    next(parser); // Skip )
     Node namesNode = newNode("arglist", "", IntArrNew(0, 0));
     argsId = putNode(parser, namesNode);
   } else if (TkType(tk) == "name") {
-    string msg = "Expected function argument";
-    argsId = parseNameList(parser, TkVal(tk), ",", "arglist", msg);
-    tk = next(parser);
-  }
 
-  assert(TkType(tk) == ")", "Expected closing paren for function args");
+    IntArr buf = IntArrNew(0, 30);
+    int count = 0;
+
+    repeat:
+      tk = next(parser);
+      assert(TkType(tk) == "name", "Expected function argument type");
+      string ty = TkVal(tk);
+      tk = next(parser);
+      string name = "";
+      if (TkType(tk) == "name") {
+        name = TkVal(tk);
+        tk = next(parser);
+      }
+
+      Node tynode = newNode("type", ty, IntArrNew(0,0));
+      Node namenode = newNode("name", name, IntArrNew(0,0));
+
+      IntArr children = IntArrNew(0, 2);
+      IntArrSet(children, 0, putNode(parser, tynode));
+      IntArrSet(children, 1, putNode(parser, namenode));
+
+      Node node = newNode("argpart", "", children);
+      IntArrSet(buf, count, putNode(parser, node));
+      count = count+1;
+
+      if (TkType(tk) == ",") goto repeat;
+    end:
+    assert(TkType(tk) == ")", ") expected in function args");
+
+    IntArr children = IntArrNew(0, count);
+    int i = 0;
+    while (i < count) {
+      IntArrSet(children, i, IntArrGet(buf, i));
+      i = i+1;
+    }
+
+    Node node = newNode("arglist", "", children);
+    argsId = putNode(parser, node);
+  }
 
   return typesId, name, argsId;
 }
@@ -239,6 +390,8 @@ int parseImportItems (Parser parser) {
         assert(TkType(tk) == "name", "Expected type alias");
         alias = TkVal(tk);
         tk = next(parser);
+      } else {
+        alias = name;
       }
       assert(TkType(tk) == ";", "Expected ; after imported function");
 
@@ -341,7 +494,6 @@ int parseImport (Parser parser) {
     Node argsNode = newNode("arglist", "", nameIds);
     argsNodeId = putNode(parser, argsNode);
   } else {
-    print("No arguments: " + TkType(tk) + " " + TkVal(tk));
     Node argsNode = newNode("arglist", "", IntArrNew(0,0));
     argsNodeId = putNode(parser, argsNode);
   }
@@ -358,10 +510,162 @@ int parseImport (Parser parser) {
   return id;
 }
 
+Node parseAssignment (Parser parser, string first) {
+  int nameList = parseNameList(parser, first, ",", "namelist", "Expected variable name");
+  assert(TkType(next(parser)) == "=", "= expected");
+  int expr = parseExpr(parser);
+
+  IntArr children = IntArrNew(0, 2);
+  IntArrSet(children, 0, nameList);
+  IntArrSet(children, 1, expr);
+
+  return newNode("assignment", "", children);
+}
+
+int parseDecl (Parser parser, string typename) {
+  IntArr buf = IntArrNew(0, 30);
+  int count = 0;
+
+  repeat:
+    Token tk = next(parser);
+    assert(TkType(tk) == "name", "variable name expected");
+    string name = TkVal(tk);
+    tk = next(parser);
+    int exp;
+    if (TkType(tk) == "=") {
+      exp = parseExpr(parser);
+      tk = next(parser);
+    } else {
+      exp = putNode(parser, newNode("none", "", IntArrNew(0,0)));
+    }
+    IntArr children = IntArrNew(exp, 1);
+    Node node = newNode("declpart", name, children);
+
+    IntArrSet(buf, count, putNode(parser, node));
+    count = count+1;
+
+    if (TkType(tk) == ",") goto repeat;
+  end:
+  assert(TkType(tk) == ";", "; expected");
+
+  IntArr children = IntArrNew(0, count);
+  int i = 0;
+  while (i < count) {
+    IntArrSet(children, i, IntArrGet(buf, i));
+    i = i+1;
+  }
+
+  Node node = newNode("decl", typename, children);
+  return putNode(parser, node);
+}
+
+int parseBlock (Parser parser) {
+  IntArr buf = IntArrNew(0, 500);
+  int count = 0;
+
+  repeat:
+    if (TkType(peek(parser)) == "}") goto end;
+    int stmt = parseStmt(parser);
+    IntArrSet(buf, count, stmt);
+    count = count+1;
+    goto repeat;
+  end:
+  next(parser); // Skip }
+
+  IntArr children = IntArrNew(0, count);
+  int i = 0;
+  while (i < count) {
+    IntArrSet(children, i, IntArrGet(buf, i));
+    i = i+1;
+  }
+
+  Node node = newNode("block", "", children);
+  return putNode(parser, node);
+}
+
+int parseIf (Parser parser) {
+  assert(TkType(next(parser)) == "(", "( expected in if condition");
+  int cond = parseExpr(parser);
+  assert(TkType(next(parser)) == ")", ") expected in if condition");
+  int stmt = parseStmt(parser);
+
+  int els;
+  if (TkType(peek(parser)) == "else") {
+    next(parser);
+    els = parseStmt(parser);
+  } else {
+    els = putNode(parser, newNode("block", "", IntArrNew(0,0)));
+  }
+
+  IntArr children = IntArrNew(0, 3);
+  IntArrSet(children, 0, cond);
+  IntArrSet(children, 1, stmt);
+  IntArrSet(children, 2, els);
+
+  Node node = newNode("if", "", children);
+  return putNode(parser, node);
+}
+
+int parseWhile (Parser parser) {
+  assert(TkType(next(parser)) == "(", "( expected in while condition");
+  int cond = parseExpr(parser);
+  assert(TkType(next(parser)) == ")", ") expected in while condition");
+  int stmt = parseStmt(parser);
+
+  IntArr children = IntArrNew(0, 2);
+  IntArrSet(children, 0, cond);
+  IntArrSet(children, 1, stmt);
+
+  Node node = newNode("while", "", children);
+  return putNode(parser, node);
+}
+
 int parseStmt (Parser parser) {
-  print("Statement expected");
-  quit(1);
-  return 0;
+  Token tk = next(parser);
+  string ty = TkType(tk);
+
+  Node result;
+
+  if (ty == "{") {
+    return parseBlock(parser);
+  } else if (ty == "goto") {
+    tk = next(parser);
+    assert(TkType(tk) == "name", "Expected label name");
+    result = newNode("goto", TkVal(tk), IntArrNew(0, 0));
+  } else if (ty == "return") {
+    int exprlist = parseMaybeExprList(parser, ";");
+    IntArr children = IntArrNew(exprlist, 1);
+    result = newNode("return", "", children);
+  } else if (ty == "if") {
+    return parseIf(parser);
+  } else if (ty == "while") {
+    return parseWhile(parser);
+  } else if (ty == "name") {
+    string first = TkVal(tk);
+    ty = TkType(peek(parser));
+    if (ty == ":") {
+      next(parser); // skip :
+      Node node = newNode("label", first, IntArrNew(0, 0));
+      return putNode(parser, node);
+    }
+    else if (ty == "=") result = parseAssignment(parser, first);
+    else if (ty == ",") result = parseAssignment(parser, first);
+    else if (ty == "name") return parseDecl(parser, first);
+    else if (ty == "(") {
+      result = newNode("name", first,IntArrNew(0,0));
+      result = parseCall(parser, putNode(parser, result));
+    }
+    else {
+      print("Statement Expected");
+      quit(1);
+    }
+  } else {
+    print("Statement Expected");
+    quit(1);
+  }
+
+  assert(TkType(next(parser)) == ";", "; expected");
+  return putNode(parser, result);
 }
 
 int parseStmtList (Parser parser) {
@@ -387,13 +691,12 @@ int parseStmtList (Parser parser) {
     IntArrSet(children, i, IntArrGet(idList, i));
     i = i+1;
   }
-  IntArr children = IntArrNew(0,0);
 
   Node node = newNode("stmtlist", "", children);
   return putNode(parser, node);
 }
 
-int parseProgram (Parser parser) {
+int parseTopLevel (Parser parser) {
   Token tk = next(parser);
 
   if (TkType(tk) == "import") { return parseImport(parser); }
@@ -429,10 +732,20 @@ void printNode (Parser parser, int pos, string indent) {
 }
 
 void main () {
-  TkArr tks = tokens("void main () {}");
+  string src = readall("../culang/lexer.cu");
+  //string src = "TkArr tokens (string input) {return explist;}";
+  TkArr tks = tokens(src);
 
   Parser parser = ParserNew(tks);
 
-  int nodeid = parseProgram(parser);
-  printNode(parser, nodeid, "");
+  repeat:
+    if (TkType(peek(parser)) == "eof") goto end;
+    int nodeid = parseTopLevel(parser);
+    printNode(parser, nodeid, "");
+    print("");
+    goto repeat;
+  end:
+
+  //int nodeid = parseTopLevel(parser);
+  //printNode(parser, nodeid, "");
 }
