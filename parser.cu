@@ -9,6 +9,10 @@ import cobre.system {
   string readall (string);
 }
 
+import cobre.string {
+  string itos (int);
+}
+
 import cobre.array (int) {
   type array as IntArr;
   IntArr new (int, int) as IntArrNew;
@@ -668,8 +672,7 @@ int parseStmt (Parser parser) {
   return putNode(parser, result);
 }
 
-int parseStmtList (Parser parser) {
-  assert(TkType(next(parser)) == "{", "Expected { for function body");
+int parseBlock (Parser parser) {
 
   IntArr idList = IntArrNew(0, 500);
   int stmtCount = 0;
@@ -692,7 +695,7 @@ int parseStmtList (Parser parser) {
     i = i+1;
   }
 
-  Node node = newNode("stmtlist", "", children);
+  Node node = newNode("block", "", children);
   return putNode(parser, node);
 }
 
@@ -706,7 +709,9 @@ int parseTopLevel (Parser parser) {
 
     typesId, name, argsId = parseFuncSig(parser, tk, "Invalid toplevel statement");
 
-    int bodyId = parseStmtList(parser);
+    assert(TkType(next(parser)) == "{", "Expected { for function body");
+
+    int bodyId = parseBlock(parser);
 
     IntArr children = IntArrNew(0, 3);
     IntArrSet(children, 0, typesId);
@@ -718,34 +723,73 @@ int parseTopLevel (Parser parser) {
   }
 }
 
-void printNode (Parser parser, int pos, string indent) {
-  Node node = getNode(parser, pos);
+
+
+
+// =============================== //
+//             Interface           //
+// =============================== //
+
+IntArr, NodeArr parse (string src) {
+
+  Parser parser = ParserNew(tokens(src));
+
+  IntArr buf = IntArrNew(0, 300);
+  int count = 0;
+
+  repeat:
+    if (TkType(peek(parser)) == "eof") goto end;
+    int nodeid = parseTopLevel(parser);
+    IntArrSet(buf, count, nodeid);
+    count = count+1;
+    goto repeat;
+  end:
+
+  IntArr stmtIds = IntArrNew(0, count);
+  int i = 0;
+  while (i < count) {
+    IntArrSet(stmtIds, i, IntArrGet(buf, i));
+    i = i+1;
+  }
+
+  int size = _size(parser);
+  NodeArr nodes = NodeArrNew(newNode("", "", IntArrNew(0,0)), size);
+  int i = 0;
+  while (i < size) {
+    NodeArrSet(nodes, i, getNode(parser, i));
+    i = i+1;
+  }
+
+  return stmtIds, nodes;
+}
+
+void printNode (NodeArr nodes, int pos, string indent) {
+  Node node = NodeArrGet(nodes, pos);
   print(indent + getType(node) + " " + getVal(node));
   IntArr children = getChildren(node);
   int len = IntArrLen(children);
   int i = 0;
   while (i < len) {
     int id = IntArrGet(children, i);
-    printNode(parser, id, indent + "  ");
+    printNode(nodes, id, indent + "  ");
     i = i+1;
   }
 }
 
 void main () {
+  NodeArr nodes;
+  IntArr stmts;
+
   string src = readall("../culang/lexer.cu");
-  //string src = "TkArr tokens (string input) {return explist;}";
-  TkArr tks = tokens(src);
+  stmts, nodes = parse(src);
 
-  Parser parser = ParserNew(tks);
-
-  repeat:
-    if (TkType(peek(parser)) == "eof") goto end;
-    int nodeid = parseTopLevel(parser);
-    printNode(parser, nodeid, "");
+  int len = IntArrLen(stmts);
+  print(itos(len) + " statements");
+  int i = 0;
+  while (i < len) {
+    int id = IntArrGet(stmts, i);
+    printNode(nodes, id, "");
     print("");
-    goto repeat;
-  end:
-
-  //int nodeid = parseTopLevel(parser);
-  //printNode(parser, nodeid, "");
+    i = i+1;
+  }
 }
