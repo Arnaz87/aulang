@@ -19,6 +19,7 @@ import cobre.array (int) {
   int get (IntArr, int) as IntArrGet;
   void set (IntArr, int, int) as IntArrSet;
   int len (IntArr) as IntArrLen;
+  void push (IntArr, int) as IntArrPush;
 }
 
 import cobre.record (string, string, IntArr) {
@@ -112,6 +113,25 @@ import cobre.array (Type) {
 }
 
 
+import cobre.record (int, string, IntArr, IntArr) {
+  type `` as Function;
+  Function new (int, string, IntArr, IntArr) as newFunction;
+  int get0 (Function) as getFunctionModule; // -1 not imported
+  string get1 (Function) as getFunctionName;
+  IntArr get2 (Function) as getReturns;
+  IntArr get3 (Function) as getArguments;
+}
+
+import cobre.array (Function) {
+  type array as FuncArr;
+  FuncArr new (Function, int) as FuncArrNew;
+  Function get (FuncArr, int) as FuncArrGet;
+  void set (FuncArr, int, Function) as FuncArrSet;
+  int len (FuncArr) as FuncArrLen;
+  void push (FuncArr, Function) as FuncArrPush;
+}
+
+
 // =============================== //
 //               Maps              //
 // =============================== //
@@ -156,27 +176,25 @@ void printMap (Map map) {
   }
 }
 
-/*void getImportTypes (Map map, int module, NodeArr nodes, IntArr items) {
-
+Node getChild (NodeArr nodes, Node node, int index) {
+  IntArr childrenIds = getChildren(node);
+  int childId = IntArrGet(childrenIds, index);
+  return NodeArrGet(nodes, childId);
 }
 
-void getTypes(Map map, NodeArr nodes, IntArr stmts) {
-  int len = IntArrLen(stmts);
-  int i = 0;
-  while (i < len) {
-    Node node = NodeArrGet(nodes, IntArrGet(stmts, i));
-    string ty = getType(node);
-    if (ty == "import") {
+int childCount (Node node) {
+  IntArr children = getChildren(node);
+  return IntArrLen(children);
+}
 
-    }
-  }
-}*/
+
 
 ImportArr makeImports (NodeArr nodes, IntArr stmts) {
   ImportArr buf = ImportArrNew(newImport("", StrArrNew("", 0)), 100);
-  ImportArrSet(buf, 0, newImport("cobre.int", StrArrNew("", 0)));
-  ImportArrSet(buf, 1, newImport("cobre.string", StrArrNew("", 0)));
-  int count = 2;
+  ImportArrSet(buf, 0, newImport("cobre.core", StrArrNew("", 0)));
+  ImportArrSet(buf, 1, newImport("cobre.int", StrArrNew("", 0)));
+  ImportArrSet(buf, 2, newImport("cobre.string", StrArrNew("", 0)));
+  int count = 3;
 
   int len = IntArrLen(stmts);
   int i = 0;
@@ -226,11 +244,15 @@ ImportArr makeImports (NodeArr nodes, IntArr stmts) {
 
 TypeArr makeTypes (Map map, NodeArr nodes, IntArr stmts) {
   TypeArr buf = TypeArrNew(newType(0, ""), 100);
-  TypeArrSet(buf, 0, newType(1, "int"));
-  TypeArrSet(buf, 1, newType(2, "string"));
-  MapSet(map, "int", newId(0));
-  MapSet(map, "string", newId(1));
-  int count = 2;
+  TypeArrSet(buf, 0, newType(1, "bool"));
+  TypeArrSet(buf, 1, newType(2, "int"));
+  TypeArrSet(buf, 2, newType(3, "string"));
+  TypeArrSet(buf, 3, newType(3, "char"));
+  MapSet(map, "bool", newId(0));
+  MapSet(map, "int", newId(1));
+  MapSet(map, "string", newId(2));
+  MapSet(map, "char", newId(3));
+  int count = 4;
 
   // first is the argument and the other two are int and string
   int modindex = 3;
@@ -274,6 +296,96 @@ TypeArr makeTypes (Map map, NodeArr nodes, IntArr stmts) {
   return result;
 }
 
+FuncArr makeFunctions (Map map, NodeArr nodes, IntArr stmts) {
+  FuncArr result = FuncArrNew(newFunction(0, "", IntArrNew(0,0), IntArrNew(0,0)), 0);
+
+  // first is the argument and the others are core, int and string
+  int modindex = 4;
+
+  int i = 0;
+  while (i < IntArrLen(stmts)) {
+    Node node = NodeArrGet(nodes, IntArrGet(stmts, i));
+    string ty = getType(node);
+    if (getType(node) == "import") {
+      Node itemsNode = getChild(nodes, node, 2);
+
+      int j = 0;
+      while (j < childCount(itemsNode)) {
+        Node itemNode = getChild(nodes, itemsNode, j);
+        if (getType(itemNode) == "function") {
+          string name = getVal(itemNode);
+          string alias = getVal(getChild(nodes, itemNode, 2));
+          Node typesNode = getChild(nodes, itemNode, 0);
+          Node argsNode  = getChild(nodes, itemNode, 1);
+
+          IntArr types = IntArrNew(0, 0);
+
+          int k = 0;
+          while (k < childCount(typesNode)) {
+            Node nd = getChild(nodes, typesNode, k);
+            int id = getId(MapGet(map, getVal(nd)));
+            IntArrPush(types, id);
+            k = k+1;
+          }
+
+          IntArr args = IntArrNew(0, 0);
+          int k = 0;
+          while (k < childCount(argsNode)) {
+            Node argpart = getChild(nodes, argsNode, k);
+            // argpart[0] is the type and argpart[1] is the argument name
+            Node nd = getChild(nodes, argpart, 0);
+            int id = getId(MapGet(map, getVal(nd)));
+            IntArrPush(args, id);
+            k = k+1;
+          }
+
+          MapSet(map, alias, newId(FuncArrLen(result)));
+
+          Function fn = newFunction(modindex, name, types, args);
+          FuncArrPush(result, fn);
+        }
+        j = j+1;
+      }
+      modindex = modindex+1;
+    }
+
+    if (getType(node) == "function") {
+          string name = getVal(node);
+          Node typesNode = getChild(nodes, node, 0);
+          Node argsNode  = getChild(nodes, node, 1);
+
+          IntArr types = IntArrNew(0, 0);
+
+          int k = 0;
+          while (k < childCount(typesNode)) {
+            Node nd = getChild(nodes, typesNode, k);
+            int id = getId(MapGet(map, getVal(nd)));
+            IntArrPush(types, id);
+            k = k+1;
+          }
+
+          IntArr args = IntArrNew(0, 0);
+          int k = 0;
+          while (k < childCount(argsNode)) {
+            Node argpart = getChild(nodes, argsNode, k);
+            // argpart[0] is the type and argpart[1] is the argument name
+            Node nd = getChild(nodes, argpart, 0);
+            int id = getId(MapGet(map, getVal(nd)));
+            IntArrPush(args, id);
+            k = k+1;
+          }
+
+          MapSet(map, name, newId(FuncArrLen(result)));
+
+          Function fn = newFunction(0-1, name, types, args);
+          FuncArrPush(result, fn);
+    }
+    i = i+1;
+  }
+
+  return result;
+}
+
 void main () {
   NodeArr nodes;
   IntArr stmts;
@@ -286,6 +398,7 @@ void main () {
 
   ImportArr imports = makeImports(nodes, stmts);
   TypeArr types = makeTypes(map, nodes, stmts);
+  FuncArr funcs = makeFunctions(map, nodes, stmts);
 
   int i = 0;
   while (i < ImportArrLen(imports)) {
@@ -310,14 +423,39 @@ void main () {
     i = i+1;
   }
 
-  /*Map map = newMap();
-  MapSet(map, "a", newId(1));
-  MapSet(map, "b", newId(5));
-  MapSet(map, "a", newId(8));
-  MapSet(map, "c", newId(7));
 
-  print(itos(getId(MapGet(map, "a"))));
+  int i = 0;
+  while (i < FuncArrLen(funcs)) {
+    Function fn = FuncArrGet(funcs, i);
+    string types = "";
+    int j = 0;
+    while (j < IntArrLen(getReturns(fn))) {
+      int id = IntArrGet(getReturns(fn), j);
+      types = types + "#" + itos(id) + " ";
+      j = j+1;
+    }
 
-  printMap(map);*/
+    string args = "";
+    int j = 0;
+    while (j < IntArrLen(getArguments(fn))) {
+      int id = IntArrGet(getArguments(fn), j);
+      args = args + "#" + itos(id) + " ";
+      j = j+1;
+    }
+
+    string mod;
+    int modindex = getFunctionModule(fn);
+    if (modindex < 0) {
+      mod = "internal";
+    } else {
+      mod = "from " + itos(modindex);
+    }
+
+    string name = getFunctionName(fn);
+    print("function[" + itos(i) + "] " + types + name + "( " + args + ") " + mod);
+    i = i+1;
+  }
+
+  printMap(map);
 }
 
