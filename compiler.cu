@@ -14,8 +14,8 @@ import cobre.string {
 }
 
 import cobre.array (int) {
-  type array as IntArr;
-  IntArr new (int, int) as IntArrNew;
+  type `` as IntArr;
+  IntArr `new` (int, int) as IntArrNew;
   int get (IntArr, int) as IntArrGet;
   void set (IntArr, int, int) as IntArrSet;
   int len (IntArr) as IntArrLen;
@@ -24,42 +24,42 @@ import cobre.array (int) {
 
 import cobre.record (string, string, IntArr) {
   type `` as Node;
-  Node new (string, string, IntArr) as newNode;
+  Node `new` (string, string, IntArr) as newNode;
   string get0(Node) as getType;
   string get1(Node) as getVal;
   IntArr get2(Node) as getChildren;
 }
 
 import cobre.array (Node) {
-  type array as NodeArr;
+  type `` as NodeArr;
   Node get (NodeArr, int) as NodeArrGet;
 }
 
 import cobre.record (int) {
   type `` as Id;
-  Id new (int) as newId;
+  Id `new` (int) as newId;
   int get0 (Id) as getId;
   void set0 (Id, int) as setId;
 }
 
 import cobre.record (string, Id) {
   type `` as Pair;
-  Pair new (string, Id) as _newPair;
+  Pair `new` (string, Id) as _newPair;
   string get0 (Pair) as _getKey;
   Id get1 (Pair) as _getValue;
   void set1 (Pair, Id) as _setValue;
 }
 
 import cobre.array (Pair) {
-  type array as _Map;
-  _Map new (Pair, int) as _new_Map;
+  type `` as _Map;
+  _Map `new` (Pair, int) as _new_Map;
   Pair get (_Map, int) as _MapGet;
   void set (_Map, int, Pair) as _MapSet;
 }
 
 import cobre.record (_Map, int) {
   type `` as Map;
-  Map new (_Map, int) as _newMap;
+  Map `new` (_Map, int) as _newMap;
   _Map get0 (Map) as _get_Map;
   int get1 (Map) as size;
   void set1 (Map, int) as setSize;
@@ -73,8 +73,8 @@ import parser {
 
 
 import cobre.array (string) {
-  type array as StrArr;
-  StrArr new (string, int) as StrArrNew;
+  type `` as StrArr;
+  StrArr `new` (string, int) as StrArrNew;
   string get (StrArr, int) as StrArrGet;
   void set (StrArr, int, string) as StrArrSet;
   int len (StrArr) as StrArrLen;
@@ -82,15 +82,15 @@ import cobre.array (string) {
 
 import cobre.record (string, StrArr) {
   type `` as Import;
-  Import new (string, StrArr) as newImport;
+  Import `new` (string, StrArr) as newImport;
   string get0 (Import) as getImportName;
   StrArr get1 (Import) as getImportParams;
   void set1 (Import, StrArr) as setImportParams;
 }
 
 import cobre.array (Import) {
-  type array as ImportArr;
-  ImportArr new (Import, int) as ImportArrNew;
+  type `` as ImportArr;
+  ImportArr `new` (Import, int) as ImportArrNew;
   Import get (ImportArr, int) as ImportArrGet;
   void set (ImportArr, int, Import) as ImportArrSet;
   int len (ImportArr) as ImportArrLen;
@@ -99,14 +99,14 @@ import cobre.array (Import) {
 
 import cobre.record (int, string) {
   type `` as Type;
-  Type new (int, string) as newType;
+  Type `new` (int, string) as newType;
   int get0 (Type) as getTypeModule;
   string get1 (Type) as getTypeName;
 }
 
 import cobre.array (Type) {
-  type array as TypeArr;
-  TypeArr new (Type, int) as TypeArrNew;
+  type `` as TypeArr;
+  TypeArr `new` (Type, int) as TypeArrNew;
   Type get (TypeArr, int) as TypeArrGet;
   void set (TypeArr, int, Type) as TypeArrSet;
   int len (TypeArr) as TypeArrLen;
@@ -115,7 +115,7 @@ import cobre.array (Type) {
 
 import cobre.record (int, string, IntArr, IntArr) {
   type `` as Function;
-  Function new (int, string, IntArr, IntArr) as newFunction;
+  Function `new` (int, string, IntArr, IntArr) as newFunction;
   int get0 (Function) as getFunctionModule; // -1 not imported
   string get1 (Function) as getFunctionName;
   IntArr get2 (Function) as getReturns;
@@ -123,12 +123,40 @@ import cobre.record (int, string, IntArr, IntArr) {
 }
 
 import cobre.array (Function) {
-  type array as FuncArr;
-  FuncArr new (Function, int) as FuncArrNew;
+  type `` as FuncArr;
+  FuncArr `new` (Function, int) as FuncArrNew;
   Function get (FuncArr, int) as FuncArrGet;
   void set (FuncArr, int, Function) as FuncArrSet;
   int len (FuncArr) as FuncArrLen;
   void push (FuncArr, Function) as FuncArrPush;
+}
+
+
+import cobre.record (string, int, int, string, IntArr) {
+  type `` as Inst;
+  Inst `new` (string, int, int, string, IntArr) as newInst;
+  string get0 (Inst) as getInstName; // -1 not imported
+  int get1 (Inst) as getA;
+  int get2 (Inst) as getB;
+  string get3 (Inst) as getLbl;
+  IntArr get4 (Inst) as getArgs;
+}
+
+import cobre.array (Inst) {
+  type `` as InstArr;
+  InstArr `new` (Inst, int) as InstArrNew;
+  Inst get (InstArr, int) as InstArrGet;
+  void set (InstArr, int, Inst) as InstArrSet;
+  int len (InstArr) as InstArrLen;
+  void push (InstArr, Inst) as InstArrPush;
+}
+
+import cobre.array (InstArr) {
+  type `` as CodeArr;
+  CodeArr `new` (InstArr, int) as CodeArrNew;
+  InstArr get (CodeArr, int) as CodeArrGet;
+  void set (CodeArr, int, InstArr) as CodeArrSet;
+  void push (CodeArr, InstArr) as CodeArrPush;
 }
 
 
@@ -386,6 +414,18 @@ FuncArr makeFunctions (Map map, NodeArr nodes, IntArr stmts) {
   return result;
 }
 
+CodeArr makeBodies (Map map, NodeArr nodes, IntArr stmts) {
+  CodeArr result;
+  { // Create empty CodeArr
+    IntArr args = IntArrNew(0, 0);
+    Inst inst = newInst("", 0, 0, "", args);
+    InstArr code = InstArrNew(inst, 0);
+    result = CodeArrNew(code, 0);
+  }
+  return result;
+}
+
+
 void main () {
   NodeArr nodes;
   IntArr stmts;
@@ -399,6 +439,7 @@ void main () {
   ImportArr imports = makeImports(nodes, stmts);
   TypeArr types = makeTypes(map, nodes, stmts);
   FuncArr funcs = makeFunctions(map, nodes, stmts);
+  //CodeArr codes = makeBodies(map, nodes, stmts);
 
   int i = 0;
   while (i < ImportArrLen(imports)) {

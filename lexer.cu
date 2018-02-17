@@ -4,13 +4,6 @@ import cobre.system {
   string readall (string);
 }
 
-import cobre.record(string, string) {
-  type `` as token;
-  token new(string, string) as newToken;
-  string get0(token) as getType;
-  string get1(token) as getVal;
-}
-
 import cobre.string {
   int codeof (char);
   char, int charat(string, int);
@@ -20,16 +13,27 @@ import cobre.string {
 }
 
 import cobre.array(token) {
-  type array as TkArr;
-  TkArr new (token, int) as TkArrNew;
-  token get (TkArr, int) as TkArrGet;
-  void set (TkArr, int, token) as TkArrSet;
-  int len (TkArr) as TkArrLen;
+  type `` as TkArr {
+    new (token, int);
+    token get (int);
+    void set (int, token);
+    int len ();
+  }
 }
 
-void printToken (token tk) {
-  print(getType(tk) + " " + getVal(tk));
+struct token {
+  string tp;
+  string val;
+  int line;
+
+  void print (token this) {
+    print(itos(this.line) + ":   " + this.tp + " " + this.val);
+  }
 }
+
+// TODO: Remove these functions
+string getType (token tk) { return tk.tp; }
+string getVal (token tk) { return tk.val; }
 
 bool isDigit (char ch) {
   int code = codeof(ch);
@@ -96,6 +100,8 @@ bool isOp (char ch) {
   if (code == 46) return 0<1; // .
   if (code == 58) return 0<1; // :
   if (code == 59) return 0<1; // ;
+  if (code == 91) return 0<1; // [
+  if (code == 93) return 0<1; // ]
   if (code == 123) return 0<1; // {
   if (code == 125) return 0<1; // }
   return 0<0; // false
@@ -132,17 +138,21 @@ TkArr tokens (string input) {
   input = input + " ";
 
   // Temporary stack array with A LOT of spaces
-  TkArr arr = TkArrNew(newToken("", ""), 5000);
+  TkArr arr = new TkArr(new token("", "", 0), 5000);
   int arrlen = 0;
 
   int len = strlen(input);
   int pos = 0;
   char ch;
 
+  int line = 1;
+
   ch, pos = charat(input, pos);
   while (pos < len) {
   skipspace:
     while (isSpace(ch)) {
+      // Count the line
+      if (codeof(ch) == 10) { line = line+1; }
       if (pos >= len) { goto end; }
       ch, pos = charat(input, pos);
     }
@@ -161,10 +171,14 @@ TkArr tokens (string input) {
           ch, pos = charat(input, pos);
           goto linecom;
         endlinecom:
-        if (pos < len) ch, pos = charat(input, pos); // skip newline
+        // A line comment can only terminate with a newline, count it
+        line = line+1;
+        if (pos < len) ch, pos = charat(input, pos); // skip it
         goto skipspace;
       } else if (codeof(ch) == 42) { // '*' start multiline comment
         multicom:
+          // Count lines in long comments
+          if (codeof(ch) == 10) { line = line+1; }
           if (codeof(ch) == 42) { // '*'
             if (pos >= len) goto end;
             ch, pos = charat(input, pos);
@@ -178,7 +192,7 @@ TkArr tokens (string input) {
         if (pos < len) ch, pos = charat(input, pos); // skip newline
         goto skipspace;
       } else {
-        tk = newToken("/", "");
+        tk = new token("/", "", line);
       }
     }
 
@@ -190,7 +204,7 @@ TkArr tokens (string input) {
         ch, pos = charat(input, pos);
       }
       enddigit:
-      tk = newToken("num", val);
+      tk = new token("num", val, line);
     }
 
     else if (isAlpha(ch)) {
@@ -203,12 +217,12 @@ TkArr tokens (string input) {
         ch, pos = charat(input, pos);
       }
       endname:
-      if (isKw(val)) tk = newToken(val, "");
-      else tk = newToken("name", val);
+      if (isKw(val)) tk = new token(val, "", line);
+      else tk = new token("name", val, line);
     }
 
     else if (isOp(ch)) {
-      tk = newToken(addch("", ch), "");
+      tk = new token(addch("", ch), "", line);
       if (pos < len)
         ch, pos = charat(input, pos);
     }
@@ -223,7 +237,7 @@ TkArr tokens (string input) {
             ch, pos = charat(input, pos);
         }
       }
-      tk = newToken(op, "");
+      tk = new token(op, "", line);
     }
 
     else if (isQuote(ch)) {
@@ -253,9 +267,9 @@ TkArr tokens (string input) {
         goto beginq;
       endq:
       if (pos < len) ch, pos = charat(input, pos); // Skip closing quote
-      if (quoteCode == 34) tk = newToken("str", val);   // "
-      if (quoteCode == 39) tk = newToken("char", val);  // '
-      if (quoteCode == 96) tk = newToken("name", val);  // `
+      if (quoteCode == 34) tk = new token("str", val, line);   // "
+      if (quoteCode == 39) tk = new token("char", val, line);  // '
+      if (quoteCode == 96) tk = new token("name", val, line);  // `
     }
 
     else {
@@ -264,19 +278,19 @@ TkArr tokens (string input) {
     }
 
     // Push the token
-    TkArrSet(arr, arrlen, tk);
+    arr[arrlen] = tk;
     arrlen = arrlen + 1;
   }
   end:
 
   // Build the finished array
-  TkArr result = TkArrNew(newToken("", ""), arrlen+1);
+  TkArr result = new TkArr(new token("", "", 0), arrlen+1);
   int i = 0;
   while (i < arrlen) {
-    TkArrSet(result, i, TkArrGet(arr, i));
+    result[i] = arr[i];
     i = i+1;
   }
-  TkArrSet(result, arrlen, newToken("eof", ""));
+  result[arrlen] = new token("eof", "", line+1);
 
   return result;
 }
@@ -285,11 +299,11 @@ void main () {
   //string src = " 756 3 void _a if ifn {.}() =<=<+ `x` \"\\\"\" }";
   string src = readall("../culang/lexer.cu");
   TkArr tks = tokens(src);
-  int len = TkArrLen(tks);
+  int len = tks.len();
   print(itos(len) + " tokens:");
   int i = 0;
   while (i < len) {
-    printToken(TkArrGet(tks, i));
+    tks[i].print();
     i = i+1;
   }
 }

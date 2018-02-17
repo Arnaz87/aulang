@@ -2,7 +2,6 @@
 // =============================== //
 //              Imports            //
 // =============================== //
-
 import cobre.system {
   void print (string);
   void quit (int);
@@ -14,8 +13,8 @@ import cobre.string {
 }
 
 import cobre.array (int) {
-  type array as IntArr;
-  IntArr new (int, int) as IntArrNew;
+  type `` as IntArr;
+  IntArr `new` (int, int) as IntArrNew;
   int get (IntArr, int) as IntArrGet;
   void set (IntArr, int, int) as IntArrSet;
   int len (IntArr) as IntArrLen;
@@ -23,15 +22,15 @@ import cobre.array (int) {
 
 import cobre.record (string, string, IntArr) {
   type `` as Node;
-  Node new (string, string, IntArr) as newNode;
+  Node `new` (string, string, IntArr) as newNode;
   string get0(Node) as getType;
   string get1(Node) as getVal;
   IntArr get2(Node) as getChildren;
 }
 
 import cobre.array (Node) {
-  type array as NodeArr;
-  NodeArr new (Node, int) as NodeArrNew;
+  type `` as NodeArr;
+  NodeArr `new` (Node, int) as NodeArrNew;
   Node get (NodeArr, int) as NodeArrGet;
   void set (NodeArr, int, Node) as NodeArrSet;
 }
@@ -43,14 +42,14 @@ import cobre.record(string, string) {
 }
 
 import cobre.array(Token) {
-  type array as TkArr;
+  type `` as TkArr;
   Token get (TkArr, int) as TkArrGet;
   int len (TkArr) as TkArrLen;
 }
 
 import cobre.record (NodeArr, int, TkArr, int) {
   type `` as Parser;
-  Parser new (NodeArr, int, TkArr, int) as _ParserNew;
+  Parser `new` (NodeArr, int, TkArr, int) as _ParserNew;
 
   NodeArr get0 (Parser) as _ndArr;
   int get1 (Parser) as _size;
@@ -67,8 +66,8 @@ import lexer {
 }
 
 import cobre.array(string) {
-  type array as StrArr;
-  StrArr new (string, int) as StrArrNew;
+  type `` as StrArr;
+  StrArr `new` (string, int) as StrArrNew;
   string get (StrArr, int) as StrArrGet;
   void set (StrArr, int, string) as StrArrSet;
 }
@@ -780,7 +779,7 @@ void main () {
   NodeArr nodes;
   IntArr stmts;
 
-  string src = readall("../culang/lexer.cu");
+  string src = readall("../culang/parser.cu");
   stmts, nodes = parse(src);
 
   int len = IntArrLen(stmts);
