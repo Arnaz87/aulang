@@ -14,11 +14,12 @@ import cobre.string {
 
 import cobre.array(token) {
   type `` as TkArr {
-    new (token, int);
+    //new (token, int);
     token get (int);
     void set (int, token);
     int len ();
   }
+  TkArr `new` (token, int) as newTkArr;
 }
 
 struct token {
@@ -82,9 +83,11 @@ bool isKw (string s) {
   if (s == "break") return 0<1;
   if (s == "goto") return 0<1;
 
-  if (s == "import") return 0<1;
   if (s == "as") return 0<1;
+  if (s == "new") return 0<1;
   if (s == "type") return 0<1;
+  if (s == "struct") return 0<1;
+  if (s == "import") return 0<1;
   
   return 0<0;
 }
@@ -138,7 +141,7 @@ TkArr tokens (string input) {
   input = input + " ";
 
   // Temporary stack array with A LOT of spaces
-  TkArr arr = new TkArr(new token("", "", 0), 5000);
+  TkArr arr = newTkArr(new token("", "", 0), 5000);
   int arrlen = 0;
 
   int len = strlen(input);
@@ -284,7 +287,7 @@ TkArr tokens (string input) {
   end:
 
   // Build the finished array
-  TkArr result = new TkArr(new token("", "", 0), arrlen+1);
+  TkArr result = newTkArr(new token("", "", 0), arrlen+1);
   int i = 0;
   while (i < arrlen) {
     result[i] = arr[i];
