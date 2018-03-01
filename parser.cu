@@ -531,7 +531,7 @@ Node parse (string src) {
 }
 
 void main () {
-  string src = readall("parser.cu");
+  string src = readall("test.cu");
   Node program = parse(src);
   program.print("");
 }
