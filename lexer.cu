@@ -18,6 +18,7 @@ import cobre.array(token) {
     token get (int);
     void set (int, token);
     int len ();
+    void push (token);
   }
   TkArr `new` (token, int) as newTkArr;
 }
@@ -137,12 +138,10 @@ bool isQuote (char ch) {
 
 TkArr tokens (string input) {
 
-  // Nasty bug where the last character is omited
+  // Fix nasty bug where the last character is omited
   input = input + " ";
 
-  // Temporary stack array with A LOT of spaces
-  TkArr arr = newTkArr(new token("", "", 0), 5000);
-  int arrlen = 0;
+  TkArr arr = newTkArr(new token("", "", 0), 0);
 
   int len = strlen(input);
   int pos = 0;
@@ -281,26 +280,17 @@ TkArr tokens (string input) {
     }
 
     // Push the token
-    arr[arrlen] = tk;
-    arrlen = arrlen + 1;
+    arr.push(tk);
   }
   end:
 
-  // Build the finished array
-  TkArr result = newTkArr(new token("", "", 0), arrlen+1);
-  int i = 0;
-  while (i < arrlen) {
-    result[i] = arr[i];
-    i = i+1;
-  }
-  result[arrlen] = new token("eof", "", line+1);
-
-  return result;
+  arr.push(new token("eof", "", line+1));
+  return arr;
 }
 
 void main () {
   //string src = " 756 3 void _a if ifn {.}() =<=<+ `x` \"\\\"\" }";
-  string src = readall("../culang/lexer.cu");
+  string src = readall("test.cu");
   TkArr tks = tokens(src);
   int len = tks.len();
   print(itos(len) + " tokens:");

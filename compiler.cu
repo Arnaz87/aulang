@@ -228,6 +228,22 @@ import cobre.array (Inst) {
   InstArr empty () as emptyInstArr;
 }
 
+struct Cast {
+  string from;
+  string to;
+  int fn;
+}
+
+import cobre.array (Cast) {
+  type `` as CastArr {
+    Cast get (int);
+    void set (int, Cast);
+    int len ();
+    void push (Cast);
+  }
+  CastArr empty () as emptyCastArr;
+}
+
 struct Compiler {
   Node tree;
   Map typeMap;
@@ -237,8 +253,8 @@ struct Compiler {
   FunctionArr functions;
   Map tpExports;
   Map fnExports;
-
   ConstArr constants;
+  CastArr casts;
 }
 
 
@@ -303,39 +319,72 @@ Scope newScope (Compiler c, Function fn) {
 }
 
 IntArr compileCall (Scope this, Node node) {
-  if (node.child(0).tp == "var") {} else {
+  Node base = node.child(0);
+  Node argsnode = node.child(1);
+  if (base.tp == "var") {
+    string name = base.val;
+    int id = this.c.fnMap[name];
+    Function fn = this.c.functions[id];
+
+    if (argsnode.len() == fn.ins.len()) {} else {
+      error(node, "Function " + name + " accepts " + itos(fn.ins.len()) +
+        " arguments, but " + itos(argsnode.len()) + " were passed");
+    }
+
+    IntArr args = emptyIntArr();
+    int i = 0;
+    while (i < argsnode.len()) {
+      int reg = compileExpr(this, argsnode.child(i));
+      args.push(reg);
+      i = i+1;
+    }
+
+    this.call(id, args);
+
+    IntArr rets = emptyIntArr();
+    int i = 0;
+    while (i < fn.outs.len()) {
+      int tpid = this.c.typeMap[fn.outs[i]];
+      rets.push(this.decl(tpid));
+      i = i+1;
+    }
+
+    return rets;
+  } else if (base.tp == "field") {
+    string name = base.val;
+    int basereg = compileExpr(this, base.child(0));
+    Type tp = this.c.types[this.regtypes[basereg]];
+    int fnid = tp.methods[name];
+    Function fn = this.c.functions[fnid];
+
+    if (argsnode.len()+1 == fn.ins.len()) {} else {
+      error(node, "Method " + name + " accepts " + itos(fn.ins.len()) +
+        " arguments, but " + itos(argsnode.len()+1) + " were passed");
+    }
+
+    IntArr args = emptyIntArr();
+    args.push(basereg);
+    int i = 0;
+    while (i < argsnode.len()) {
+      int reg = compileExpr(this, argsnode.child(i));
+      args.push(reg);
+      i = i+1;
+    }
+
+    this.call(fnid, args);
+
+    IntArr rets = emptyIntArr();
+    int i = 0;
+    while (i < fn.outs.len()) {
+      int tpid = this.c.typeMap[fn.outs[i]];
+      rets.push(this.decl(tpid));
+      i = i+1;
+    }
+
+    return rets;
+  } else {
     error(node, "Call only supported for top level functions");
   }
-
-  string name = node.child(0).val;
-  int id = this.c.fnMap[name];
-  Function fn = this.c.functions[id];
-
-  Node argsnode = node.child(1);
-  if (argsnode.len() == fn.ins.len()) {} else {
-    error(node, "Function " + name + " accepts " + itos(fn.ins.len()) +
-      " arguments, but " + itos(argsnode.len()) + " were passed");
-  }
-
-  IntArr args = emptyIntArr();
-  int i = 0;
-  while (i < argsnode.len()) {
-    int reg = compileExpr(this, argsnode.child(i));
-    args.push(reg);
-    i = i+1;
-  }
-
-  this.call(id, args);
-
-  IntArr rets = emptyIntArr();
-  int i = 0;
-  while (i < fn.outs.len()) {
-    int tpid = this.c.typeMap[fn.outs[i]];
-    rets.push(this.decl(tpid));
-    i = i+1;
-  }
-
-  return rets;
 }
 
 int compileExpr (Scope this, Node node) {
@@ -379,6 +428,8 @@ int compileExpr (Scope this, Node node) {
       else if (node.val == "-") this.call(7, args);
       else if (node.val == "*") this.call(8, args);
       else if (node.val == "/") this.call(9, args);
+      else if (node.val == ">=") this.call(10, args);
+      else if (node.val == "<=") this.call(11, args);
       else {
         error(node, "Unsupported int operation: " + node.val);
       }
@@ -404,7 +455,109 @@ int compileExpr (Scope this, Node node) {
     }
     return rets[0];
   }
+  if (node.tp == "field") {
+    int basereg = compileExpr(this, node.child(0));
+    Type tp = this.c.types[this.regtypes[basereg]];
+    int fnid = tp.getters[node.val];
+
+    Function fn = this.c.functions[fnid];
+    int rettp = this.c.typeMap[fn.outs[0]];
+
+    IntArr args = emptyIntArr();
+    args.push(basereg);
+    this.call(fnid, args);
+    return this.decl(rettp);
+  }
+  if (node.tp == "index") {
+    int index = compileExpr(this, node.child(1));
+    int base = compileExpr(this, node.child(0));
+    Type tp = this.c.types[this.regtypes[base]];
+    int fnid = tp.methods["get"];
+    Function fn = this.c.functions[fnid];
+    if (fn.outs.len() == 1) {} else error(node, "get method has to return 1 value");
+    int rettp = this.c.typeMap[fn.outs[0]];
+
+    if (fn.ins.len() == 2) {
+      IntArr args = emptyIntArr();
+      args.push(base);
+      args.push(index);
+      this.call(fnid, args);
+      return this.decl(rettp);
+    } else error(node, "get method must receive 2 parameters");
+  }
+  if (node.tp == "new") {
+    string tpname = node.val;
+    int tpid = this.c.typeMap[tpname];
+    Type tp = this.c.types[tpid];
+    int fnid = tp.constructor;
+    if (fnid < 0) error(node, "Type " + tpname + " does not have a known constructor");
+    Function fn = this.c.functions[fnid];
+    int expected = fn.ins.len();
+    Node exprlist = node.child(0);
+    int count = exprlist.len();
+    if (expected == count) {} else {
+      error(node, "Constructor expects " + itos(expected) + " parameters, but " + itos(count) + " were passed");
+    }
+
+    IntArr args = emptyIntArr();
+    int i = 0;
+    while (i < count) {
+      int reg = compileExpr(this, exprlist.child(i));
+      args.push(reg);
+      i = i+1;
+    }
+    this.call(fnid, args);
+    return this.decl(tpid);
+  }
+  if (node.tp == "cast") {
+    int basereg = compileExpr(this, node.child(0));
+    Type tp = this.c.types[this.regtypes[basereg]];
+    int fnid = tp.casts[node.val];
+
+    Function fn = this.c.functions[fnid];
+    int rettp = this.c.typeMap[node.val];
+
+    IntArr args = emptyIntArr();
+    args.push(basereg);
+    this.call(fnid, args);
+    return this.decl(rettp);
+  }
   error(node, "Unsupported expression: " + node.tp);
+}
+
+void assign (Scope this, Node left, int reg) {
+  if (left.tp == "var") {
+    int id = this.vars[left.val];
+    this.inst(3, id, reg);
+  } else if (left.tp == "index") {
+    int index = compileExpr(this, left.child(1));
+    int base = compileExpr(this, left.child(0));
+    Type tp = this.c.types[this.regtypes[base]];
+    int fnid = tp.methods["set"];
+    Function fn = this.c.functions[fnid];
+    if (fn.outs.len() > 0) error(left, "set method has to be void");
+    if (fn.ins.len() == 3) {
+      IntArr args = emptyIntArr();
+      args.push(base);
+      args.push(index);
+      args.push(reg);
+      this.call(fnid, args);
+    } else error(left, "set method must receive 3 parameters");
+  } else if (left.tp == "field") {
+    int basereg = compileExpr(this, left.child(0));
+    Type tp = this.c.types[this.regtypes[basereg]];
+    int fnid = tp.setters[left.val];
+
+    Function fn = this.c.functions[fnid];
+    //int valtp = this.c.typeMap[fn.ins[0]];
+
+    IntArr args = emptyIntArr();
+    args.push(basereg);
+    args.push(reg);
+    this.call(fnid, args);
+  } else {
+    error(left, "Cannot assign to a " + left.tp + " expression");
+  }
 }
 
 void compileStmt (Scope this, Node node) {
@@ -439,16 +592,25 @@ void compileStmt (Scope this, Node node) {
     Node right = node.child(1);
 
     if (left.len() > 1) {
-      error(node, "Multiple assignment not yet supported");
+      if (right.tp == "call") {
+        IntArr regs = compileCall(this, right);
+        if (regs.len() < left.len()) {
+          error(node, "Cannot assign " + itos(regs.len()) + " values to " + itos(left.len()) + " expressions");
+        }
+        int i = 0;
+        while (i < left.len()) {
+          assign(this, left.child(i), regs[i]);
+          i = i+1;
+        }
+        return;
+      } else {
+        error(node, "Multiple assignments only works with function calls");
+      }
+    } else {
+      int r = compileExpr(this, right);
+      assign(this, left.child(0), r);
+      return;
     }
-    left = left.child(0);
-    if (left.tp == "var") {} else {
-      error(node, "Only variable assignments are supported");
-    }
-    int id = this.vars[left.val];
-    int r = compileExpr(this, right);
-    this.inst(3, id, r);
-    return;
   }
   if (node.tp == "while") {
     string start = this.lbl();
@@ -467,9 +629,11 @@ void compileStmt (Scope this, Node node) {
     int cond = compileExpr(this, node.child(0));
     this.flow(8, els, cond); // nif
     compileStmt(this, node.child(1));
+    this.flow(6, end, 0); // jmp
     this.uselbl(els);
-    if (node.len() == 3)
+    if (node.len() == 3) {
       compileStmt(this, node.child(2));
+    }
     this.uselbl(end);
     return;
   }
@@ -477,7 +641,71 @@ void compileStmt (Scope this, Node node) {
     IntArr rets = compileCall(this, node);
     return;
   }
+  if (node.tp == "return") {
+    Node exprlist = node.child(0);
+    int count = exprlist.len();
+    int expected = this.fn.outs.len();
+    if (count == expected) {} else {
+      error(node, "Function returns " + itos(expected) + " values, but " + itos(count) + " were returned");
+    }
+    IntArr args = emptyIntArr();
+    int i = 0;
+    while (i < count) {
+      Node expr = exprlist.child(i);
+      int reg = compileExpr(this, expr);
+      args.push(reg);
+      i = i+1;
+    }
+    this.fn.code.push(new Inst(0, 0, 0, "", args));
+    return;
+  }
+  if (node.tp == "goto") {
+    this.flow(6, node.val, 0); // jmp
+    return;
+  }
+  if (node.tp == "label") {
+    this.uselbl(node.val);
+    return;
+  }
   error(node, "Unknown statement: " + node.tp);
+}
+
+void codegen (Compiler c) {
+  int i = 0;
+  while (i < c.functions.len()) {
+    Function fn = c.functions[i];
+
+    if (fn.hasCode()) {
+      Scope scope = newScope(c, fn);
+
+      int j = 0;
+      while (j < fn.ins.len()) {
+        int tp = scope.gettp(fn.ins[j]);
+        int reg = scope.decl(tp);
+        scope.vars[fn.in_names[j]] = reg;
+        j = j+1;
+      }
+
+      compileStmt(scope, fn.node.get());
+
+      // Automatic void return
+      if (fn.outs.len() == 0)
+        scope.inst(0, 0,0);
+
+      // Convert label names to label indices
+      int j = 0;
+      while (j < fn.code.len()) {
+        Inst inst = fn.code[j];
+        int k = inst.inst;
+        if (k == 6) inst.a = scope.labels[inst.lbl];
+        if (k == 7) inst.a = scope.labels[inst.lbl];
+        if (k == 8) inst.a = scope.labels[inst.lbl];
+        j = j+1;
+      }
+    }
+
+    i = i+1;
+  }
 }
 
 // =============================== //
@@ -589,6 +817,24 @@ void makeBasics (Compiler c) {
   fn.ins.push("int");
   fn.outs.push("int");
   c.functions.push(fn);
+
+  // #10
+  Function fn = newFunction();
+  fn.module = 3;
+  fn.name = "gte";
+  fn.ins.push("int");
+  fn.ins.push("int");
+  fn.outs.push("bool");
+  c.functions.push(fn);
+
+  // #11
+  Function fn = newFunction();
+  fn.module = 3;
+  fn.name = "lte";
+  fn.ins.push("int");
+  fn.ins.push("int");
+  fn.outs.push("bool");
+  c.functions.push(fn);
 }
 
 // Basic functions:
@@ -602,11 +848,13 @@ void makeBasics (Compiler c) {
 // 7: int sub
 // 8: int mul
 // 9: int div
+// 10: int greater or equal
+// 11: int less or equal
 
 
 Function, string fnFromNode (Node item) {
-  string alias = item.val;
-  if (alias == "") alias = item.child(2).val;
+  string alias = item.child(2).val;
+  if (alias == "") alias = item.val;
   Function f = newFunction();
   f.name = item.val;
 
@@ -682,20 +930,22 @@ void makeImports (Compiler c) {
           int k = 1;
           while (k < item.len()) {
             Node member = item.child(k);
+
+            string suffix = "";
+            if (item.val == "") {} else { suffix = ":" + item.val; }
+
             if (member.tp == "function") {
               int fnid = c.functions.len();
               Function f; string fn_alias;
               f, fn_alias = fnFromNode(member);
               f.module = id;
+              f.name = f.name + suffix;
               thisArg(f, tp_alias);
               c.functions.push(f);
               tp.methods[fn_alias] = fnid;
             } else if (member.tp == "decl") {
               string name = member.val;
               string tpnm = member.child(0).val;
-
-              string suffix = "";
-              if (item.val == "") {} else { suffix = ":" + item.val; }
 
               string getname = name + ":get" + suffix;
               string setname = name + ":set" + suffix;
@@ -777,8 +1027,8 @@ void makeTypes (Compiler c) {
       c.functions.push(from);
       c.functions.push(to);
 
-      tp.constructor = fromid;
-      tp.casts[base] = fromid + 1;
+      c.casts.push(new Cast(base, alias, fromid));
+      c.casts.push(new Cast(alias, base, fromid+1));
     }
     if (node.tp == "struct") {
       int moduleid = c.modules.len() + 2;
@@ -792,6 +1042,14 @@ void makeTypes (Compiler c) {
       c.typeMap[alias] = typeid;
       c.tpExports[alias] = typeid;
 
+      Function constructor = newFunction();
+      constructor.module = moduleid;
+      constructor.name = "new";
+      constructor.outs.push(alias);
+      int newid = c.functions.len();
+      c.functions.push(constructor);
+      tp.constructor = newid;
+
       int fieldid = 0;
       int j = 0;
       while (j < node.len()) {
@@ -801,6 +1059,7 @@ void makeTypes (Compiler c) {
           string ftp = member.child(0).val;
 
           args.push(ftp);
+          constructor.ins.push(ftp);
 
           int getid = c.functions.len();
           Function getter = newFunction();
@@ -844,6 +1103,17 @@ void makeTypes (Compiler c) {
   }
 }
 
+void makeCasts (Compiler c) {
+  int i = 0;
+  while (i < c.casts.len()) {
+    Cast cast = c.casts[i];
+    int tpid = c.typeMap[cast.from];
+    Type tp = c.types[tpid];
+    tp.casts[cast.to] = cast.fn;
+    i = i+1;
+  }
+}
+
 void makeFunctions (Compiler c) {
   int i = 0;
   while (i < c.tree.len()) {
@@ -861,44 +1131,6 @@ void makeFunctions (Compiler c) {
   }
 }
 
-void makeBodies (Compiler c) {
-  int i = 0;
-  while (i < c.functions.len()) {
-    Function fn = c.functions[i];
-
-    if (fn.hasCode()) {
-      Scope scope = newScope(c, fn);
-
-      int j = 0;
-      while (j < fn.ins.len()) {
-        int tp = scope.gettp(fn.ins[i]);
-        int reg = scope.decl(tp);
-        scope.vars[fn.in_names[i]] = reg;
-        j = j+1;
-      }
-
-      compileStmt(scope, fn.node.get());
-
-      // Automatic void return
-      if (fn.outs.len() == 0)
-        scope.inst(0, 0,0);
-
-      // Convert label names to label indices
-      int j = 0;
-      while (j < fn.code.len()) {
-        Inst inst = fn.code[j];
-        int k = inst.inst;
-        if (k == 6) inst.a = scope.labels[inst.lbl];
-        if (k == 7) inst.a = scope.labels[inst.lbl];
-        if (k == 8) inst.a = scope.labels[inst.lbl];
-        j = j+1;
-      }
-    }
-
-    i = i+1;
-  }
-}
-
 Compiler compile (string src) {
   Node parsed = parse(src);
 
@@ -911,15 +1143,15 @@ Compiler compile (string src) {
     emptyFunctionArr(),
     newMap(),
     newMap(),
-    emptyConstArr()
+    emptyConstArr(),
+    emptyCastArr()
   );
 
   makeBasics(c);
   makeImports(c);
   makeTypes(c);
+  makeCasts(c);
   makeFunctions(c);
-
-  makeBodies(c);
 
   return c;
 }
@@ -928,8 +1160,15 @@ Compiler compile (string src) {
 //           File Writing          //
 // =============================== //
 
+void wnum (file f, int n) {
+  if (n > 127) wnum(f, n/128);
+  while (n > 127) n = n - ((n/128)*128);
+  writebyte(f, n + 128);
+}
+
 void writenum (file f, int n) {
-  // TODO: correctly format n > 127
+  if (n > 127) wnum(f, n/128);
+  while (n > 127) n = n - ((n/128)*128);
   writebyte(f, n);
 }
 
@@ -941,7 +1180,7 @@ void writestr (file f, string s) {
 void writeExports (Compiler c, file f) {
   int exportcount = c.fnExports.arr.len() + c.tpExports.arr.len();
   writebyte(f, 1); // Export module, kind 1 is defined
-  writebyte(f, exportcount);
+  writenum(f, exportcount);
   int i = 0;
   while (i < c.tpExports.arr.len()) {
     Pair p = c.tpExports.arr[i];
@@ -1065,7 +1304,14 @@ void writeCode (file f, InstArr code) {
   while (i < code.len()) {
     Inst inst = code[i];
     int k = inst.inst;
-    if (k == 0) writebyte(f, 0);
+    if (k == 0) {
+      writebyte(f, 0);
+      int j = 0;
+      while (j < inst.args.len()) {
+        writenum(f, inst.args[j]);
+        j = j+1;
+      }
+    }
     if (k == 1) writebyte(f, 1);
     if (k == 3) {
       writebyte(f, 3);
@@ -1297,5 +1543,7 @@ void main () {
   Compiler c = compile(src);
 
   //printCompiler(c);
+
+  codegen(c);
   writeCompiler(c, "out");
 }
