@@ -18,7 +18,7 @@ import cobre.string {
   char, int charat(string, int);
 }
 
-import parser {
+import culang.parser {
   type Node as Node {
     string tp;
     string val;
@@ -760,9 +760,9 @@ void codegen (Compiler c) {
 // =============================== //
 
 void makeBasics (Compiler c) {
-  c.modules.push(new Module("cobre.core", emptyStrArr(), -1)); // #2
-  c.modules.push(new Module("cobre.int", emptyStrArr(), -1)); // #3
-  c.modules.push(new Module("cobre.string", emptyStrArr(), -1)); // #4
+  c.modules.push(new Module("cobre.core", emptyStrArr(), 0-1)); // #2
+  c.modules.push(new Module("cobre.int", emptyStrArr(), 0-1)); // #3
+  c.modules.push(new Module("cobre.string", emptyStrArr(), 0-1)); // #4
 
   c.types.push(newType(2, "bool"));
   c.types.push(newType(2, "bin"));

@@ -65,7 +65,7 @@ Node newNode (string tp, string val) {
   return new Node(tp, val, 0-1, EmptyNodeArr());
 }
 
-import lexer {
+import culang.lexer {
   TkArr tokens (string);
 
   type token {
