@@ -58,8 +58,9 @@ struct Map {
       Pair pair = this.arr[i];
       if (key == pair.key) return pair.id;
     }
-    print("Error: \"" + key + "\" not found in map");
-    quit(1);
+    return 0-1;
+    //print("Error: \"" + key + "\" not found in map");
+    //quit(1);
   }
 
   void set (Map this, string key, int value) {
@@ -111,6 +112,7 @@ import cobre.array (string) {
 struct Module {
   string name;
   StrArr args;
+  int line;
 }
 
 struct Type {
@@ -136,6 +138,21 @@ import cobre.`null` (Node) {
   NodeNull `new` (Node) as newNullNode;
 }
 
+struct Line {
+  int inst;
+  int line;
+}
+
+import cobre.array (Line) {
+  type `` as LineArr {
+    Line get (int);
+    void set (int, Line);
+    int len ();
+    void push (Line);
+  }
+  LineArr empty () as emptyLineArr;
+}
+
 struct Function {
   int module; // -1 for defined function
   string name;
@@ -144,6 +161,8 @@ struct Function {
   StrArr in_names;
   NodeNull node;
   InstArr code;
+  int line;
+  LineArr lineinfo;
 
   bool hasCode (Function this) {
     if (this.node.isnull()) return 1<0;
@@ -152,7 +171,7 @@ struct Function {
 }
 
 Function newFunction () {
-  return new Function(0-1, "", emptyStrArr(), emptyStrArr(), emptyStrArr(), nullNode(), emptyInstArr());
+  return new Function(0-1, "", emptyStrArr(), emptyStrArr(), emptyStrArr(), nullNode(), emptyInstArr(), 0, emptyLineArr());
 }
 
 import cobre.array (Module) {
@@ -255,6 +274,12 @@ struct Compiler {
   Map fnExports;
   ConstArr constants;
   CastArr casts;
+
+  int gettp (Compiler this, string name, int line) {
+    int id = this.typeMap[name];
+    if (id < 0) errorln("Unkown type \"" + name + "\"", line);
+    return id;
+  }
 }
 
 
@@ -270,6 +295,12 @@ struct Scope {
   IntArr regtypes;
   int regcount;
   int lblcount;
+
+  int getvar (Scope this, string name, Node node) {
+    int id = this.vars[name];
+    if (id < 0) error(node, "Unknown variable \"" + name + "\"");
+    return id;
+  }
 
   int gettp (Scope this, string name) {
     return this.c.typeMap[name];
@@ -305,14 +336,16 @@ struct Scope {
   }
 }
 
-void error (Node node, string msg) {
+void errorln (string msg, int line) {
   string pos = "";
-  if (node.line < 0) {} else {
-    pos = ", at line " + itos(node.line);
+  if (line < 0) {} else {
+    pos = ", at line " + itos(line);
   }
   print("Compile error: " + msg + pos);
   quit(1);
 }
+
+void error (Node node, string msg) { errorln(msg, node.line); }
 
 Scope newScope (Compiler c, Function fn) {
   return new Scope(c, fn, newMap(), newMap(), emptyIntArr(), 0, 0);
@@ -324,6 +357,7 @@ IntArr compileCall (Scope this, Node node) {
   if (base.tp == "var") {
     string name = base.val;
     int id = this.c.fnMap[name];
+    if (id < 0) error(node, "Unknown function \"" + name + "\"");
     Function fn = this.c.functions[id];
 
     if (argsnode.len() == fn.ins.len()) {} else {
@@ -339,6 +373,7 @@ IntArr compileCall (Scope this, Node node) {
       i = i+1;
     }
 
+    this.fn.lineinfo.push(new Line(this.fn.code.len(), node.line));
     this.call(id, args);
 
     IntArr rets = emptyIntArr();
@@ -355,6 +390,7 @@ IntArr compileCall (Scope this, Node node) {
     int basereg = compileExpr(this, base.child(0));
     Type tp = this.c.types[this.regtypes[basereg]];
     int fnid = tp.methods[name];
+    if (fnid < 0) error(base, "Unknown method \"" + name + "\"");
     Function fn = this.c.functions[fnid];
 
     if (argsnode.len()+1 == fn.ins.len()) {} else {
@@ -371,6 +407,7 @@ IntArr compileCall (Scope this, Node node) {
       i = i+1;
     }
 
+    this.fn.lineinfo.push(new Line(this.fn.code.len(), node.line));
     this.call(fnid, args);
 
     IntArr rets = emptyIntArr();
@@ -388,7 +425,7 @@ IntArr compileCall (Scope this, Node node) {
 }
 
 int compileExpr (Scope this, Node node) {
-  if (node.tp == "var") return this.vars[node.val];
+  if (node.tp == "var") return this.getvar(node.val, node);
   if (node.tp == "num") {
     int id = this.c.constants.len();
     this.c.constants.push(new Constant("int", node.val));
@@ -459,9 +496,10 @@ int compileExpr (Scope this, Node node) {
     int basereg = compileExpr(this, node.child(0));
     Type tp = this.c.types[this.regtypes[basereg]];
     int fnid = tp.getters[node.val];
+    if (fnid < 0) error(node, "No getter for field \"" + node.val + "\"");
 
     Function fn = this.c.functions[fnid];
-    int rettp = this.c.typeMap[fn.outs[0]];
+    int rettp = this.c.gettp(fn.outs[0], fn.line);
 
     IntArr args = emptyIntArr();
     args.push(basereg);
@@ -473,9 +511,10 @@ int compileExpr (Scope this, Node node) {
     int base = compileExpr(this, node.child(0));
     Type tp = this.c.types[this.regtypes[base]];
     int fnid = tp.methods["get"];
+    if (fnid < 0) error(node, "Unknown method \"get\"");
     Function fn = this.c.functions[fnid];
     if (fn.outs.len() == 1) {} else error(node, "get method has to return 1 value");
-    int rettp = this.c.typeMap[fn.outs[0]];
+    int rettp = this.c.gettp(fn.outs[0], fn.line);
 
     if (fn.ins.len() == 2) {
       IntArr args = emptyIntArr();
@@ -487,10 +526,10 @@ int compileExpr (Scope this, Node node) {
   }
   if (node.tp == "new") {
     string tpname = node.val;
-    int tpid = this.c.typeMap[tpname];
+    int tpid = this.c.gettp(tpname, node.line);
     Type tp = this.c.types[tpid];
     int fnid = tp.constructor;
-    if (fnid < 0) error(node, "Type " + tpname + " does not have a known constructor");
+    if (fnid < 0) error(node, "Unknown constructor for " + tpname);
     Function fn = this.c.functions[fnid];
     int expected = fn.ins.len();
     Node exprlist = node.child(0);
@@ -513,9 +552,10 @@ int compileExpr (Scope this, Node node) {
     int basereg = compileExpr(this, node.child(0));
     Type tp = this.c.types[this.regtypes[basereg]];
     int fnid = tp.casts[node.val];
+    if (fnid < 0) error(node, "Unknown cast to \"" + node.val + "\"");
 
     Function fn = this.c.functions[fnid];
-    int rettp = this.c.typeMap[node.val];
+    int rettp = this.c.gettp(node.val, node.line);
 
     IntArr args = emptyIntArr();
     args.push(basereg);
@@ -526,14 +566,20 @@ int compileExpr (Scope this, Node node) {
 }
 
 void assign (Scope this, Node left, int reg) {
+  int valtp = this.regtypes[reg];
   if (left.tp == "var") {
-    int id = this.vars[left.val];
-    this.inst(3, id, reg);
+    int id = this.getvar(left.val, left);
+    if (this.regtypes[id] == valtp) {
+      this.inst(3, id, reg);
+    } else {
+      error(left, "Type mismatch");
+    }
   } else if (left.tp == "index") {
     int index = compileExpr(this, left.child(1));
     int base = compileExpr(this, left.child(0));
     Type tp = this.c.types[this.regtypes[base]];
     int fnid = tp.methods["set"];
+    if (fnid < 0) error(left, "Unknown method \"set\"");
     Function fn = this.c.functions[fnid];
     if (fn.outs.len() > 0) error(left, "set method has to be void");
     if (fn.ins.len() == 3) {
@@ -547,6 +593,7 @@ void assign (Scope this, Node left, int reg) {
     int basereg = compileExpr(this, left.child(0));
     Type tp = this.c.types[this.regtypes[basereg]];
     int fnid = tp.setters[left.val];
+    if (fnid < 0) error(left, "No setter for field \"" + left.val + "\"");
 
     Function fn = this.c.functions[fnid];
     //int valtp = this.c.typeMap[fn.ins[0]];
@@ -713,9 +760,9 @@ void codegen (Compiler c) {
 // =============================== //
 
 void makeBasics (Compiler c) {
-  c.modules.push(new Module("cobre.core", emptyStrArr())); // #2
-  c.modules.push(new Module("cobre.int", emptyStrArr())); // #3
-  c.modules.push(new Module("cobre.string", emptyStrArr())); // #4
+  c.modules.push(new Module("cobre.core", emptyStrArr(), -1)); // #2
+  c.modules.push(new Module("cobre.int", emptyStrArr(), -1)); // #3
+  c.modules.push(new Module("cobre.string", emptyStrArr(), -1)); // #4
 
   c.types.push(newType(2, "bool"));
   c.types.push(newType(2, "bin"));
@@ -852,13 +899,14 @@ void makeBasics (Compiler c) {
 // 11: int less or equal
 
 
-Function, string fnFromNode (Node item) {
-  string alias = item.child(2).val;
-  if (alias == "") alias = item.val;
+Function, string fnFromNode (Node node) {
+  string alias = node.child(2).val;
+  if (alias == "") alias = node.val;
   Function f = newFunction();
-  f.name = item.val;
+  f.name = node.val;
+  f.line = node.line;
 
-  Node innd = item.child(0);
+  Node innd = node.child(0);
   int k = 0;
   while (k < innd.len()) {
     Node argnd = innd.child(k);
@@ -867,7 +915,7 @@ Function, string fnFromNode (Node item) {
     k = k+1;
   }
 
-  Node outnd = item.child(1);
+  Node outnd = node.child(1);
   int k = 0;
   while (k < outnd.len()) {
     f.outs.push(outnd.child(k).val);
@@ -913,7 +961,7 @@ void makeImports (Compiler c) {
         args.push(argnd.child(j).val);
         j = j+1;
       }
-      c.modules.push(new Module(node.val, args));
+      c.modules.push(new Module(node.val, args, node.line));
 
 
       int j = 1; // Skip first child, it's the argument node
@@ -1002,7 +1050,7 @@ void makeTypes (Compiler c) {
       string base = node.child(0).val;
       StrArr args = emptyStrArr();
       args.push(base);
-      c.modules.push(new Module("cobre.typeshell", args));
+      c.modules.push(new Module("cobre.typeshell", args, node.line));
 
       int typeid = c.types.len();
       string alias = node.val;
@@ -1033,7 +1081,7 @@ void makeTypes (Compiler c) {
     if (node.tp == "struct") {
       int moduleid = c.modules.len() + 2;
       StrArr args = emptyStrArr();
-      c.modules.push(new Module("cobre.record", args));
+      c.modules.push(new Module("cobre.record", args, node.line));
 
       int typeid = c.types.len();
       string alias = node.val;
@@ -1063,12 +1111,14 @@ void makeTypes (Compiler c) {
 
           int getid = c.functions.len();
           Function getter = newFunction();
+          getter.line = member.line;
           getter.module = moduleid;
           getter.ins.push(alias);
           getter.outs.push(ftp);
           getter.name = "get" + itos(fieldid);
 
           Function setter = newFunction();
+          setter.line = member.line;
           setter.module = moduleid;
           setter.ins.push(alias);
           setter.ins.push(ftp);
@@ -1088,6 +1138,7 @@ void makeTypes (Compiler c) {
           int fnid = c.functions.len();
           Function f; string fn_alias;
           f, fn_alias = fnFromNode(member);
+          f.name = fn_alias;
           f.node = newNullNode(member.child(3));
           c.functions.push(f);
           tp.methods[fn_alias] = fnid;
@@ -1122,6 +1173,7 @@ void makeFunctions (Compiler c) {
       int id = c.functions.len();
       Function f; string name;
       f, name = fnFromNode(node);
+      f.name = name;
       f.node = newNullNode(node.child(3));
       c.functions.push(f);
       c.fnMap[name] = id;
@@ -1249,7 +1301,7 @@ void writeModules (Compiler c, file f) {
       int j = 0;
       while (j < m.args.len()) {
         string tpname = m.args[j];
-        int tpid = c.typeMap[tpname];
+        int tpid = c.gettp(tpname, m.line);
         writebyte(f, 1); // Item kind 1 is type
         writenum(f, tpid);
         writestr(f, itos(j));
@@ -1279,7 +1331,7 @@ void writeFunctions (Compiler c, file f) {
     int j = 0;
     while (j < fn.ins.len()) {
       string tpname = fn.ins[j];
-      int tpid = c.typeMap[tpname];
+      int tpid = c.gettp(tpname, fn.line);
       writenum(f, tpid);
       j = j+1;
     }
@@ -1288,7 +1340,7 @@ void writeFunctions (Compiler c, file f) {
     int j = 0;
     while (j < fn.outs.len()) {
       string tpname = fn.outs[j];
-      int tpid = c.typeMap[tpname];
+      int tpid = c.gettp(tpname, fn.line);
       writenum(f, tpid);
       j = j+1;
     }
@@ -1403,6 +1455,72 @@ int atoi (string str) {
   return value;
 }
 
+void writeMetadata (Compiler c, file f) {
+
+  // Third item, function list
+  int fcount = 0;
+  int i = 0;
+  while (i < c.functions.len()) {
+    Function fn = c.functions[i];
+    if (fn.hasCode()) fcount = fcount+1;
+    i = i+1;
+  }
+
+  int itemcount = fcount + 2; // "source map" + file + functions
+
+  writenum(f, 4); // 1 items (1<<2)
+    writenum(f, itemcount*4); // items
+      writenum(f, 42); // 10 chars (10<<2 | 2)
+      write(f, "source map");
+
+      writenum(f, 8); // 2 items (2<<2)
+        writenum(f, 18); // 10 chars (4<<2 | 2)
+        write(f, "file");
+        writenum(f, 38); // 10 chars (9<<2 | 2)
+        write(f, "<file.cu>");
+
+  int i = 0;
+  while (i < c.functions.len()) {
+    Function fn = c.functions[i];
+    if (fn.hasCode()) {
+      writenum(f, 5*4); // 5 items
+
+      writenum(f, 34); // 8 characters
+      write(f, "function");
+
+      writenum(f, (i*2)+1);
+
+      writenum(f, 8); // 2 items
+        writenum(f, 18); // 4 chars
+        write(f, "name");
+
+        writenum(f, (strlen(fn.name)*4)+2);
+        write(f, fn.name);
+
+      writenum(f, 8); // 2 items
+        writenum(f, 18); // 4 chars
+        write(f, "line");
+
+        writenum(f, (fn.line*2)+1);
+
+      int lcount = fn.lineinfo.len();
+      writenum(f, (lcount+1)*4);
+        writenum(f, 18); // 4 chars
+        write(f, "code");
+
+        int j = 0;
+        while (j < fn.lineinfo.len()) {
+          Line ln = fn.lineinfo[j];
+          writenum(f, 8); // 2 items
+          writenum(f, (ln.inst*2)+1);
+          writenum(f, (ln.line*2)+1);
+          j = j+1;
+        }
+    }
+    i = i+1;
+  }
+}
+
 void writeCompiler (Compiler c, string filename) {
   file f = open(filename, "w");
   write(f, "Cobre ~4");
@@ -1446,7 +1564,7 @@ void writeCompiler (Compiler c, string filename) {
 
   writeStatics(c, f);
 
-  writebyte(f, 0); // metadata
+  writeMetadata(c, f);
 }
 
 
