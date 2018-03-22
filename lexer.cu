@@ -73,12 +73,12 @@ bool isAlphaNum (char ch) {
 bool isKw (string s) {
   if (s == "true") return 0<1;
   if (s == "false") return 0<1;
+  if (s == "null") return 0<1;
   if (s == "void") return 0<1;
 
   if (s == "if") return 0<1;
   if (s == "else") return 0<1;
   if (s == "while") return 0<1;
-
   if (s == "return") return 0<1;
   if (s == "continue") return 0<1;
   if (s == "break") return 0<1;
@@ -89,8 +89,9 @@ bool isKw (string s) {
   if (s == "type") return 0<1;
   if (s == "struct") return 0<1;
   if (s == "import") return 0<1;
+  if (s == "extern") return 0<1;
   
-  return 0<0;
+  return 1<0;
 }
 
 bool isOp (char ch) {

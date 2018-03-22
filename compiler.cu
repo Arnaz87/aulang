@@ -112,6 +112,7 @@ import cobre.array (string) {
 struct Module {
   string name;
   StrArr args;
+  StrArr argnames;
   int line;
 }
 
@@ -624,7 +625,14 @@ void compileStmt (Scope this, Node node) {
       string name = part.val;
       int reg;
       if (part.len() > 0) {
+        Node val = part.child(0);
         reg = compileExpr(this, part.child(0));
+        if (val.tp == "var") {
+          this.inst(1, 0,0); // var
+          int newreg = this.decl(tp);
+          this.inst(3, newreg, reg); // set
+          reg = newreg;
+        }
       } else {
         this.inst(1, 0,0);
         reg = this.decl(tp);
@@ -760,9 +768,9 @@ void codegen (Compiler c) {
 // =============================== //
 
 void makeBasics (Compiler c) {
-  c.modules.push(new Module("cobre.core", emptyStrArr(), 0-1)); // #2
-  c.modules.push(new Module("cobre.int", emptyStrArr(), 0-1)); // #3
-  c.modules.push(new Module("cobre.string", emptyStrArr(), 0-1)); // #4
+  c.modules.push(new Module("cobre.core", emptyStrArr(), emptyStrArr(), 0-1)); // #2
+  c.modules.push(new Module("cobre.int", emptyStrArr(), emptyStrArr(), 0-1)); // #3
+  c.modules.push(new Module("cobre.string", emptyStrArr(), emptyStrArr(), 0-1)); // #4
 
   c.types.push(newType(2, "bool"));
   c.types.push(newType(2, "bin"));
@@ -955,13 +963,22 @@ void makeImports (Compiler c) {
       int id = c.modules.len() + 2;
 
       StrArr args = emptyStrArr();
-      Node argnd = node.child(0);
-      int j = 0;
-      while (j < argnd.len()) {
-        args.push(argnd.child(j).val);
+      StrArr argnames = emptyStrArr();
+      Node argsnd = node.child(0);
+      int j = 0, k = 0;
+      while (j < argsnd.len()) {
+        Node argnd = argsnd.child(j);
+        if (argnd.tp == "name") {
+          args.push(argnd.val);
+          argnames.push(itos(k));
+          k = k+1;
+        } else if (argnd.tp == "alias") {
+          argnames.push(argnd.val);
+          args.push(argnd.child(0).val);
+        }
         j = j+1;
       }
-      c.modules.push(new Module(node.val, args, node.line));
+      c.modules.push(new Module(node.val, args, argnames, node.line));
 
 
       int j = 1; // Skip first child, it's the argument node
@@ -1048,9 +1065,10 @@ void makeTypes (Compiler c) {
     if (node.tp == "type") {
       int moduleid = c.modules.len() + 2;
       string base = node.child(0).val;
-      StrArr args = emptyStrArr();
+      StrArr args = emptyStrArr(), argnames = emptyStrArr();
       args.push(base);
-      c.modules.push(new Module("cobre.typeshell", args, node.line));
+      argnames.push("0");
+      c.modules.push(new Module("cobre.typeshell", args, argnames, node.line));
 
       int typeid = c.types.len();
       string alias = node.val;
@@ -1081,7 +1099,8 @@ void makeTypes (Compiler c) {
     if (node.tp == "struct") {
       int moduleid = c.modules.len() + 2;
       StrArr args = emptyStrArr();
-      c.modules.push(new Module("cobre.record", args, node.line));
+      StrArr argnames = emptyStrArr();
+      c.modules.push(new Module("cobre.record", args, argnames, node.line));
 
       int typeid = c.types.len();
       string alias = node.val;
@@ -1106,6 +1125,7 @@ void makeTypes (Compiler c) {
           string name = member.val;
           string ftp = member.child(0).val;
 
+          argnames.push(itos(args.len()));
           args.push(ftp);
           constructor.ins.push(ftp);
 
@@ -1297,14 +1317,14 @@ void writeModules (Compiler c, file f) {
       writestr(f, m.name);
 
       writebyte(f, 1); // Kind 1 is defined module
-      writebyte(f, m.args.len()); // With 0 items
+      writebyte(f, m.args.len());
       int j = 0;
       while (j < m.args.len()) {
         string tpname = m.args[j];
         int tpid = c.gettp(tpname, m.line);
         writebyte(f, 1); // Item kind 1 is type
         writenum(f, tpid);
-        writestr(f, itos(j));
+        writestr(f, m.argnames[j]);
         j = j+1;
       }
     }

@@ -1,0 +1,34 @@
+
+#category (when used, any of the contained nodes are valid)
+type [value description] (notes): children
+type+ (multiple nodes, they all have to be last)
+type? (optional node, must be unique, last and with no multiple nodes)
+*type (reference, the structure is described elsewhere)
+
+All normal nodes are in order (0 indexed), but the multiple nodes can be mixed
+
+For alias nodes, if the value is an empty string, means the item isn't aliased
+
+#toplevel:
+  *item+
+  import [module name]:
+    alias
+    body?:
+      *type+ (methods cannot have bodies)
+      *function+ (cannot have bodies)
+  extern:
+    *item
+
+#item:
+  type [name]:
+    alias
+    body?:
+      *function+
+      decl+ [name] (field):
+        type
+        name
+  function [name]:
+    alias
+
+
+

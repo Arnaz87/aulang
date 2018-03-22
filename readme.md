@@ -2,6 +2,8 @@
 
 C-like programming language running on the [Cobre VM](https://github.com/Arnaz87/cobrevm). The language is complete enough to be written in itself, but it's not very practical yet.
 
+[Doucumentation](/culang.md).
+
 **TODO**:
 
 - scopes (currently a single scope per function)
@@ -13,7 +15,7 @@ C-like programming language running on the [Cobre VM](https://github.com/Arnaz87
 - Module syntax
 - Statics/Constants
 - boolean expressions and ternary
-- for, switch, do while, break, continue
+- for, switch, do while, break, continue *(Is it better to not include them?)*
 - struct-like types
 - unions
 - null

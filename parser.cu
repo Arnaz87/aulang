@@ -7,6 +7,7 @@ import cobre.system {
   void print (string);
   void quit (int);
   string readall (string);
+  void error (string) as syserr;
 }
 
 import cobre.string {
@@ -279,7 +280,7 @@ Node parseNameList (Parser p, string tp, string sep) {
   return node;
 }
 
-Node parseFuncDecl (Parser p) {
+Node parseIdentItem (Parser p) {
   token _tk = p.peek();
   int line = p.line();
   Node outs = newNode("outs", "");
@@ -326,8 +327,13 @@ Node parseFuncDecl (Parser p) {
       declnode.push(tpnode);
       return declnode;
     }
+    if (p.maybe("as")) {
+      Node node = newNode("alias", p.getname());
+      node.push(newNode("item", name));
+      return node;
+    }
   }
-  check(p.peek(), "("); // If it gets here, always fail
+  check(p.peek(), "("); // already failed '(', but give error message
 }
 
 
@@ -338,9 +344,16 @@ Node parseImport (Parser p) {
   Node result = newNode("import", name);
 
   Node arglist = newNode("arglist", "");
-  if (p.peek().tp == "(") {
-    p.next();
-    arglist = parseNameList(p, "arglist", ",");
+  if (p.maybe("(")) {
+    nextarg:
+      Node argNode = newNode("name", p.getname());
+      if (p.maybe("as")) {
+        Node prev = argNode;
+        argNode = newNode("alias", p.getname());
+        argNode.push(prev);
+      }
+      arglist.push(argNode);
+      if (p.maybe(",")) goto nextarg;
     check(p.next(), ")");
   }
   result.push(arglist);
@@ -359,7 +372,7 @@ Node parseImport (Parser p) {
 
       if (p.maybe("{")) {
         nextmember:
-        Node item = parseFuncDecl(p);
+        Node item = parseIdentItem(p);
         if (item.tp == "function")
           check(p.next(), ";");
         typenode.push(item);
@@ -369,7 +382,7 @@ Node parseImport (Parser p) {
 
       result.push(typenode.inline(line));
     } else {
-      Node item = parseFuncDecl(p);
+      Node item = parseIdentItem(p);
       if (item.tp == "function")
         check(p.next(), ";");
       result.push(item);
@@ -478,17 +491,28 @@ Node parseTopLevel (Parser p) {
   token _tk = p.peek();
   if (p.maybe("import"))
     return parseImport(p).inline(_tk.line);
+  if (p.maybe("extern")) {
+    error("extern statements not yet supported", _tk);
+  }
+  bool ispriv = 1<0;
+  if (p.maybe("private")) ispriv = 0<1;
+
   if (p.maybe("struct")) {
     Node typenode = newNode("struct", parseLongName(p));
     check(p.next(), "{");
     nextmember:
-      Node item = parseFuncDecl(p);
+      Node item = parseIdentItem(p);
       if (item.tp == "function")
         item.push(parseBlock(p));
       typenode.push(item);
       if (p.maybe("}")) {}
       else goto nextmember;
-    return typenode.inline(_tk.line);
+    Node node = typenode.inline(_tk.line);
+    if (ispriv) {
+      Node privnode = newNode("private", "");
+      privnode.push(node);
+      return privnode;
+    } else return node;
   }
   if (p.maybe("type")) {
     Node typenode = newNode("type", parseLongName(p));
@@ -497,9 +521,14 @@ Node parseTopLevel (Parser p) {
     typenode.push(base);
     check(p.next(), ")");
     check(p.next(), ";");
-    return  typenode.inline(_tk.line);
+    Node node = typenode.inline(_tk.line);
+    if (ispriv) {
+      Node privnode = newNode("private", "");
+      privnode.push(node);
+      return privnode;
+    } else return node;
   }
-  Node item = parseFuncDecl(p);
+  Node item = parseIdentItem(p);
   if (item.tp == "function") {
     item.push(parseBlock(p));
     return item;
