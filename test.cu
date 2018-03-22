@@ -9,7 +9,9 @@ import cobre.any (string as xd, int as `0`) {
   int get (any) as getInt;
 }
 
-void main () {
+private void myf () {
   any a = anyInt(42);
   print(itos(getInt(a)));
 }
+
+export myf as main;

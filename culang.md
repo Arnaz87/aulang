@@ -32,7 +32,7 @@ import a.b {
   // The same as above, the argument names are ignored
   void f (int arg0);
 
-  // The same but the function is instead refered with "ff"
+  // Same but in this file, the function is named ff
   void f (int) as ff;
 
   // arguments and return types work as with regular functions
@@ -41,7 +41,7 @@ import a.b {
   // Unlike non imported functions, the names can also have field
   // separatos like modules, and also metanames can be indicated
   // separated with ':', but they have to be aliased because regular
-  // identifiers can't use those features.
+  // identifiers can't have those features.
   void f3.a:b () as f3;
 
   // This can be used with f4 as no other function has the same main name
@@ -121,21 +121,86 @@ type MyInt (int) {
     return x;
   }
 }
+
+// Types without body are external, that is they are exported by the module
+// butd defined elsewhere.
+type T;
 ~~~
 
 # Function statement
 
-Cu functions are just as C functions, but can return multiple results, in which case each of it's types is listed before the function name separated with commas, and the return statement in the function body must also have a comma separated list of expressions matching the result types.
+~~~c
+// Work just as C functions
+void f (int x) { int y = x; }
 
-Parameters don't need a name, only the parameter types are required, but without a name there is no way to use them.
+// Cu functions ca return multiple values
+int, int incdec (int x) { return x+1, x-1; }
 
-If the function has no body, it's external, and the statement must end in with a semicolon.
+// Parameters don't need names, but then they are useless
+void f (int) { }
 
-## Control flow
+// Unlike C, parameters can't share types, the second parameter is not
+// an int named float, is a float without name
+void f (int a, float) { }
+
+// Functions without body mean it's present in the module but not defined,
+// for example if it's platform provided or the implementation is secret.
+void f (); // end with semicolon
+~~~
+
+# Modules
+
+~~~c
+// Types, functions and constants are all items, they are distributes
+// in modules, which are items themselves.
+module M {
+  // each item in the module has to refer to an existing item and
+  // define a name in the module.
+  print as p;
+  // now print can be used with M.p
+}
+
+
+// Just as with types and function, modules without body guarantee existence
+// but do not provide implementations
+module MA;
+
+// By default all items are exported, but they can be marked private
+private void f () {}
+private module MB {}
+
+// Private and imported items, can be reexported
+export f as g;
+export int as T;
+export MB as MB; // Equivalent to not marking it private at all
+
+// Not allowed, because another item is already exported with that name
+export M as MA;
+
+// Overrides all exported items, and exports only the items defined in M
+export module M;
+
+// Shortcut to not define a separate module
+export module { print as p; }
+~~~
+
+# Arguments
+
+~~~c
+// Items can be passed to a module as arguments when imported
+extern type T;
+extern void f ();
+// I don't know yet how to handle imported modules
+
+// This looks for some.module in the system modules and passes the items
+import some.module (int as T, main as f) {}
+~~~
+
+# Control flow
 
 Control flow is also like C's, but there are no switch, for loops nor do while loops. There are labels and goto statements, and loops can be labeled so that break and continue statements can refer to outer loops. It is legal to jump out of loops and into them.
 
-## Multiple assignment
+# Multiple assignment
 
 Multiple assignment in declaration statements works like in C, but multiple variables can be assigned at once in a single statement when the assigned expression is a call to a function with multiple results. In this situation, the left side of the statement can have multiple variables separated by commas, and each one must match the function return types. But it must not be a declaration, as that would only assign the last variable and the rest would be uninitialized, like in C.
 

@@ -89,7 +89,10 @@ bool isKw (string s) {
   if (s == "type") return 0<1;
   if (s == "struct") return 0<1;
   if (s == "import") return 0<1;
+  if (s == "module") return 0<1;
   if (s == "extern") return 0<1;
+  if (s == "export") return 0<1;
+  if (s == "private") return 0<1;
   
   return 1<0;
 }

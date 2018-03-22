@@ -487,6 +487,28 @@ Node parseBlock (Parser p) {
   goto repeat;
 }
 
+/*Node parseModule (Parser p) {
+  Node modnode = newNode("module", parseLongName(p));
+  string alias = "";
+  if (p.maybe("as")) alias = p.getname();
+  modnode.push(newNode("alias", alias));
+  if (p.maybe("{")) {
+    Node bodynode = newNode("body", "");
+    nextitem:
+      if (p.maybe("}")) goto enditem;
+      string name = p.getname();
+      string alias = name;
+      if (p.maybe("as")) alias = p.getname();
+      check(p.next(), ";");
+      Node itemnode = newNode("item", name);
+      itemnode.push(newNode("alias", alias));
+      bodynode.push(itemnode);
+    goto nextitem;
+    check(p.next(), "}");
+  }
+  return modnode;
+}*/
+
 Node parseTopLevel (Parser p) {
   token _tk = p.peek();
   if (p.maybe("import"))
@@ -494,47 +516,55 @@ Node parseTopLevel (Parser p) {
   if (p.maybe("extern")) {
     error("extern statements not yet supported", _tk);
   }
-  bool ispriv = 1<0;
-  if (p.maybe("private")) ispriv = 0<1;
+  if (p.maybe("export")) {
+    string item = p.getname();
+    check(p.next(), "as");
+    string alias = p.getname();
+    check(p.next(), ";");
+    Node node = newNode("export", alias);
+    node.push(newNode("item", item));
+    return node.inline(_tk.line);
+  }
 
+  bool ispriv = 1<0;
+  if (p.maybe("private")) {ispriv = 0<1;}
+
+  Node node;
   if (p.maybe("struct")) {
     Node typenode = newNode("struct", parseLongName(p));
     check(p.next(), "{");
     nextmember:
+      if (p.maybe("}")) goto endmember;
       Node item = parseIdentItem(p);
       if (item.tp == "function")
         item.push(parseBlock(p));
       typenode.push(item);
-      if (p.maybe("}")) {}
-      else goto nextmember;
-    Node node = typenode.inline(_tk.line);
-    if (ispriv) {
-      Node privnode = newNode("private", "");
-      privnode.push(node);
-      return privnode;
-    } else return node;
-  }
-  if (p.maybe("type")) {
+      goto nextmember;
+    endmember:
+    node = typenode.inline(_tk.line);
+  } else if (p.maybe("type")) {
     Node typenode = newNode("type", parseLongName(p));
     check(p.next(), "(");
     Node base = newNode("base", p.getname());
     typenode.push(base);
     check(p.next(), ")");
     check(p.next(), ";");
-    Node node = typenode.inline(_tk.line);
-    if (ispriv) {
-      Node privnode = newNode("private", "");
-      privnode.push(node);
-      return privnode;
-    } else return node;
+    node = typenode.inline(_tk.line);
+  } else {
+    node = parseIdentItem(p);
+    if (node.tp == "function") {
+      node.push(parseBlock(p));
+    } else {
+      error("invalid top level statement", _tk);
+    }
   }
-  Node item = parseIdentItem(p);
-  if (item.tp == "function") {
-    item.push(parseBlock(p));
-    return item;
-  }
+  //if (p.maybe("module")) return parseModule(p);
 
-  error("invalid top level statement", _tk);
+  if (ispriv) {
+    Node privnode = newNode("private", "");
+    privnode.push(node);
+    return privnode;
+  } else return node;
 }
 
 

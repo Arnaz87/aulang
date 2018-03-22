@@ -3,10 +3,10 @@ modules=dist/culang dist/culang.lexer dist/culang.parser dist/culang.compiler
 
 .PHONY: dist install uninstall
 
-dist/culang:
+dist/culang: culang.cu
 	cobre culang culang.cu dist/culang
 
-dist/culang.%:
+dist/culang.%: %.cu
 	cobre culang $*.cu $@
 
 dist: $(modules)

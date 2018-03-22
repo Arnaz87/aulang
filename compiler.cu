@@ -117,7 +117,7 @@ struct Module {
 }
 
 struct Type {
-  int module;
+  int mod;
   string name;
   Map getters;
   Map setters;
@@ -126,8 +126,8 @@ struct Type {
   int constructor;
 }
 
-Type newType (int module, string name) {
-  return new Type(module, name, newMap(), newMap(), newMap(), newMap(), 0-1);
+Type newType (int mod, string name) {
+  return new Type(mod, name, newMap(), newMap(), newMap(), newMap(), 0-1);
 }
 
 import cobre.`null` (Node) {
@@ -155,7 +155,7 @@ import cobre.array (Line) {
 }
 
 struct Function {
-  int module; // -1 for defined function
+  int mod; // -1 for defined function
   string name;
   StrArr outs;
   StrArr ins;
@@ -280,6 +280,16 @@ struct Compiler {
     int id = this.typeMap[name];
     if (id < 0) errorln("Unkown type \"" + name + "\"", line);
     return id;
+  }
+
+  // Returns the id and the type, which can be:
+  // -1: not found, 0: module, 1: type, 2: function, 3: constant
+  int, int getitem (Compiler this, string name, int line) {
+    int id = this.typeMap[name];
+    if (id >= 0) return id, 1;
+    int id = this.fnMap[name];
+    if (id >= 0) return id, 2;
+    errorln("Unkown item \"" + name + "\"", line);
   }
 }
 
@@ -786,7 +796,7 @@ void makeBasics (Compiler c) {
 
   // #0
   Function fn = newFunction();
-  fn.module = 4;
+  fn.mod = 4;
   fn.name = "new";
   fn.ins.push("__bin__");
   fn.outs.push("string");
@@ -794,7 +804,7 @@ void makeBasics (Compiler c) {
 
   // #1
   Function fn = newFunction();
-  fn.module = 3;
+  fn.mod = 3;
   fn.name = "eq";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -803,7 +813,7 @@ void makeBasics (Compiler c) {
 
   // #2
   Function fn = newFunction();
-  fn.module = 3;
+  fn.mod = 3;
   fn.name = "add";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -812,7 +822,7 @@ void makeBasics (Compiler c) {
 
   // #3
   Function fn = newFunction();
-  fn.module = 3;
+  fn.mod = 3;
   fn.name = "gt";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -821,7 +831,7 @@ void makeBasics (Compiler c) {
 
   // #4
   Function fn = newFunction();
-  fn.module = 3;
+  fn.mod = 3;
   fn.name = "lt";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -830,7 +840,7 @@ void makeBasics (Compiler c) {
 
   // #5
   Function fn = newFunction();
-  fn.module = 4;
+  fn.mod = 4;
   fn.name = "eq";
   fn.ins.push("string");
   fn.ins.push("string");
@@ -839,7 +849,7 @@ void makeBasics (Compiler c) {
 
   // #6
   Function fn = newFunction();
-  fn.module = 4;
+  fn.mod = 4;
   fn.name = "concat";
   fn.ins.push("string");
   fn.ins.push("string");
@@ -848,7 +858,7 @@ void makeBasics (Compiler c) {
 
   // #7
   Function fn = newFunction();
-  fn.module = 3;
+  fn.mod = 3;
   fn.name = "sub";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -857,7 +867,7 @@ void makeBasics (Compiler c) {
 
   // #8
   Function fn = newFunction();
-  fn.module = 3;
+  fn.mod = 3;
   fn.name = "mul";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -866,7 +876,7 @@ void makeBasics (Compiler c) {
 
   // #9
   Function fn = newFunction();
-  fn.module = 3;
+  fn.mod = 3;
   fn.name = "div";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -875,7 +885,7 @@ void makeBasics (Compiler c) {
 
   // #10
   Function fn = newFunction();
-  fn.module = 3;
+  fn.mod = 3;
   fn.name = "gte";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -884,7 +894,7 @@ void makeBasics (Compiler c) {
 
   // #11
   Function fn = newFunction();
-  fn.module = 3;
+  fn.mod = 3;
   fn.name = "lte";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -965,17 +975,16 @@ void makeImports (Compiler c) {
       StrArr args = emptyStrArr();
       StrArr argnames = emptyStrArr();
       Node argsnd = node.child(0);
-      int j = 0, k = 0;
+      int j = 0;
       while (j < argsnd.len()) {
         Node argnd = argsnd.child(j);
         if (argnd.tp == "name") {
           args.push(argnd.val);
-          argnames.push(itos(k));
-          k = k+1;
+          argnames.push(itos(j));
         } else if (argnd.tp == "alias") {
-          argnames.push(argnd.val);
           args.push(argnd.child(0).val);
-        }
+          argnames.push(argnd.val);
+        } else error(argnd, "wtf");
         j = j+1;
       }
       c.modules.push(new Module(node.val, args, argnames, node.line));
@@ -1003,7 +1012,7 @@ void makeImports (Compiler c) {
               int fnid = c.functions.len();
               Function f; string fn_alias;
               f, fn_alias = fnFromNode(member);
-              f.module = id;
+              f.mod = id;
               f.name = f.name + suffix;
               thisArg(f, tp_alias);
               c.functions.push(f);
@@ -1021,13 +1030,13 @@ void makeImports (Compiler c) {
               getfn.name = name + ":get" + suffix;
               getfn.ins.push(tp_alias);
               getfn.outs.push(tpnm);
-              getfn.module = id;
+              getfn.mod = id;
 
               Function setfn = newFunction();
               setfn.name = name + ":set" + suffix;
               setfn.ins.push(tp_alias);
               setfn.ins.push(tpnm);
-              setfn.module = id;
+              setfn.mod = id;
 
               c.functions.push(getfn);
               c.functions.push(setfn);
@@ -1044,7 +1053,7 @@ void makeImports (Compiler c) {
           int fnid = c.functions.len();
           Function f; string alias;
           f, alias = fnFromNode(item);
-          f.module = id;
+          f.mod = id;
           c.functions.push(f);
           c.fnMap[alias] = fnid;
         } else {
@@ -1062,6 +1071,12 @@ void makeTypes (Compiler c) {
   int i = 0;
   while (i < c.tree.len()) {
     Node node = c.tree.child(i);
+    bool pub = 0<1;
+    if (node.tp == "private") {
+      node = node.child(0);
+      pub = 1<0;
+    }
+
     if (node.tp == "type") {
       int moduleid = c.modules.len() + 2;
       string base = node.child(0).val;
@@ -1075,17 +1090,17 @@ void makeTypes (Compiler c) {
       Type tp = newType(moduleid, "");
       c.types.push(tp);
       c.typeMap[alias] = typeid;
-      c.tpExports[alias] = typeid;
+      if (pub) c.tpExports[alias] = typeid;
 
       int fromid = c.functions.len();
       Function from = newFunction();
-      from.module = moduleid;
+      from.mod = moduleid;
       from.ins.push(base);
       from.outs.push(alias);
       from.name = "new";
 
       Function to = newFunction();
-      to.module = moduleid;
+      to.mod = moduleid;
       to.ins.push(alias);
       to.outs.push(base);
       to.name = "get";
@@ -1107,10 +1122,10 @@ void makeTypes (Compiler c) {
       Type tp = newType(moduleid, "");
       c.types.push(tp);
       c.typeMap[alias] = typeid;
-      c.tpExports[alias] = typeid;
+      if (pub) c.tpExports[alias] = typeid;
 
       Function constructor = newFunction();
-      constructor.module = moduleid;
+      constructor.mod = moduleid;
       constructor.name = "new";
       constructor.outs.push(alias);
       int newid = c.functions.len();
@@ -1132,14 +1147,14 @@ void makeTypes (Compiler c) {
           int getid = c.functions.len();
           Function getter = newFunction();
           getter.line = member.line;
-          getter.module = moduleid;
+          getter.mod = moduleid;
           getter.ins.push(alias);
           getter.outs.push(ftp);
           getter.name = "get" + itos(fieldid);
 
           Function setter = newFunction();
           setter.line = member.line;
-          setter.module = moduleid;
+          setter.mod = moduleid;
           setter.ins.push(alias);
           setter.ins.push(ftp);
           setter.name = "set" + itos(fieldid);
@@ -1150,8 +1165,8 @@ void makeTypes (Compiler c) {
           tp.getters[name] = getid;
           tp.setters[name] = getid+1;
 
-          c.fnExports[name + ":get:" + alias] = getid;
-          c.fnExports[name + ":set:" + alias] = getid+1;
+          if (pub) c.fnExports[name + ":get:" + alias] = getid;
+          if (pub) c.fnExports[name + ":set:" + alias] = getid+1;
 
           fieldid = fieldid + 1;
         } else if (member.tp == "function") {
@@ -1189,6 +1204,11 @@ void makeFunctions (Compiler c) {
   int i = 0;
   while (i < c.tree.len()) {
     Node node = c.tree.child(i);
+    bool pub = 0<1;
+    if (node.tp == "private") {
+      node = node.child(0);
+      pub = 1<0;
+    }
     if (node.tp == "function") {
       int id = c.functions.len();
       Function f; string name;
@@ -1197,7 +1217,23 @@ void makeFunctions (Compiler c) {
       f.node = newNullNode(node.child(3));
       c.functions.push(f);
       c.fnMap[name] = id;
-      c.fnExports[name] = id;
+      if (pub) c.fnExports[name] = id;
+    }
+    i = i+1;
+  }
+}
+
+void makeExports (Compiler c) {
+  int i = 0;
+  while (i < c.tree.len()) {
+    Node node = c.tree.child(i);
+    if (node.tp == "export") {
+      string name = node.val;
+      int k, id;
+      id, k = c.getitem(node.child(0).val, node.line);
+      if (k == 1) c.tpExports[name] = id;
+      else if (k == 2) c.fnExports[name] = id;
+      else error(node, "Cannot export " + name);
     }
     i = i+1;
   }
@@ -1224,6 +1260,7 @@ Compiler compile (string src) {
   makeTypes(c);
   makeCasts(c);
   makeFunctions(c);
+  makeExports(c);
 
   return c;
 }
@@ -1293,7 +1330,7 @@ void writeModules (Compiler c, file f) {
   while (i < c.modules.len()) {
     Module m = c.modules[i];
     if (m.args.len() > 0) {
-      // Every module with argumetns consists of three modules
+      // Every.mod with argumetns consists of three modules
       // the imported functor, the argument module
       // and the applied functor.
       // This one is the last
@@ -1320,10 +1357,11 @@ void writeModules (Compiler c, file f) {
       writebyte(f, m.args.len());
       int j = 0;
       while (j < m.args.len()) {
-        string tpname = m.args[j];
-        int tpid = c.gettp(tpname, m.line);
-        writebyte(f, 1); // Item kind 1 is type
-        writenum(f, tpid);
+        int id, k;
+        id, k = c.getitem(m.args[j], m.line);
+        // getitem second result is compatible with the module format
+        writebyte(f, k);
+        writenum(f, id);
         writestr(f, m.argnames[j]);
         j = j+1;
       }
@@ -1343,7 +1381,7 @@ void writeFunctions (Compiler c, file f) {
       writebyte(f, 2); // Kind 2 is function with code
     } else {
       writebyte(f, 1); // Kind 1 is imported function
-      writenum(f, fn.module);
+      writenum(f, fn.mod);
       writestr(f, fn.name);
     }
 
@@ -1553,7 +1591,7 @@ void writeCompiler (Compiler c, string filename) {
   while (i < c.types.len()) {
     Type tp = c.types[i];
     writebyte(f, 1); // Kind 1 is import
-    writenum(f, tp.module);
+    writenum(f, tp.mod);
     writestr(f, tp.name);
     i = i+1;
   }
@@ -1618,7 +1656,7 @@ void printCompiler (Compiler c) {
   int i = 0;
   while (i < c.types.len()) {
     Type t = c.types[i];
-    print("[" + itos(i) + "]: Module[" + itos(t.module) + "]." + t.name);
+    print("[" + itos(i) + "]: Module[" + itos(t.mod) + "]." + t.name);
     if (t.constructor < 0) {} else {
       print("  new: " + itos(t.constructor));
     }
@@ -1664,7 +1702,7 @@ void printCompiler (Compiler c) {
     if (f.hasCode()) {
       print("[" + itos(i) + "]: <Code>" + args);
     } else {
-      print("[" + itos(i) + "]: Module[" + itos(f.module) + "]." + f.name + args);
+      print("[" + itos(i) + "]: Module[" + itos(f.mod) + "]." + f.name + args);
     }
     i = i+1;
   }
