@@ -231,7 +231,7 @@ import cobre.array (int) {
 }
 
 struct Inst {
-  int inst;
+  string inst;
   int a;
   int b;
   string lbl;
@@ -324,12 +324,12 @@ struct Scope {
     return reg;
   }
 
-  void inst (Scope this, int i, int a, int b) {
-    this.fn.code.push(new Inst(i, a, b, "", emptyIntArr()));
+  void inst (Scope this, string inst, int a, int b) {
+    this.fn.code.push(new Inst(inst, a, b, "", emptyIntArr()));
   }
 
-  void flow (Scope this, int i, string lbl, int b) {
-    this.fn.code.push(new Inst(i, 0, b, lbl, emptyIntArr()));
+  void flow (Scope this, string inst, string lbl, int b) {
+    this.fn.code.push(new Inst(inst, 0, b, lbl, emptyIntArr()));
   }
 
   string lbl (Scope this) {
@@ -339,7 +339,12 @@ struct Scope {
   }
 
   void call (Scope this, int fn, IntArr args) {
-    this.fn.code.push(new Inst(16, fn, 0, "", args));
+    this.fn.code.push(new Inst("call", fn, 0, "", args));
+  }
+
+  void constant (Scope this, int id) {
+    int funlen = this.c.functions.len();
+    this.call(funlen + id, emptyIntArr());
   }
 
   void uselbl (Scope this, string name) {
@@ -440,22 +445,22 @@ int compileExpr (Scope this, Node node) {
   if (node.tp == "num") {
     int id = this.c.constants.len();
     this.c.constants.push(new Constant("int", node.val));
-    this.inst(4, id, 0); // kind 4 is sget, static get
+    this.constant(id);
     int tp = this.gettp("int");
     int reg = this.decl(tp);
     return reg;
   }
   if (node.tp == "str") {
     int rawid = this.c.constants.len();
-    this.c.constants.push(new Constant("str", node.val));
+    this.c.constants.push(new Constant("bin", node.val));
     int id = this.c.constants.len();
-    this.c.constants.push(new Constant("null", "string"));
+    this.c.constants.push(new Constant("str", ""));
 
     IntArr args;
 
     // TODO: Add static instructions
     int tp = this.gettp("string");
-    this.inst(4, id, 0); // kind 4 is sget, static get
+    this.constant(id);
     int reg = this.decl(tp);
     return reg;
   }
@@ -581,7 +586,7 @@ void assign (Scope this, Node left, int reg) {
   if (left.tp == "var") {
     int id = this.getvar(left.val, left);
     if (this.regtypes[id] == valtp) {
-      this.inst(3, id, reg);
+      this.inst("set", id, reg);
     } else {
       error(left, "Type mismatch");
     }
@@ -638,13 +643,13 @@ void compileStmt (Scope this, Node node) {
         Node val = part.child(0);
         reg = compileExpr(this, part.child(0));
         if (val.tp == "var") {
-          this.inst(1, 0,0); // var
+          this.inst("var", 0,0);
           int newreg = this.decl(tp);
-          this.inst(3, newreg, reg); // set
+          this.inst("set", newreg, reg);
           reg = newreg;
         }
       } else {
-        this.inst(1, 0,0);
+        this.inst("var", 0,0);
         reg = this.decl(tp);
       }
       this.vars[name] = reg;
@@ -682,9 +687,9 @@ void compileStmt (Scope this, Node node) {
     string end = this.lbl();
     this.uselbl(start);
     int cond = compileExpr(this, node.child(0));
-    this.flow(8, end, cond); // nif
+    this.flow("nif", end, cond);
     compileStmt(this, node.child(1));
-    this.flow(6, start, 0); // jmp
+    this.flow("jmp", start, 0);
     this.uselbl(end);
     return;
   }
@@ -692,9 +697,9 @@ void compileStmt (Scope this, Node node) {
     string els = this.lbl();
     string end = this.lbl();
     int cond = compileExpr(this, node.child(0));
-    this.flow(8, els, cond); // nif
+    this.flow("nif", els, cond);
     compileStmt(this, node.child(1));
-    this.flow(6, end, 0); // jmp
+    this.flow("jmp", end, 0);
     this.uselbl(els);
     if (node.len() == 3) {
       compileStmt(this, node.child(2));
@@ -721,11 +726,11 @@ void compileStmt (Scope this, Node node) {
       args.push(reg);
       i = i+1;
     }
-    this.fn.code.push(new Inst(0, 0, 0, "", args));
+    this.fn.code.push(new Inst("end", 0, 0, "", args));
     return;
   }
   if (node.tp == "goto") {
-    this.flow(6, node.val, 0); // jmp
+    this.flow("jmp", node.val, 0); // jmp
     return;
   }
   if (node.tp == "label") {
@@ -755,16 +760,16 @@ void codegen (Compiler c) {
 
       // Automatic void return
       if (fn.outs.len() == 0)
-        scope.inst(0, 0,0);
+        scope.inst("end", 0,0);
 
       // Convert label names to label indices
       int j = 0;
       while (j < fn.code.len()) {
         Inst inst = fn.code[j];
-        int k = inst.inst;
-        if (k == 6) inst.a = scope.labels[inst.lbl];
-        if (k == 7) inst.a = scope.labels[inst.lbl];
-        if (k == 8) inst.a = scope.labels[inst.lbl];
+        string k = inst.inst;
+        if (k == "jmp") inst.a = scope.labels[inst.lbl];
+        if (k == "jif") inst.a = scope.labels[inst.lbl];
+        if (k == "nif") inst.a = scope.labels[inst.lbl];
         j = j+1;
       }
     }
@@ -1377,13 +1382,8 @@ void writeFunctions (Compiler c, file f) {
   while (i < c.functions.len()) {
     Function fn = c.functions[i];
 
-    if (fn.hasCode()) {
-      writebyte(f, 2); // Kind 2 is function with code
-    } else {
-      writebyte(f, 1); // Kind 1 is imported function
-      writenum(f, fn.mod);
-      writestr(f, fn.name);
-    }
+    if (fn.hasCode()) writebyte(f, 1);
+    else writenum(f, fn.mod+2);
 
     writenum(f, fn.ins.len());
     int j = 0;
@@ -1403,6 +1403,8 @@ void writeFunctions (Compiler c, file f) {
       j = j+1;
     }
 
+    if (fn.hasCode()) {} else writestr(f, fn.name);
+
     i = i+1;
   }
 }
@@ -1413,8 +1415,8 @@ void writeCode (file f, InstArr code) {
   int i = 0;
   while (i < code.len()) {
     Inst inst = code[i];
-    int k = inst.inst;
-    if (k == 0) {
+    string k = inst.inst;
+    if (k == "end") {
       writebyte(f, 0);
       int j = 0;
       while (j < inst.args.len()) {
@@ -1422,31 +1424,27 @@ void writeCode (file f, InstArr code) {
         j = j+1;
       }
     }
-    if (k == 1) writebyte(f, 1);
-    if (k == 3) {
-      writebyte(f, 3);
+    else if (k == "var") writebyte(f, 2);
+    else if (k == "set") {
+      writebyte(f, 4);
       writenum(f, inst.a);
       writenum(f, inst.b);
     }
-    if (k == 4) {
-      writebyte(f, 4);
+    else if (k == "jmp") {
+      writebyte(f, 5);
       writenum(f, inst.a);
     }
-    if (k == 6) {
+    else if (k == "jif") {
       writebyte(f, 6);
       writenum(f, inst.a);
+      writenum(f, inst.b);
     }
-    if (k == 7) {
+    else if (k == "nif") {
       writebyte(f, 7);
       writenum(f, inst.a);
       writenum(f, inst.b);
     }
-    if (k == 8) {
-      writebyte(f, 8);
-      writenum(f, inst.a);
-      writenum(f, inst.b);
-    }
-    if (k == 16) {
+    else if (k == "call") {
       int fnid = inst.a;
       writenum(f, fnid + 16);
       int j = 0;
@@ -1455,6 +1453,7 @@ void writeCode (file f, InstArr code) {
         j = j+1;
       }
     }
+    else errorln("Unknown instruction: " + k, 0-1);
     i = i+1;
   }
 }
@@ -1467,38 +1466,6 @@ void writeBodies (Compiler c, file f) {
       writeCode(f, fn.code);
     i = i+1;
   }
-}
-
-void writeStatics (Compiler c, file f) {
-  int instcount = 0;
-  int i = 0;
-  while (i < c.constants.len()) {
-    if (c.constants[i].kind == "str") instcount = instcount+3;
-    i = i+1;
-  }
-
-  writenum(f, instcount+1);
-
-  int r = 0;
-  int i = 0;
-  while (i < c.constants.len()) {
-    if (c.constants[i].kind == "str") {
-      // [r] = sget [i]
-      writebyte(f, 4);
-      writenum(f, i);
-      // [r+1] = string.new([r])
-      writebyte(f, 16);
-      writenum(f, r);
-      // sset [i+1] [r+1]
-      writebyte(f, 5);
-      writenum(f, i+1);
-      writenum(f, r+1);
-      r = r+2;
-    }
-    i = i+1;
-  }
-
-  writebyte(f, 0); // return;
 }
 
 int atoi (string str) {
@@ -1581,7 +1548,7 @@ void writeMetadata (Compiler c, file f) {
 
 void writeCompiler (Compiler c, string filename) {
   file f = open(filename, "w");
-  write(f, "Cobre ~4");
+  write(f, "Cobre 0.5");
   writebyte(f, 0); // end signature
 
   writeModules(c, f);
@@ -1590,8 +1557,7 @@ void writeCompiler (Compiler c, string filename) {
   int i = 0;
   while (i < c.types.len()) {
     Type tp = c.types[i];
-    writebyte(f, 1); // Kind 1 is import
-    writenum(f, tp.mod);
+    writenum(f, tp.mod+1);
     writestr(f, tp.name);
     i = i+1;
   }
@@ -1603,24 +1569,24 @@ void writeCompiler (Compiler c, string filename) {
   while (i < c.constants.len()) {
     Constant cns = c.constants[i];
     if (cns.kind == "int") {
-      writebyte(f, 2); // kind 2 is an int constant
+      writebyte(f, 1); // kind 1 is an int constant
       writenum(f, atoi(cns.val));
     }
-    if (cns.kind == "null") {
-      int tpid = c.typeMap[cns.val];
-      writenum(f, tpid + 16);
+    if (cns.kind == "bin") {
+      writebyte(f, 2); // kind 2 is a binary constant
+      writestr(f, cns.val);
     }
     if (cns.kind == "str") {
-      // Binary data and strings are written the same way
-      writebyte(f, 3); // kind 3 is a binary constant
-      writestr(f, cns.val);
+      // Strings ar built using the bin constant just before them
+      int binindex = (i-1) + c.functions.len();
+      int function = 0; // new string function index
+      writenum(f, function + 16);
+      writenum(f, binindex);
     }
     i = i+1;
   }
 
   writeBodies(c, f);
-
-  writeStatics(c, f);
 
   writeMetadata(c, f);
 }
