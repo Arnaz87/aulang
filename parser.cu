@@ -340,11 +340,22 @@ Node parseIdentItem (Parser p) {
 Node parseImport (Parser p) {
   // import keyword already consumed
 
-  string name = parseLongName(p);
-  Node result = newNode("import", name);
+  Node result = newNode("import", "");
+  if (p.maybe("module")) result.tp = "import-module";
+  result.val = parseLongName(p);
 
-  Node arglist = newNode("arglist", "");
+  bool hasbody = 1<0;
+
+  Node argnode = newNode("none", "");
   if (p.maybe("(")) {
+    hasbody = 0<1;
+    if (p.maybe("module")) {
+      argnode.tp = "module";
+      argnode.val = p.getname();
+      goto endarg;
+    }
+    argnode.tp = "arglist";
+    if (p.peek().tp == ")") goto endarg;
     nextarg:
       Node argNode = newNode("name", p.getname());
       if (p.maybe("as")) {
@@ -352,43 +363,61 @@ Node parseImport (Parser p) {
         argNode = newNode("alias", p.getname());
         argNode.push(prev);
       }
-      arglist.push(argNode);
+      argnode.push(argNode);
       if (p.maybe(",")) goto nextarg;
+    endarg:
     check(p.next(), ")");
   }
-  result.push(arglist);
 
-  check(p.next(), "{");
+  if (p.peek().tp == "{") hasbody = 0<1;
 
-  nextitem:
-    int line = p.line();
-    if (p.maybe("}")) goto end;
-    else if (p.maybe("type")) {
-      Node typenode = newNode("type", parseLongName(p));
+  if (hasbody) {
+    check(p.next(), "{");
 
-      string alias = "";
-      if (p.maybe("as")) alias = p.getname();
-      typenode.push(newNode("alias", alias));
+    Node bodynode = newNode("body", "");
+    bodynode.push(argnode);
 
-      if (p.maybe("{")) {
-        nextmember:
+    nextitem:
+      token _tk = p.peek();
+      int line = p.line();
+      if (p.maybe("}")) goto end;
+      else if (p.maybe("type")) {
+        Node typenode = newNode("type", parseLongName(p));
+
+        string alias = "";
+        if (p.maybe("as")) alias = p.getname();
+        typenode.push(newNode("alias", alias));
+
+        if (p.maybe("{")) {
+          nextmember:
+          Node item = parseIdentItem(p);
+          if (item.tp == "function")
+            check(p.next(), ";");
+          typenode.push(item);
+          if (p.maybe("}")) {}
+          else goto nextmember;
+        } else check(p.next(), ";");
+
+        bodynode.push(typenode.inline(line));
+      } else if (p.maybe("module")) {
+        Node item = newNode("module", parseLongName(p));
+        string alias = "";
+        if (p.maybe("as")) alias = p.getname();
+        item.push(newNode("alias", alias));
+        check(p.next(), ";");
+        bodynode.push(item.inline(line));
+      } else {
         Node item = parseIdentItem(p);
         if (item.tp == "function")
           check(p.next(), ";");
-        typenode.push(item);
-        if (p.maybe("}")) {}
-        else goto nextmember;
-      } else check(p.next(), ";");
+        else error("???", _tk);
+        bodynode.push(item);
+      }
+      goto nextitem;
+    end:
 
-      result.push(typenode.inline(line));
-    } else {
-      Node item = parseIdentItem(p);
-      if (item.tp == "function")
-        check(p.next(), ";");
-      result.push(item);
-    }
-    goto nextitem;
-  end:
+    result.push(bodynode);
+  }
 
   return result;
 }
@@ -487,27 +516,43 @@ Node parseBlock (Parser p) {
   goto repeat;
 }
 
-/*Node parseModule (Parser p) {
-  Node modnode = newNode("module", parseLongName(p));
-  string alias = "";
-  if (p.maybe("as")) alias = p.getname();
-  modnode.push(newNode("alias", alias));
-  if (p.maybe("{")) {
-    Node bodynode = newNode("body", "");
-    nextitem:
-      if (p.maybe("}")) goto enditem;
-      string name = p.getname();
-      string alias = name;
-      if (p.maybe("as")) alias = p.getname();
-      check(p.next(), ";");
-      Node itemnode = newNode("item", name);
-      itemnode.push(newNode("alias", alias));
-      bodynode.push(itemnode);
-    goto nextitem;
-    check(p.next(), "}");
+Node parseModule (Parser p) {
+  Node modnode = newNode("module-def", p.getname());
+  if (p.maybe("=")) {
+    modnode.tp = "module-assign";
+    Node valnode;
+    if (p.maybe("import")) {
+      valnode = newNode("import", parseLongName(p));
+    } else {
+      valnode = newNode("module", p.getname());
+      if (p.maybe("(")) {
+        valnode.tp = "functor";
+        check(p.next(), "module");
+        valnode.push(newNode("module", p.getname()));
+        check(p.next(), ")");
+      }
+    }
+    check(p.next(), ";");
+    modnode.push(valnode);
+    return modnode;
   }
+  check(p.next(), "{");
+  Node bodynode = newNode("body", "");
+  nextitem:
+    if (p.peek().tp == "}") goto enditem;
+    string name = p.getname();
+    string alias = name;
+    if (p.maybe("as")) alias = p.getname();
+    check(p.next(), ";");
+    Node itemnode = newNode("item", name);
+    itemnode.push(newNode("alias", alias));
+    bodynode.push(itemnode);
+    goto nextitem;
+  enditem:
+  check(p.next(), "}");
+  modnode.push(bodynode);
   return modnode;
-}*/
+}
 
 Node parseTopLevel (Parser p) {
   token _tk = p.peek();
@@ -550,6 +595,8 @@ Node parseTopLevel (Parser p) {
     check(p.next(), ")");
     check(p.next(), ";");
     node = typenode.inline(_tk.line);
+  } else if (p.maybe("module")) {
+    node = parseModule(p);
   } else {
     node = parseIdentItem(p);
     if (node.tp == "function") {

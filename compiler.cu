@@ -110,14 +110,32 @@ import cobre.array (string) {
 }
 
 struct Module {
+  string kind; // global, define, build, hidden
   string name;
-  StrArr args;
-  StrArr argnames;
+  string argument;
+  StrArr items;
+  StrArr itemnames;
   int line;
 }
 
+Module globalModule (string name, int line) {
+  return new Module("global", name, "", emptyStrArr(), emptyStrArr(), line);
+}
+
+Module defineModule (StrArr items, StrArr itemnames, int line) {
+  return new Module("define", "", "", items, itemnames, line);
+}
+
+Module buildModule (string base, string argument, int line) {
+  return new Module("build", base, argument, emptyStrArr(), emptyStrArr(), line);
+}
+
+Module useModule (string base, string name, int line) {
+  return new Module("use", base, name, emptyStrArr(), emptyStrArr(), line);
+}
+
 struct Type {
-  int mod;
+  string mod;
   string name;
   Map getters;
   Map setters;
@@ -126,7 +144,7 @@ struct Type {
   int constructor;
 }
 
-Type newType (int mod, string name) {
+Type newType (string mod, string name) {
   return new Type(mod, name, newMap(), newMap(), newMap(), newMap(), 0-1);
 }
 
@@ -155,7 +173,7 @@ import cobre.array (Line) {
 }
 
 struct Function {
-  int mod; // -1 for defined function
+  string mod; // "" for defined function
   string name;
   StrArr outs;
   StrArr ins;
@@ -172,7 +190,7 @@ struct Function {
 }
 
 Function newFunction () {
-  return new Function(0-1, "", emptyStrArr(), emptyStrArr(), emptyStrArr(), nullNode(), emptyInstArr(), 0, emptyLineArr());
+  return new Function("", "", emptyStrArr(), emptyStrArr(), emptyStrArr(), nullNode(), emptyInstArr(), 0, emptyLineArr());
 }
 
 import cobre.array (Module) {
@@ -268,6 +286,7 @@ struct Compiler {
   Node tree;
   Map typeMap;
   Map fnMap;
+  Map modMap;
   ModuleArr modules;
   TypeArr types;
   FunctionArr functions;
@@ -290,6 +309,20 @@ struct Compiler {
     int id = this.fnMap[name];
     if (id >= 0) return id, 2;
     errorln("Unkown item \"" + name + "\"", line);
+  }
+
+  void setModule(Compiler this, string key, Module mod) {
+    int id = this.modules.len();
+    this.modules.push(mod);
+    this.modMap[key] = id;
+  }
+
+  string pushModule (Compiler this, Module mod) {
+    int id = this.modules.len();
+    this.modules.push(mod);
+    string name = "__mod_" + itos(id);
+    this.modMap[name] = id;
+    return name;
   }
 }
 
@@ -783,15 +816,19 @@ void codegen (Compiler c) {
 // =============================== //
 
 void makeBasics (Compiler c) {
-  c.modules.push(new Module("cobre.core", emptyStrArr(), emptyStrArr(), 0-1)); // #2
-  c.modules.push(new Module("cobre.int", emptyStrArr(), emptyStrArr(), 0-1)); // #3
-  c.modules.push(new Module("cobre.string", emptyStrArr(), emptyStrArr(), 0-1)); // #4
+  c.setModule("argument", new Module("hidden", "", "", emptyStrArr(), emptyStrArr(), 0-1));
+  // Exported module
+  c.pushModule(new Module("hidden", "", "", emptyStrArr(), emptyStrArr(), 0-1));
 
-  c.types.push(newType(2, "bool"));
-  c.types.push(newType(2, "bin"));
-  c.types.push(newType(3, "int"));
-  c.types.push(newType(4, "string"));
-  c.types.push(newType(4, "char"));
+  string coreM = c.pushModule(globalModule("cobre.core", 0-1)); // #2
+  string intM = c.pushModule(globalModule("cobre.int", 0-1)); // #3
+  string strM = c.pushModule(globalModule("cobre.string", 0-1)); // #4
+
+  c.types.push(newType(coreM, "bool"));
+  c.types.push(newType(coreM, "bin"));
+  c.types.push(newType(intM, "int"));
+  c.types.push(newType(strM, "string"));
+  c.types.push(newType(strM, "char"));
 
   c.typeMap["bool"] = 0;
   c.typeMap["__bin__"] = 1;
@@ -801,7 +838,7 @@ void makeBasics (Compiler c) {
 
   // #0
   Function fn = newFunction();
-  fn.mod = 4;
+  fn.mod = strM;
   fn.name = "new";
   fn.ins.push("__bin__");
   fn.outs.push("string");
@@ -809,7 +846,7 @@ void makeBasics (Compiler c) {
 
   // #1
   Function fn = newFunction();
-  fn.mod = 3;
+  fn.mod = intM;
   fn.name = "eq";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -818,7 +855,7 @@ void makeBasics (Compiler c) {
 
   // #2
   Function fn = newFunction();
-  fn.mod = 3;
+  fn.mod = intM;
   fn.name = "add";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -827,7 +864,7 @@ void makeBasics (Compiler c) {
 
   // #3
   Function fn = newFunction();
-  fn.mod = 3;
+  fn.mod = intM;
   fn.name = "gt";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -836,7 +873,7 @@ void makeBasics (Compiler c) {
 
   // #4
   Function fn = newFunction();
-  fn.mod = 3;
+  fn.mod = intM;
   fn.name = "lt";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -845,7 +882,7 @@ void makeBasics (Compiler c) {
 
   // #5
   Function fn = newFunction();
-  fn.mod = 4;
+  fn.mod = strM;
   fn.name = "eq";
   fn.ins.push("string");
   fn.ins.push("string");
@@ -854,7 +891,7 @@ void makeBasics (Compiler c) {
 
   // #6
   Function fn = newFunction();
-  fn.mod = 4;
+  fn.mod = strM;
   fn.name = "concat";
   fn.ins.push("string");
   fn.ins.push("string");
@@ -863,7 +900,7 @@ void makeBasics (Compiler c) {
 
   // #7
   Function fn = newFunction();
-  fn.mod = 3;
+  fn.mod = intM;
   fn.name = "sub";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -872,7 +909,7 @@ void makeBasics (Compiler c) {
 
   // #8
   Function fn = newFunction();
-  fn.mod = 3;
+  fn.mod = intM;
   fn.name = "mul";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -881,7 +918,7 @@ void makeBasics (Compiler c) {
 
   // #9
   Function fn = newFunction();
-  fn.mod = 3;
+  fn.mod = intM;
   fn.name = "div";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -890,7 +927,7 @@ void makeBasics (Compiler c) {
 
   // #10
   Function fn = newFunction();
-  fn.mod = 3;
+  fn.mod = intM;
   fn.name = "gte";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -899,7 +936,7 @@ void makeBasics (Compiler c) {
 
   // #11
   Function fn = newFunction();
-  fn.mod = 3;
+  fn.mod = intM;
   fn.name = "lte";
   fn.ins.push("int");
   fn.ins.push("int");
@@ -974,35 +1011,52 @@ void makeImports (Compiler c) {
   int i = 0;
   while (i < c.tree.len()) {
     Node node = c.tree.child(i);
-    if (node.tp == "import") {
-      int id = c.modules.len() + 2;
+    string modid = "";
+    if (node.tp == "import-module") {
+      modid = node.val;
+    } else if (node.tp == "import") {
+      modid = c.pushModule(globalModule(node.val, node.line));
+    }
+    if (modid == "") {} else {
+      if (node.len() == 0) error(node, "bodyless imports are not supported");
 
-      StrArr args = emptyStrArr();
-      StrArr argnames = emptyStrArr();
-      Node argsnd = node.child(0);
-      int j = 0;
-      while (j < argsnd.len()) {
-        Node argnd = argsnd.child(j);
-        if (argnd.tp == "name") {
-          args.push(argnd.val);
-          argnames.push(itos(j));
-        } else if (argnd.tp == "alias") {
-          args.push(argnd.child(0).val);
-          argnames.push(argnd.val);
-        } else error(argnd, "wtf");
-        j = j+1;
+      Node bodynode = node.child(0);
+      Node argsnd = bodynode.child(0);
+      if (argsnd.tp == "none") {
+        // Nothing, no arguments
+      } else if (argsnd.tp == "arglist") {
+        StrArr args = emptyStrArr();
+        StrArr argnames = emptyStrArr();
+        int j = 0;
+        while (j < argsnd.len()) {
+          Node argnd = argsnd.child(j);
+          if (argnd.tp == "name") {
+            args.push(argnd.val);
+            argnames.push(itos(j));
+          } else if (argnd.tp == "alias") {
+            args.push(argnd.child(0).val);
+            argnames.push(argnd.val);
+          } else error(node, "Unknown " + itos(j) + "-th argument node: " + argnd.tp);
+          j = j+1;
+        }
+
+        string argmodid = c.pushModule(defineModule(args, argnames, node.line));
+        modid = c.pushModule(buildModule(modid, argmodid, node.line));
+      } else if (argsnd.tp == "module") {
+        error(node, "Module arguments not yet supported");
+      } else {
+        error(node, "Unknown argument node: " + argsnd.tp);
       }
-      c.modules.push(new Module(node.val, args, argnames, node.line));
-
 
       int j = 1; // Skip first child, it's the argument node
-      while (j < node.len()) {
-        Node item = node.child(j);
+      while (j < bodynode.len()) {
+        Node item = bodynode.child(j);
+
         if (item.tp == "type") {
           int typeid = c.types.len();
           string tp_alias = item.child(0).val;
           if (tp_alias == "") tp_alias = item.val;
-          Type tp = newType(id, item.val);
+          Type tp = newType(modid, item.val);
           c.types.push(tp);
           c.typeMap[tp_alias] = typeid;
 
@@ -1017,7 +1071,7 @@ void makeImports (Compiler c) {
               int fnid = c.functions.len();
               Function f; string fn_alias;
               f, fn_alias = fnFromNode(member);
-              f.mod = id;
+              f.mod = modid;
               f.name = f.name + suffix;
               thisArg(f, tp_alias);
               c.functions.push(f);
@@ -1035,13 +1089,13 @@ void makeImports (Compiler c) {
               getfn.name = name + ":get" + suffix;
               getfn.ins.push(tp_alias);
               getfn.outs.push(tpnm);
-              getfn.mod = id;
+              getfn.mod = modid;
 
               Function setfn = newFunction();
               setfn.name = name + ":set" + suffix;
               setfn.ins.push(tp_alias);
               setfn.ins.push(tpnm);
-              setfn.mod = id;
+              setfn.mod = modid;
 
               c.functions.push(getfn);
               c.functions.push(setfn);
@@ -1058,15 +1112,29 @@ void makeImports (Compiler c) {
           int fnid = c.functions.len();
           Function f; string alias;
           f, alias = fnFromNode(item);
-          f.mod = id;
+          f.mod = modid;
           c.functions.push(f);
           c.fnMap[alias] = fnid;
+        } else if (item.tp == "module") {
+          Module mod = useModule(modid, item.val, item.line);
+          string alias = item.child(0).val;
+          c.setModule(alias, mod);
         } else {
           print("Unknown imported item: " + item.tp);
           quit(1);
         }
         j = j+1;
       }
+    }
+
+    if (node.tp == "module-assign") {
+      string name = node.val;
+      Node valnode = node.child(0);
+      if (valnode.tp == "import") {
+        c.setModule(name, globalModule(valnode.val, node.line));
+      } else error(node, "Only import assignments");
+    } else if (node.tp == "module-def") {
+      error(node, "Module definitions not yet supported");
     }
     i = i+1;
   }
@@ -1083,12 +1151,14 @@ void makeTypes (Compiler c) {
     }
 
     if (node.tp == "type") {
-      int moduleid = c.modules.len() + 2;
       string base = node.child(0).val;
       StrArr args = emptyStrArr(), argnames = emptyStrArr();
       args.push(base);
       argnames.push("0");
-      c.modules.push(new Module("cobre.typeshell", args, argnames, node.line));
+
+      string basemod = c.pushModule(globalModule("cobre.typeshell", node.line));
+      string argmod = c.pushModule(defineModule(args, argnames, node.line));
+      string moduleid = c.pushModule(buildModule(basemod, argmod, node.line));
 
       int typeid = c.types.len();
       string alias = node.val;
@@ -1117,10 +1187,12 @@ void makeTypes (Compiler c) {
       c.casts.push(new Cast(alias, base, fromid+1));
     }
     if (node.tp == "struct") {
-      int moduleid = c.modules.len() + 2;
       StrArr args = emptyStrArr();
       StrArr argnames = emptyStrArr();
-      c.modules.push(new Module("cobre.record", args, argnames, node.line));
+
+      string basemod = c.pushModule(globalModule("cobre.record", node.line));
+      string argmod = c.pushModule(defineModule(args, argnames, node.line));
+      string moduleid = c.pushModule(buildModule(basemod, argmod, node.line));
 
       int typeid = c.types.len();
       string alias = node.val;
@@ -1251,6 +1323,7 @@ Compiler compile (string src) {
     parsed,
     newMap(),
     newMap(),
+    newMap(),
     emptyModuleArr(),
     emptyTypeArr(),
     emptyFunctionArr(),
@@ -1315,62 +1388,41 @@ void writeExports (Compiler c, file f) {
 }
 
 void writeModules (Compiler c, file f) {
-  int count = c.modules.len() + 1;
-
-  int argcount = 0; // Number of modules with arguments
-  int i = 0;
-  while (i < c.modules.len()) {
-    if (c.modules[i].args.len() > 0)
-      argcount = argcount + 1;
-    i = i+1;
-  }
-
-  writenum(f, count + argcount + argcount); // For now, omit argument modules
+  writenum(f, c.modules.len() - 1); // The argument module (0) is not counted
 
   writeExports(c, f);
 
-  // This one is an index, so it does count this module's argument
-  int argi = count+1;
-  int i = 0;
+  int i = 2; // Omit argument and export (exports already written)
   while (i < c.modules.len()) {
     Module m = c.modules[i];
-    if (m.args.len() > 0) {
-      // Every.mod with argumetns consists of three modules
-      // the imported functor, the argument module
-      // and the applied functor.
-      // This one is the last
-      writebyte(f, 4); // Kind 4 is build functor
-      writenum(f, argi); // The functor
-      writenum(f, argi+1); // The argument
-      argi = argi+2;
-    } else {
-      writebyte(f, 0); // Kind 0 is import
-      writestr(f, m.name);
-    }
-    i = i+1;
-  }
 
-  // Now the two parts of a functor module
-  int i = 0;
-  while (i < c.modules.len()) {
-    Module m = c.modules[i];
-    if (m.args.len() > 0) {
-      writebyte(f, 2); // Kind 2 is import functor
+    if (m.kind == "global") {
+      writebyte(f, 0);
       writestr(f, m.name);
-
-      writebyte(f, 1); // Kind 1 is defined module
-      writebyte(f, m.args.len());
+    } else if (m.kind == "use") {
+      writebyte(f, 3);
+      writenum(f, c.modMap[m.name]);
+      writestr(f, m.argument);
+    } else if (m.kind == "define") {
+      writebyte(f, 1);
+      writebyte(f, m.items.len());
       int j = 0;
-      while (j < m.args.len()) {
+      while (j < m.items.len()) {
         int id, k;
-        id, k = c.getitem(m.args[j], m.line);
+        id, k = c.getitem(m.items[j], m.line);
         // getitem second result is compatible with the module format
         writebyte(f, k);
         writenum(f, id);
-        writestr(f, m.argnames[j]);
+        writestr(f, m.itemnames[j]);
         j = j+1;
       }
-    }
+    } else if (m.kind == "build") {
+      writebyte(f, 4);
+      int baseid = c.modMap[m.name];
+      int argid = c.modMap[m.argument];
+      writenum(f, baseid);
+      writenum(f, argid);
+    } else errorln("Unknown module kind " + m.kind, 0-1);
     i = i+1;
   }
 }
@@ -1383,7 +1435,7 @@ void writeFunctions (Compiler c, file f) {
     Function fn = c.functions[i];
 
     if (fn.hasCode()) writebyte(f, 1);
-    else writenum(f, fn.mod+2);
+    else writenum(f, c.modMap[fn.mod]+2);
 
     writenum(f, fn.ins.len());
     int j = 0;
@@ -1557,7 +1609,7 @@ void writeCompiler (Compiler c, string filename) {
   int i = 0;
   while (i < c.types.len()) {
     Type tp = c.types[i];
-    writenum(f, tp.mod+1);
+    writenum(f, c.modMap[tp.mod]+1);
     writestr(f, tp.name);
     i = i+1;
   }
@@ -1598,6 +1650,9 @@ void writeCompiler (Compiler c, string filename) {
 // =============================== //
 
 void printCompiler (Compiler c) {
+  print("Module Map:");
+  c.modMap.print("");
+
   print("Type Map:");
   c.typeMap.print("");
 
@@ -1608,13 +1663,21 @@ void printCompiler (Compiler c) {
   int i = 0;
   while (i < c.modules.len()) {
     Module m = c.modules[i];
-    string args = " ( ";
-    int j = 0;
-    while (j < m.args.len()) {
-      args = args + m.args[j] + " ";
-      j = j+1;
+    string desc;
+    if (m.kind == "hidden") desc = "hidden";
+    else if (m.kind == "global") desc = "global " + m.name;
+    else if (m.kind == "use") desc = "use " + m.name + "." + m.argument;
+    else if (m.kind == "build") desc = "build " + m.name + " (" + m.argument + ")";
+    else if (m.kind == "define") {
+      desc = "define { ";
+      int j = 0;
+      while (j < m.items.len()) {
+        desc = desc + m.itemnames[j] + ": " + m.items[j] + "; ";
+        j = j+1;
+      }
+      desc = desc + "}";
     }
-    print("[" + itos(i+2) + "]: " + m.name + args + ")");
+    print("[" + itos(i) + "]: " + desc);
     i = i+1;
   }
 
@@ -1622,7 +1685,7 @@ void printCompiler (Compiler c) {
   int i = 0;
   while (i < c.types.len()) {
     Type t = c.types[i];
-    print("[" + itos(i) + "]: Module[" + itos(t.mod) + "]." + t.name);
+    print("[" + itos(i) + "]: " + t.mod + "." + t.name);
     if (t.constructor < 0) {} else {
       print("  new: " + itos(t.constructor));
     }
@@ -1668,7 +1731,7 @@ void printCompiler (Compiler c) {
     if (f.hasCode()) {
       print("[" + itos(i) + "]: <Code>" + args);
     } else {
-      print("[" + itos(i) + "]: Module[" + itos(f.mod) + "]." + f.name + args);
+      print("[" + itos(i) + "]: " + f.mod + "." + f.name + args);
     }
     i = i+1;
   }
@@ -1684,8 +1747,8 @@ void main () {
   string src = readall("test.cu");
   Compiler c = compile(src);
 
-  //printCompiler(c);
-
   codegen(c);
+
+  printCompiler(c);
   writeCompiler(c, "out");
 }

@@ -12,12 +12,12 @@ Lexically Cu is the same as C with the following remarks:
 - There is no pointer related syntax, but there is array syntax
 - A quoted identifier is like a string but delimited with \` instead of " and has the same meaning as a regular identifier
 - String literals have type `string` instead of `char[]`
-- The reserved keywords are different than C's:
-  + true, false, void, if, else, while, return, continue, break, goto, type, module, import, as, extern
+- The set of reserved keywords is different than C's:
+  + true, false, void, null, new, if, else, while, return, continue, break, goto, type, module, import, export, as
 - Default types are not keywords but implicitly imported types:
   + bool, int, float, string
 
-Note: the code snippets are marked as C to take advantage of the syntax highlighter in sublime text, but it's actually Culang code.
+Note: the code snippets are marked as C to take advantage of markdown syntax highlighters, but it's actually Culang code.
 
 
 # Imports
@@ -76,7 +76,7 @@ import a.b {
 
 ~~~c
 // Equivalent to:
-// import cobre.record (A, B) { type `` as T; }
+// import cobre.record (A as `0`, B as `1`) { type `` as T; }
 struct T {
   // A field. Imports from that same module the functions
   // get0 and set0, as if they were named a:get and a:set,
@@ -182,18 +182,65 @@ export module M;
 
 // Shortcut to not define a separate module
 export module { print as p; }
+
+
+/*/ Ambiguity
+// Function in cobre.system, Java style
+import cobre.system.print;
+// Module cobre.system itself
+import cobre.system;
+// Module in scope
+import M; */
+
+
+// This removes the ambiguity, but is ugly
+// Imports the print function from global "cobre.system"
+import cobre.system.print;
+// Imports the global module "cobre.system" itself into scope
+import module cobre.system;
+// Imports many items from global "cobre.system"
+import cobre.system {}
+// Imports many items from module in scope "M"
+import module M {}
+
+
+// Another alternative
+import cobre.system; // Error: module cobre not found
+import cobre.system.print;
+module array = import cobre.array;
+module M = array(int as `0`);
+import module M { type intArr; }
+import module array (string as `0`) {
+  type strArr;
+}
+import module M; // Error: expected '{'
+
+
+// Use items of a module in scope
+import module M {
+  // The same as importing a global module
+  void p (string) as print2;
+}
 ~~~
 
 # Arguments
 
 ~~~c
-// Items can be passed to a module as arguments when imported
-extern type T;
-extern void f ();
-// I don't know yet how to handle imported modules
+private module M {
+  int as T;
+  main as f;
+}
+// A module can be passed to an imported module for it to use it's items
+import some.module (module M) {}
 
-// This looks for some.module in the system modules and passes the items
+// shortcut syntax to avoid creating too many modules
 import some.module (int as T, main as f) {}
+
+// the passed module is defined as a special module
+import module argument {
+  type T;
+  void f ();
+}
 ~~~
 
 # Control flow
