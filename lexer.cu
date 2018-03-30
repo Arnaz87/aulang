@@ -6,6 +6,7 @@ import cobre.system {
 
 import cobre.string {
   int codeof (char);
+  char newchar (int);
   char, int charat(string, int);
   int length (string) as strlen;
   string add (string, char) as addch;
@@ -265,7 +266,20 @@ TkArr tokens (string input) {
             goto end;
           }
           ch, pos = charat(input, pos);
-          val = addch(val+"\\", ch);
+          bool copyit = 1<0;
+          if (codeof(ch) == 92) copyit = 0<1;
+          if (codeof(ch) == 34) copyit = 0<1;
+          if (codeof(ch) == 39) copyit = 0<1;
+
+          if (copyit) {
+            val = addch(val, ch);
+          } else if (codeof(ch) == 110) { // n
+            val = addch(val, newchar(10)); // Line feed
+          } else if (codeof(ch) == 116) { // t
+            val = addch(val, newchar(9)); // Horizontal tab
+          } else {
+            val = addch(addch(val, newchar(92)), ch);
+          }
           goto beginq;
         }
 
