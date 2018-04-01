@@ -292,6 +292,7 @@ struct Compiler {
   FunctionArr functions;
   Map tpExports;
   Map fnExports;
+  Map modExports;
   ConstArr constants;
   CastArr casts;
 
@@ -308,6 +309,8 @@ struct Compiler {
     if (id >= 0) return id, 1;
     int id = this.fnMap[name];
     if (id >= 0) return id, 2;
+    int id = this.modMap[name];
+    if (id >= 0) return id, 0;
     errorln("Unkown item \"" + name + "\"", line);
   }
 
@@ -1118,6 +1121,7 @@ void makeImports (Compiler c) {
         } else if (item.tp == "module") {
           Module mod = useModule(modid, item.val, item.line);
           string alias = item.child(0).val;
+          if (alias == "") alias = item.val;
           c.setModule(alias, mod);
         } else {
           print("Unknown imported item: " + item.tp);
@@ -1310,6 +1314,7 @@ void makeExports (Compiler c) {
       id, k = c.getitem(node.child(0).val, node.line);
       if (k == 1) c.tpExports[name] = id;
       else if (k == 2) c.fnExports[name] = id;
+      else if (k == 0) c.modExports[name] = id;
       else error(node, "Cannot export " + name);
     }
     i = i+1;
@@ -1327,6 +1332,7 @@ Compiler compile (string src) {
     emptyModuleArr(),
     emptyTypeArr(),
     emptyFunctionArr(),
+    newMap(),
     newMap(),
     newMap(),
     emptyConstArr(),
@@ -1365,13 +1371,13 @@ void writestr (file f, string s) {
 }
 
 void writeExports (Compiler c, file f) {
-  int exportcount = c.fnExports.arr.len() + c.tpExports.arr.len();
+  int exportcount = c.fnExports.arr.len() + c.tpExports.arr.len() + c.modExports.arr.len();
   writebyte(f, 1); // Export module, kind 1 is defined
   writenum(f, exportcount);
   int i = 0;
   while (i < c.tpExports.arr.len()) {
     Pair p = c.tpExports.arr[i];
-    writebyte(f, 1); // Item kind 1 is type
+    writebyte(f, 1);
     writenum(f, p.id);
     writestr(f, p.key);
     i = i+1;
@@ -1380,7 +1386,16 @@ void writeExports (Compiler c, file f) {
   int i = 0;
   while (i < c.fnExports.arr.len()) {
     Pair p = c.fnExports.arr[i];
-    writebyte(f, 2); // Item kind 2 is function
+    writebyte(f, 2);
+    writenum(f, p.id);
+    writestr(f, p.key);
+    i = i+1;
+  }
+
+  int i = 0;
+  while (i < c.modExports.arr.len()) {
+    Pair p = c.modExports.arr[i];
+    writebyte(f, 0);
     writenum(f, p.id);
     writestr(f, p.key);
     i = i+1;
@@ -1741,6 +1756,9 @@ void printCompiler (Compiler c) {
 
   print("\nFunction exports:");
   c.fnExports.print("");
+
+  print("\nModule exports:");
+  c.modExports.print("");
 }
 
 void main () {

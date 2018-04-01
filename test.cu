@@ -1,19 +1,18 @@
 
-string foo = "a \\\"\nxd \ .";
-
-/*
 import cobre.function () {
   type `` as Fn;
-  module `new` as fnew;
+  module `new`;
   void apply (Fn);
 }
 
-import module fnew (f as `0`) {
+import module `new` (f as `0`) {
   Fn `` () as fcns;
 }
 
+export `new` as fnew;
+
 import cobre.system { void print (string); }
-private void f () { print("Hola Mundo!"); }*/
+private void f () { print("Hola Mundo!"); }
 
 /*module fnFunctor = import cobre.function;
 module emptyArg {}
@@ -31,9 +30,9 @@ import module newM {
   Fn `` () as fcns;
 }*/
 
-/*void main () {
+void main () {
   Fn g = fcns();
   apply(g);
-}*/
+}
 
 //void main () { f(); }

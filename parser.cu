@@ -563,8 +563,8 @@ Node parseTopLevel (Parser p) {
   }
   if (p.maybe("export")) {
     string item = p.getname();
-    check(p.next(), "as");
-    string alias = p.getname();
+    string alias = item;
+    if (p.maybe("as")) alias = p.getname();
     check(p.next(), ";");
     Node node = newNode("export", alias);
     node.push(newNode("item", item));
