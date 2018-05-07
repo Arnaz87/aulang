@@ -1,0 +1,65 @@
+%YAML 1.2
+---
+
+# To install, copy this file to ~/.config/sublime-text-3/Packages/User/
+
+# See http://www.sublimetext.com/docs/3/syntax.html
+# See https://manual.macromates.com/en/language_grammars, section 12.4
+file_extensions: [cu]
+scope: source.culang
+
+variables:
+  identifier: '\b(?:(?!\d)\w+|`([^`]|\\.)*`)\b'
+
+contexts:
+  main:
+    - include: comments
+    - match: '"'
+      scope: punctuation.definition.string.begin.culang
+      push:
+        - meta_scope: string.quoted.double.culang
+        - include: escapes
+        - match: '"'
+          scope: punctuation.definition.string.end.culang
+          pop: true
+
+    - match: (==|!=|<=|>=|<|>)
+      scope: keyword.operator.comparison.culang
+    - match: (\-|\+|\*|\/|%)
+      scope: keyword.operator.arithmetic.culang
+    - match: \=
+      scope: keyword.operator.assignment.c
+
+    - match: '\b(if|else|while|continue|break|goto|return)\b'
+      scope: keyword.control.culang
+    - match: '\b(int|float|bool|char|string)\b'
+      scope: support.type.culang
+    - match: \b(true|false|null)\b
+      scope: constant.language.culang
+    - match: \b(void|type|struct|module)\b
+      scope: storage.type.culang
+    - match: \b(new|as)\b
+      scope: keyword.operator.culang
+    - match: '\b(import|extern|export|private)\b'
+      scope: keyword.other.culang
+    - match: '\b\d+\b'
+      scope: constant.numeric.culang
+
+  comments:
+    - match: /\*
+      captures:
+        0: punctuation.definition.comment.culang
+      push:
+        - meta_scope: comment.block.culang
+        - match: \*/
+          captures:
+            0: punctuation.definition.comment.culang
+          pop: true
+    - match: (//).*$\n?
+      scope: comment.line.double-slash.culang
+      captures:
+        1: punctuation.definition.comment.culang
+
+  escapes:
+    - match: \\.
+      scope: constant.character.escape.culang
