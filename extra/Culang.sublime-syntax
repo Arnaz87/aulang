@@ -9,11 +9,101 @@ file_extensions: [cu]
 scope: source.culang
 
 variables:
-  identifier: '\b(?:(?!\d)\w+|`([^`]|\\.)*`)\b'
+  control_kw: if|else|while|continue|break|goto|return
+  constant_kw: true|false|null
+  type_kw: type|struct|module|void
+  other_kw: import|extern|export|private
+  operator_kw: new|as
+  all_kw: '{{control_kw}}|{{constant_kw}}|{{operator_kw}}|{{type_kw}}|{{other_kw}}'
+  name: '\b(?!(?:{{all_kw}})\b)(?:(?!\d)\w+|`(?:[^`]|\\.)*`)\b'
+  alias: '(?:as\s+{{name}}\s*)'
 
 contexts:
+
+  # All complex syntactic structures
   main:
+    - match: \b(new)\s+({{name}})
+      captures:
+        1: keyword.operator.new.culang
+        2: support.type.culang
+
+    - match: (?:\b(void)|({{name}})(?:\s*,\s*({{name}}))*)\s+({{name}})\s*(\()
+      captures:
+        1: storage.type.culang
+        2: support.type.culang
+        3: support.type.culang
+        4: entity.name.function.culang
+        5: punctuation.secion.parameters.begin.culang
+      push: parameters
+
+    - match: \b(type|struct)\s+({{name}})
+      captures:
+        1: storage.type.culang
+        2: entity.name.type.culang
+
+    - match: \b(import)\s+({{name}})(?:(\.)({{name}}))*
+      scope: meta.import.culang
+      captures:
+        1: keyword.other.import.culang
+        3: punctuation.separator.culang
+
+    - match: ({{name}})\s+(?={{name}})
+      captures:
+        1: support.type.culang
+
+    - match: \b({{name}})\s*\(
+      captures:
+        1: variable.function.culang
+
+    - match: '\b({{name}})\s*(:)'
+      captures:
+        1: entity.name.label.culang
+        2: punctuation.separator.culang
+
+    - include: lexical
+
+  parameters:
+    - meta_scope: meta.parameters.culang
+    - match: \b({{name}})\s*({{name}})?\b
+      captures:
+        1: support.type.culang
+        2: variable.parameter.culang
+    - match: ','
+      scope: punctuaction.separator.parameter.culang
+    - match: \)
+      scope: punctuation.secion.parameters.end.culang
+      pop: true
+    - include: lexical
+
+  # Simple lexical colouring fallthrough
+  lexical:
     - include: comments
+    - match: (==|!=|<=|>=|<|>)
+      scope: keyword.operator.comparison.culang
+    - match: (\-|\+|\*|\/|%)
+      scope: keyword.operator.arithmetic.culang
+    - match: =
+      scope: keyword.operator.assignment.culang
+    - match: '\b({{control_kw}})\b'
+      scope: keyword.control.culang
+    - match: '\b({{other_kw}})\b'
+      scope: keyword.other.culang
+    - match: \b({{constant_kw}})\b
+      scope: constant.language.culang
+    - match: \b({{type_kw}})\b
+      scope: storage.type.culang
+    - match: \b({{operator_kw}})\b
+      scope: keyword.operator.culang
+    - match: '\b\d+\b'
+      scope: constant.numeric.culang
+    - match: '\b(int|float|bool|char|string)\b' # default types
+      scope: support.type.culang
+    - match: \'.\'
+      scope: constant.character.culang
+    - match: \'\\.\'
+      scope: constant.character.escape.culang
+    - match: \'.+\'
+      scope: invalid.illegal.culang
     - match: '"'
       scope: punctuation.definition.string.begin.culang
       push:
@@ -22,28 +112,6 @@ contexts:
         - match: '"'
           scope: punctuation.definition.string.end.culang
           pop: true
-
-    - match: (==|!=|<=|>=|<|>)
-      scope: keyword.operator.comparison.culang
-    - match: (\-|\+|\*|\/|%)
-      scope: keyword.operator.arithmetic.culang
-    - match: \=
-      scope: keyword.operator.assignment.c
-
-    - match: '\b(if|else|while|continue|break|goto|return)\b'
-      scope: keyword.control.culang
-    - match: '\b(int|float|bool|char|string)\b'
-      scope: support.type.culang
-    - match: \b(true|false|null)\b
-      scope: constant.language.culang
-    - match: \b(void|type|struct|module)\b
-      scope: storage.type.culang
-    - match: \b(new|as)\b
-      scope: keyword.operator.culang
-    - match: '\b(import|extern|export|private)\b'
-      scope: keyword.other.culang
-    - match: '\b\d+\b'
-      scope: constant.numeric.culang
 
   comments:
     - match: /\*
