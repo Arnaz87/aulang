@@ -125,6 +125,13 @@ bool maybeEq (char ch) {
   return 0<0; // false
 }
 
+bool maybeDouble (char ch) {
+  int code = codeof(ch);
+  if (code == 38) return 0<1; // &
+  if (code == 124) return 0<1; // |
+  return 1<0;
+}
+
 bool isSpace (char ch) {
   int code = codeof(ch);
   if (code == 9)  { return 0<1; } // \t
@@ -228,12 +235,6 @@ TkArr tokens (string input) {
       else tk = new token("name", val, line);
     }
 
-    else if (isOp(ch)) {
-      tk = new token(addch("", ch), "", line);
-      if (pos < len)
-        ch, pos = charat(input, pos);
-    }
-
     else if (maybeEq(ch)) {
       string op = addch("", ch);
       if (pos < len) {
@@ -245,6 +246,22 @@ TkArr tokens (string input) {
         }
       }
       tk = new token(op, "", line);
+    }
+
+    else if (maybeDouble(ch)) {
+      char oldch = ch;
+      ch, pos = charat(input, pos);
+      if (codeof(oldch) == codeof(ch)) {
+        string op = addch(addch("", ch),ch);
+        tk = new token(op, "", line);
+        if (pos < len) ch, pos = charat(input, pos); // Skip second char
+      } else tk = new token(addch("", oldch), "", line);
+    }
+
+    else if (isOp(ch)) {
+      tk = new token(addch("", ch), "", line);
+      if (pos < len)
+        ch, pos = charat(input, pos);
     }
 
     else if (isQuote(ch)) {

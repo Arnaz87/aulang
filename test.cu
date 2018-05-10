@@ -1,38 +1,19 @@
 
-import cobre.function () {
-  type `` as Fn;
-  module `new`;
-  void apply (Fn);
-}
-
-import module `new` (f as `0`) {
-  Fn `` () as fcns;
-}
-
-export `new` as fnew;
-
 import cobre.system { void print (string); }
-private void f () { print("Hola Mundo!"); }
 
-/*module fnFunctor = import cobre.function;
-module emptyArg {}
-module fnM = fnFunctor(module emptyArg);
-
-import module fnM {
-  type `` as Fn;
-  module `new` as newFunctor;
-  void call (Fn);
+import cobre.array (string) {
+  type `` as `string[]` {
+    string get (int);
+    void set (int, string);
+    int len ();
+    void push (string);
+    new (string, int);
+  }
+  //`string[]` `new` (string, int) as `new string[]`;
 }
-
-module newArg { f as `0`; }
-module newM = newFunctor(module newArg);
-import module newM {
-  Fn `` () as fcns;
-}*/
 
 void main () {
-  Fn g = fcns();
-  apply(g);
+  `string[]` arr = new `string[]`("foo", 2);
+  arr[1] = "bar";
+  print(arr[0] + arr[1]);
 }
-
-//void main () { f(); }

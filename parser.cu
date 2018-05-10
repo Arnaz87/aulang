@@ -158,6 +158,8 @@ bool isBinop (string ty) {
   if (ty == "==") return 0<1;
   if (ty == ">=") return 0<1;
   if (ty == "!=") return 0<1;
+  if (ty == "&&") return 0<1;
+  if (ty == "||") return 0<1;
   return 0<0;
 }
 
@@ -231,6 +233,8 @@ Node parseExpr (Parser p) {
     string op = p.next().tp;
     Node right = parseSuffix(p);
     Node node = newNode("binop", op);
+    if (op == "||") node.tp = "logic";
+    if (op == "&&") node.tp = "logic";
     node.push(left);
     node.push(right);
     left = node;
@@ -390,10 +394,35 @@ Node parseImport (Parser p) {
 
         if (p.maybe("{")) {
           nextmember:
-          Node item = parseIdentItem(p);
-          if (item.tp == "function")
+          int line = p.line();
+          if (p.maybe("new")) {
+            Node item = newNode("new", "").inline(line);
+            Node ins = newNode("ins", "");
+            check(p.next(), "(");
+            if (p.peek().tp == ")") goto endin;
+            nextin:
+              Node inNode = newNode("arg", "");
+              inNode.push(newNode("type", p.getname()));
+              string argname = "";
+              if (p.peek().tp == "name")
+                argname = p.getname();
+              inNode.push(newNode("name", argname));
+              ins.push(inNode);
+              if (p.peek().tp == ",") {
+                p.next();
+                goto nextin;
+              }
+            endin:
+            check(p.next(), ")");
             check(p.next(), ";");
-          typenode.push(item);
+            item.push(ins);
+            typenode.push(item);
+          } else {
+            Node item = parseIdentItem(p);
+            if (item.tp == "function")
+              check(p.next(), ";");
+            typenode.push(item);
+          }
           if (p.maybe("}")) {}
           else goto nextmember;
         } else check(p.next(), ";");

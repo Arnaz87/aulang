@@ -1105,6 +1105,25 @@ void makeImports (Compiler c) {
 
               tp.getters[name] = getid;
               tp.setters[name] = getid+1;
+            } else if (member.tp == "new") {
+              Function f = newFunction();
+
+              Node innd = member.child(0);
+              int l = 0;
+              while (l < innd.len()) {
+                Node argnd = innd.child(l);
+                f.ins.push(argnd.child(0).val);
+                f.in_names.push(argnd.child(1).val);
+                l = l+1;
+              }
+
+              f.mod = modid;
+              f.name = "new";
+              f.outs.push(tp_alias);
+              int newid = c.functions.len();
+              c.functions.push(f);
+              tp.constructor = newid;
+
             } else {
               print("Unknown type member " + member.tp);
               quit(1);
