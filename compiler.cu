@@ -107,6 +107,7 @@ Module useModule (string base, string name, int line) {
 }
 
 struct Type {
+  int id;
   string mod;
   string name;
   Map getters;
@@ -116,8 +117,11 @@ struct Type {
   int constructor;
 }
 
-Type newType (string mod, string name) {
-  return new Type(mod, name, newMap(), newMap(), newMap(), newMap(), 0-1);
+Type newType (Compiler c, string mod, string name) {
+  int id = c.types.len();
+  Type t = new Type(id, mod, name, newMap(), newMap(), newMap(), newMap(), 0-1);
+  c.types.push(t);
+  return t;
 }
 
 import cobre.`null` (Node) {
@@ -135,6 +139,7 @@ struct Line {
 }
 
 struct Function {
+  int id;
   string mod; // "" for defined function
   string name;
   string[] outs;
@@ -151,8 +156,11 @@ struct Function {
   }
 }
 
-Function newFunction () {
-  return new Function("", "", new string[](), new string[](), new string[](), nullNode(), new Inst[](), 0, new Line[]());
+Function newFunction (Compiler c) {
+  int id = c.functions.len();
+  Function f = new Function(id, "", "", new string[](), new string[](), new string[](), nullNode(), new Inst[](), 0, new Line[]());
+  c.functions.push(f);
+  return f;
 }
 
 struct Constant {
@@ -294,41 +302,33 @@ string compileTypeName (Compiler this, Node node) {
       string argmod = this.pushModule(defineModule(args, argnames, node.line));
       string moduleid = this.pushModule(buildModule(basemod, argmod, node.line));
 
-      Type tp = newType(moduleid, "");
-      int id = this.types.len();
-      this.types.push(tp);
-      this.typeMap[name] = id;
+      Type tp = newType(this, moduleid, "");
+      this.typeMap[name] = tp.id;
 
-      Function getfn = newFunction();
+      Function getfn = newFunction(this);
       getfn.mod = moduleid;
       getfn.ins.push(name);
       getfn.ins.push("int");
       getfn.outs.push(innerName);
       getfn.name = "get";
-      int getid = this.functions.len();
-      this.functions.push(getfn);
-      tp.methods["get"] = getid;
+      tp.methods["get"] = getfn.id;
 
-      Function setfn = newFunction();
+      Function setfn = newFunction(this);
       setfn.mod = moduleid;
       setfn.ins.push(name);
       setfn.ins.push("int");
       setfn.ins.push(innerName);
       setfn.name = "set";
-      int setid = this.functions.len();
-      this.functions.push(setfn);
-      tp.methods["set"] = setid;
+      tp.methods["set"] = setfn.id;
 
-      Function pushfn = newFunction();
+      Function pushfn = newFunction(this);
       pushfn.mod = moduleid;
       pushfn.ins.push(name);
       pushfn.ins.push(innerName);
       pushfn.name = "push";
-      int pushid = this.functions.len();
-      this.functions.push(pushfn);
-      tp.methods["push"] = pushid;
+      tp.methods["push"] = pushfn.id;
 
-      Function lenfn = newFunction();
+      Function lenfn = newFunction(this);
       lenfn.mod = moduleid;
       lenfn.ins.push(name);
       lenfn.outs.push("int");
@@ -337,13 +337,11 @@ string compileTypeName (Compiler this, Node node) {
       this.functions.push(lenfn);
       tp.methods["len"] = lenid;
 
-      Function emptyfn = newFunction();
+      Function emptyfn = newFunction(this);
       emptyfn.mod = moduleid;
       emptyfn.outs.push(name);
       emptyfn.name = "empty";
-      int emptyid = this.functions.len();
-      this.functions.push(emptyfn);
-      tp.constructor = emptyid;
+      tp.constructor = emptyfn.id;
     }
     return name;
   } else if (node.tp == "type") {
@@ -793,11 +791,11 @@ void makeBasics (Compiler c) {
   string intM = c.pushModule(globalModule("cobre.int", 0-1)); // #3
   string strM = c.pushModule(globalModule("cobre.string", 0-1)); // #4
 
-  c.types.push(newType(coreM, "bool"));
-  c.types.push(newType(coreM, "bin"));
-  c.types.push(newType(intM, "int"));
-  c.types.push(newType(strM, "string"));
-  c.types.push(newType(strM, "char"));
+  newType(c, coreM, "bool");
+  newType(c, coreM, "bin");
+  newType(c, intM, "int");
+  newType(c, strM, "string");
+  newType(c, strM, "char");
 
   c.typeMap["bool"] = 0;
   c.typeMap["__bin__"] = 1;
@@ -806,111 +804,99 @@ void makeBasics (Compiler c) {
   c.typeMap["char"] = 4;
 
   // #0
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = strM;
   fn.name = "new";
   fn.ins.push("__bin__");
   fn.outs.push("string");
-  c.functions.push(fn);
 
   // #1
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = intM;
   fn.name = "eq";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("bool");
-  c.functions.push(fn);
 
   // #2
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = intM;
   fn.name = "add";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("int");
-  c.functions.push(fn);
 
   // #3
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = intM;
   fn.name = "gt";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("bool");
-  c.functions.push(fn);
 
   // #4
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = intM;
   fn.name = "lt";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("bool");
-  c.functions.push(fn);
 
   // #5
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = strM;
   fn.name = "eq";
   fn.ins.push("string");
   fn.ins.push("string");
   fn.outs.push("bool");
-  c.functions.push(fn);
 
   // #6
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = strM;
   fn.name = "concat";
   fn.ins.push("string");
   fn.ins.push("string");
   fn.outs.push("string");
-  c.functions.push(fn);
 
   // #7
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = intM;
   fn.name = "sub";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("int");
-  c.functions.push(fn);
 
   // #8
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = intM;
   fn.name = "mul";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("int");
-  c.functions.push(fn);
 
   // #9
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = intM;
   fn.name = "div";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("int");
-  c.functions.push(fn);
 
   // #10
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = intM;
   fn.name = "gte";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("bool");
-  c.functions.push(fn);
 
   // #11
-  Function fn = newFunction();
+  Function fn = newFunction(c);
   fn.mod = intM;
   fn.name = "lte";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("bool");
-  c.functions.push(fn);
 }
 
 // Basic functions:
@@ -930,7 +916,7 @@ void makeBasics (Compiler c) {
 Function, string fnFromNode (Compiler c, Node node) {
   string alias = node.child(2).val;
   if (alias == "") alias = node.val;
-  Function f = newFunction();
+  Function f = newFunction(c);
   f.name = node.val;
   f.line = node.line;
 
@@ -1021,12 +1007,10 @@ void makeImports (Compiler c) {
         Node item = bodynode.child(j);
 
         if (item.tp == "type") {
-          int typeid = c.types.len();
           string tp_alias = item.child(0).val;
           if (tp_alias == "") tp_alias = item.val;
-          Type tp = newType(modid, item.val);
-          c.types.push(tp);
-          c.typeMap[tp_alias] = typeid;
+          Type tp = newType(c, modid, item.val);
+          c.typeMap[tp_alias] = tp.id;
 
           int k = 1;
           while (k < item.len()) {
@@ -1036,14 +1020,12 @@ void makeImports (Compiler c) {
             if (item.val == "") {} else { suffix = ":" + item.val; }
 
             if (member.tp == "function") {
-              int fnid = c.functions.len();
               Function f; string fn_alias;
               f, fn_alias = fnFromNode(c, member);
               f.mod = modid;
               f.name = f.name + suffix;
               thisArg(f, tp_alias);
-              c.functions.push(f);
-              tp.methods[fn_alias] = fnid;
+              tp.methods[fn_alias] = f.id;
             } else if (member.tp == "decl") {
               string name = member.val;
               string tpnm = member.child(0).val;
@@ -1051,27 +1033,22 @@ void makeImports (Compiler c) {
               string getname = name + ":get" + suffix;
               string setname = name + ":set" + suffix;
 
-              int getid = c.functions.len();
-
-              Function getfn = newFunction();
+              Function getfn = newFunction(c);
               getfn.name = name + ":get" + suffix;
               getfn.ins.push(tp_alias);
               getfn.outs.push(tpnm);
               getfn.mod = modid;
 
-              Function setfn = newFunction();
+              Function setfn = newFunction(c);
               setfn.name = name + ":set" + suffix;
               setfn.ins.push(tp_alias);
               setfn.ins.push(tpnm);
               setfn.mod = modid;
 
-              c.functions.push(getfn);
-              c.functions.push(setfn);
-
-              tp.getters[name] = getid;
-              tp.setters[name] = getid+1;
+              tp.getters[name] = getfn.id;
+              tp.setters[name] = setfn.id;
             } else if (member.tp == "new") {
-              Function f = newFunction();
+              Function f = newFunction(c);
 
               Node innd = member.child(0);
               int l = 0;
@@ -1085,9 +1062,7 @@ void makeImports (Compiler c) {
               f.mod = modid;
               f.name = "new";
               f.outs.push(tp_alias);
-              int newid = c.functions.len();
-              c.functions.push(f);
-              tp.constructor = newid;
+              tp.constructor = f.id;
 
             } else {
               print("Unknown type member " + member.tp);
@@ -1096,12 +1071,10 @@ void makeImports (Compiler c) {
             k = k+1;
           }
         } else if (item.tp == "function") {
-          int fnid = c.functions.len();
           Function f; string alias;
           f, alias = fnFromNode(c, item);
           f.mod = modid;
-          c.functions.push(f);
-          c.fnMap[alias] = fnid;
+          c.fnMap[alias] = f.id;
         } else if (item.tp == "module") {
           Module mod = useModule(modid, item.val, item.line);
           string alias = item.child(0).val;
@@ -1148,31 +1121,25 @@ void makeTypes (Compiler c) {
       string argmod = c.pushModule(defineModule(args, argnames, node.line));
       string moduleid = c.pushModule(buildModule(basemod, argmod, node.line));
 
-      int typeid = c.types.len();
       string alias = node.val;
-      Type tp = newType(moduleid, "");
-      c.types.push(tp);
-      c.typeMap[alias] = typeid;
-      if (pub) c.tpExports[alias] = typeid;
+      Type tp = newType(c, moduleid, "");
+      c.typeMap[alias] = tp.id;
+      if (pub) c.tpExports[alias] = tp.id;
 
-      int fromid = c.functions.len();
-      Function from = newFunction();
+      Function from = newFunction(c);
       from.mod = moduleid;
       from.ins.push(base);
       from.outs.push(alias);
       from.name = "new";
 
-      Function to = newFunction();
+      Function to = newFunction(c);
       to.mod = moduleid;
       to.ins.push(alias);
       to.outs.push(base);
       to.name = "get";
 
-      c.functions.push(from);
-      c.functions.push(to);
-
-      c.casts.push(new Cast(base, alias, fromid));
-      c.casts.push(new Cast(alias, base, fromid+1));
+      c.casts.push(new Cast(base, alias, from.id));
+      c.casts.push(new Cast(alias, base, to.id));
     }
     if (node.tp == "struct") {
       string[] args = new string[]();
@@ -1182,20 +1149,16 @@ void makeTypes (Compiler c) {
       string argmod = c.pushModule(defineModule(args, argnames, node.line));
       string moduleid = c.pushModule(buildModule(basemod, argmod, node.line));
 
-      int typeid = c.types.len();
       string alias = node.val;
-      Type tp = newType(moduleid, "");
-      c.types.push(tp);
-      c.typeMap[alias] = typeid;
-      if (pub) c.tpExports[alias] = typeid;
+      Type tp = newType(c, moduleid, "");
+      c.typeMap[alias] = tp.id;
+      if (pub) c.tpExports[alias] = tp.id;
 
-      Function constructor = newFunction();
+      Function constructor = newFunction(c);
       constructor.mod = moduleid;
       constructor.name = "new";
       constructor.outs.push(alias);
-      int newid = c.functions.len();
-      c.functions.push(constructor);
-      tp.constructor = newid;
+      tp.constructor = constructor.id;
 
       int fieldid = 0;
       int j = 0;
@@ -1209,40 +1172,35 @@ void makeTypes (Compiler c) {
           args.push(ftp);
           constructor.ins.push(ftp);
 
-          int getid = c.functions.len();
-          Function getter = newFunction();
+          Function getter = newFunction(c);
           getter.line = member.line;
           getter.mod = moduleid;
           getter.ins.push(alias);
           getter.outs.push(ftp);
           getter.name = "get" + itos(fieldid);
 
-          Function setter = newFunction();
+          Function setter = newFunction(c);
           setter.line = member.line;
           setter.mod = moduleid;
           setter.ins.push(alias);
           setter.ins.push(ftp);
           setter.name = "set" + itos(fieldid);
 
-          c.functions.push(getter);
-          c.functions.push(setter);
+          tp.getters[name] = getter.id;
+          tp.setters[name] = setter.id;
 
-          tp.getters[name] = getid;
-          tp.setters[name] = getid+1;
-
-          if (pub) c.fnExports[name + ":get:" + alias] = getid;
-          if (pub) c.fnExports[name + ":set:" + alias] = getid+1;
+          if (pub) c.fnExports[name + ":get:" + alias] = getter.id;
+          if (pub) c.fnExports[name + ":set:" + alias] = setter.id;
 
           fieldid = fieldid + 1;
         } else if (member.tp == "function") {
-          int fnid = c.functions.len();
           Function f; string fn_alias;
           f, fn_alias = fnFromNode(c, member);
           f.name = fn_alias;
           f.node = newNullNode(member.child(3));
           c.functions.push(f);
-          tp.methods[fn_alias] = fnid;
-          c.fnExports[fn_alias + ":" + alias] = fnid;
+          tp.methods[fn_alias] = f.id;
+          c.fnExports[fn_alias + ":" + alias] = f.id;
         } else {
           print("Unknown struct member " + member.tp);
           quit(1);
@@ -1279,10 +1237,8 @@ void makeFunctions (Compiler c) {
       f, name = fnFromNode(c, node);
       f.name = name;
       f.node = newNullNode(node.child(3));
-      int id = c.functions.len();
-      c.functions.push(f);
-      c.fnMap[name] = id;
-      if (pub) c.fnExports[name] = id;
+      c.fnMap[name] = f.id;
+      if (pub) c.fnExports[name] = f.id;
     }
     i = i+1;
   }

@@ -2,6 +2,7 @@
 import cobre.system {
   void print (string);
   string readall (string);
+  void quit (int);
 }
 
 import cobre.string {
@@ -11,6 +12,11 @@ import cobre.string {
   int length (string) as strlen;
   string add (string, char) as addch;
   string itos(int);
+}
+
+void error (string str, int line) {
+  print("Lexer error: " + str + ", at line " + itos(line));
+  quit(1);
 }
 
 import cobre.array(token) {
@@ -268,20 +274,14 @@ TkArr tokens (string input) {
       int quoteCode = codeof(ch);
       string val = "";
       beginq:
-        if (pos >= len) {
-          print("Unfinished string");
-          goto end;
-        }
+        if (pos >= len) error("Unfinished string", line);
         ch, pos = charat(input, pos);
 
         // Closing quote
         if (codeof(ch) == quoteCode) goto endq;
 
         if (codeof(ch) == 92) { // Escape
-          if (pos >= len) {
-            print("Unfinished string");
-            goto end;
-          }
+          if (pos >= len) error("Unfinished string", line);
           ch, pos = charat(input, pos);
           bool copyit = 1<0;
           if (codeof(ch) == 92) copyit = 0<1;
@@ -310,8 +310,7 @@ TkArr tokens (string input) {
     }
 
     else {
-      print(addch("Unexpected character ", ch));
-      goto end;
+      error(addch("Unexpected character ", ch), line);
     }
 
     // Push the token
