@@ -38,18 +38,8 @@ struct Pair {
   int id;
 }
 
-import cobre.array (Pair) {
-  type `` as PairArr {
-    Pair get (int);
-    void set (int, Pair);
-    int len ();
-    void push (Pair);
-  }
-  PairArr empty () as emptyPairArr;
-}
-
 struct Map {
-  PairArr arr;
+  Pair[] arr;
   int pos;
 
   int get (Map this, string key) {
@@ -89,51 +79,31 @@ struct Map {
   bool any (Map this) { return this.arr.len() > 0; }
 }
 
-Map newMap () { return new Map(emptyPairArr(), 0); }
-
-import cobre.array (Node) {
-  type `` as NodeArr {
-    Node get (int);
-    void set (int, Node);
-    int len ();
-    void push (Node);
-  }
-  NodeArr empty () as emptyNodeArr;
-}
-
-import cobre.array (string) {
-  type `` as StrArr {
-    string get (int);
-    void set (int, string);
-    int len ();
-    void push (string);
-  }
-  StrArr empty () as emptyStrArr;
-}
+Map newMap () { return new Map(new Pair[](), 0); }
 
 struct Module {
   string kind; // global, define, build, hidden
   string name;
   string argument;
-  StrArr items;
-  StrArr itemnames;
+  string[] items;
+  string[] itemnames;
   int line;
 }
 
 Module globalModule (string name, int line) {
-  return new Module("global", name, "", emptyStrArr(), emptyStrArr(), line);
+  return new Module("global", name, "", new string[](), new string[](), line);
 }
 
-Module defineModule (StrArr items, StrArr itemnames, int line) {
+Module defineModule (string[] items, string[] itemnames, int line) {
   return new Module("define", "", "", items, itemnames, line);
 }
 
 Module buildModule (string base, string argument, int line) {
-  return new Module("build", base, argument, emptyStrArr(), emptyStrArr(), line);
+  return new Module("build", base, argument, new string[](), new string[](), line);
 }
 
 Module useModule (string base, string name, int line) {
-  return new Module("use", base, name, emptyStrArr(), emptyStrArr(), line);
+  return new Module("use", base, name, new string[](), new string[](), line);
 }
 
 struct Type {
@@ -164,26 +134,16 @@ struct Line {
   int line;
 }
 
-import cobre.array (Line) {
-  type `` as LineArr {
-    Line get (int);
-    void set (int, Line);
-    int len ();
-    void push (Line);
-  }
-  LineArr empty () as emptyLineArr;
-}
-
 struct Function {
   string mod; // "" for defined function
   string name;
-  StrArr outs;
-  StrArr ins;
-  StrArr in_names;
+  string[] outs;
+  string[] ins;
+  string[] in_names;
   NodeNull node;
-  InstArr code;
+  Inst[] code;
   int line;
-  LineArr lineinfo;
+  Line[] lineinfo;
 
   bool hasCode (Function this) {
     if (this.node.isnull()) return 1<0;
@@ -192,37 +152,7 @@ struct Function {
 }
 
 Function newFunction () {
-  return new Function("", "", emptyStrArr(), emptyStrArr(), emptyStrArr(), nullNode(), emptyInstArr(), 0, emptyLineArr());
-}
-
-import cobre.array (Module) {
-  type `` as ModuleArr {
-    Module get (int);
-    void set (int, Module);
-    int len ();
-    void push (Module);
-  }
-  ModuleArr empty () as emptyModuleArr;
-}
-
-import cobre.array (Type) {
-  type `` as TypeArr {
-    Type get (int);
-    void set (int, Type);
-    int len ();
-    void push (Type);
-  }
-  TypeArr empty () as emptyTypeArr;
-}
-
-import cobre.array (Function) {
-  type `` as FunctionArr {
-    Function get (int);
-    void set (int, Function);
-    int len ();
-    void push (Function);
-  }
-  FunctionArr empty () as emptyFunctionArr;
+  return new Function("", "", new string[](), new string[](), new string[](), nullNode(), new Inst[](), 0, new Line[]());
 }
 
 struct Constant {
@@ -230,42 +160,12 @@ struct Constant {
   string val;
 }
 
-import cobre.array (Constant) {
-  type `` as ConstArr {
-    Constant get (int);
-    void set (int, Constant);
-    int len ();
-    void push (Constant);
-  }
-  ConstArr empty () as emptyConstArr;
-}
-
-import cobre.array (int) {
-  type `` as IntArr {
-    int get (int);
-    void set (int, int);
-    int len ();
-    void push (int);
-  }
-  IntArr empty () as emptyIntArr;
-}
-
 struct Inst {
   string inst;
   int a;
   int b;
   string lbl;
-  IntArr args;
-}
-
-import cobre.array (Inst) {
-  type `` as InstArr {
-    Inst get (int);
-    void set (int, Inst);
-    int len ();
-    void push (Inst);
-  }
-  InstArr empty () as emptyInstArr;
+  int[] args;
 }
 
 struct Cast {
@@ -274,29 +174,19 @@ struct Cast {
   int fn;
 }
 
-import cobre.array (Cast) {
-  type `` as CastArr {
-    Cast get (int);
-    void set (int, Cast);
-    int len ();
-    void push (Cast);
-  }
-  CastArr empty () as emptyCastArr;
-}
-
 struct Compiler {
   Node tree;
   Map typeMap;
   Map fnMap;
   Map modMap;
-  ModuleArr modules;
-  TypeArr types;
-  FunctionArr functions;
+  Module[] modules;
+  Type[] types;
+  Function[] functions;
   Map tpExports;
   Map fnExports;
   Map modExports;
-  ConstArr constants;
-  CastArr casts;
+  Constant[] constants;
+  Cast[] casts;
 
   int gettp (Compiler this, string name, int line) {
     int id = this.typeMap[name];
@@ -341,7 +231,7 @@ struct Scope {
   Function fn;
   Map vars;
   Map labels;
-  IntArr regtypes;
+  int[] regtypes;
   int regcount;
   int lblcount;
 
@@ -363,11 +253,11 @@ struct Scope {
   }
 
   void inst (Scope this, string inst, int a, int b) {
-    this.fn.code.push(new Inst(inst, a, b, "", emptyIntArr()));
+    this.fn.code.push(new Inst(inst, a, b, "", new int[]()));
   }
 
   void flow (Scope this, string inst, string lbl, int b) {
-    this.fn.code.push(new Inst(inst, 0, b, lbl, emptyIntArr()));
+    this.fn.code.push(new Inst(inst, 0, b, lbl, new int[]()));
   }
 
   string lbl (Scope this) {
@@ -376,13 +266,13 @@ struct Scope {
     return itos(lbl);
   }
 
-  void call (Scope this, int fn, IntArr args) {
+  void call (Scope this, int fn, int[] args) {
     this.fn.code.push(new Inst("call", fn, 0, "", args));
   }
 
   void constant (Scope this, int id) {
     int funlen = this.c.functions.len();
-    this.call(funlen + id, emptyIntArr());
+    this.call(funlen + id, new int[]());
   }
 
   void uselbl (Scope this, string name) {
@@ -396,7 +286,7 @@ string compileTypeName (Compiler this, Node node) {
     string innerName = compileTypeName(this, node.child(0));
     name = innerName + "[]";
     if (this.typeMap[name] < 0) {
-      StrArr args = emptyStrArr(), argnames = emptyStrArr();
+      string[] args = new string[](), argnames = new string[]();
       args.push(innerName);
       argnames.push("0");
 
@@ -473,10 +363,10 @@ void errorln (string msg, int line) {
 void error (Node node, string msg) { errorln(msg, node.line); }
 
 Scope newScope (Compiler c, Function fn) {
-  return new Scope(c, fn, newMap(), newMap(), emptyIntArr(), 0, 0);
+  return new Scope(c, fn, newMap(), newMap(), new int[](), 0, 0);
 }
 
-IntArr compileCall (Scope this, Node node) {
+int[] compileCall (Scope this, Node node) {
   Node base = node.child(0);
   Node argsnode = node.child(1);
   if (base.tp == "var") {
@@ -490,7 +380,7 @@ IntArr compileCall (Scope this, Node node) {
         " arguments, but " + itos(argsnode.len()) + " were passed");
     }
 
-    IntArr args = emptyIntArr();
+    int[] args = new int[]();
     int i = 0;
     while (i < argsnode.len()) {
       int reg = compileExpr(this, argsnode.child(i));
@@ -501,7 +391,7 @@ IntArr compileCall (Scope this, Node node) {
     this.fn.lineinfo.push(new Line(this.fn.code.len(), node.line));
     this.call(id, args);
 
-    IntArr rets = emptyIntArr();
+    int[] rets = new int[]();
     int i = 0;
     while (i < fn.outs.len()) {
       int tpid = this.c.typeMap[fn.outs[i]];
@@ -523,7 +413,7 @@ IntArr compileCall (Scope this, Node node) {
         " arguments, but " + itos(argsnode.len()+1) + " were passed");
     }
 
-    IntArr args = emptyIntArr();
+    int[] args = new int[]();
     args.push(basereg);
     int i = 0;
     while (i < argsnode.len()) {
@@ -535,7 +425,7 @@ IntArr compileCall (Scope this, Node node) {
     this.fn.lineinfo.push(new Line(this.fn.code.len(), node.line));
     this.call(fnid, args);
 
-    IntArr rets = emptyIntArr();
+    int[] rets = new int[]();
     int i = 0;
     while (i < fn.outs.len()) {
       int tpid = this.c.typeMap[fn.outs[i]];
@@ -565,7 +455,7 @@ int compileExpr (Scope this, Node node) {
     int id = this.c.constants.len();
     this.c.constants.push(new Constant("str", ""));
 
-    IntArr args;
+    int[] args;
 
     // TODO: Add static instructions
     int tp = this.gettp("string");
@@ -579,7 +469,7 @@ int compileExpr (Scope this, Node node) {
     int tpa = this.regtypes[a];
     int tpb = this.regtypes[b];
 
-    IntArr args = emptyIntArr(); 
+    int[] args = new int[](); 
     args.push(a); args.push(b);
     // int
     if (tpa == 2) if (tpb == 2) {
@@ -611,7 +501,7 @@ int compileExpr (Scope this, Node node) {
     error(node, "Operation " + node.val + " not supported for " + xtpa.name + " and " + xtpb.name);
   }
   if (node.tp == "call") {
-    IntArr rets = compileCall(this, node);
+    int[] rets = compileCall(this, node);
     if (rets.len() == 0) {
       error(node, "Function is of type void");
     }
@@ -626,7 +516,7 @@ int compileExpr (Scope this, Node node) {
     Function fn = this.c.functions[fnid];
     int rettp = this.c.gettp(fn.outs[0], fn.line);
 
-    IntArr args = emptyIntArr();
+    int[] args = new int[]();
     args.push(basereg);
     this.call(fnid, args);
     return this.decl(rettp);
@@ -642,7 +532,7 @@ int compileExpr (Scope this, Node node) {
     int rettp = this.c.gettp(fn.outs[0], fn.line);
 
     if (fn.ins.len() == 2) {
-      IntArr args = emptyIntArr();
+      int[] args = new int[]();
       args.push(base);
       args.push(index);
       this.call(fnid, args);
@@ -666,7 +556,7 @@ int compileExpr (Scope this, Node node) {
       error(node, "Constructor expects " + itos(expected) + " parameters, but " + itos(count) + " were passed");
     }
 
-    IntArr args = emptyIntArr();
+    int[] args = new int[]();
     int i = 0;
     while (i < count) {
       int reg = compileExpr(this, exprlist.child(i));
@@ -685,7 +575,7 @@ int compileExpr (Scope this, Node node) {
     Function fn = this.c.functions[fnid];
     int rettp = this.c.gettp(node.val, node.line);
 
-    IntArr args = emptyIntArr();
+    int[] args = new int[]();
     args.push(basereg);
     this.call(fnid, args);
     return this.decl(rettp);
@@ -711,7 +601,7 @@ void assign (Scope this, Node left, int reg) {
     Function fn = this.c.functions[fnid];
     if (fn.outs.len() > 0) error(left, "set method has to be void");
     if (fn.ins.len() == 3) {
-      IntArr args = emptyIntArr();
+      int[] args = new int[]();
       args.push(base);
       args.push(index);
       args.push(reg);
@@ -726,7 +616,7 @@ void assign (Scope this, Node left, int reg) {
     Function fn = this.c.functions[fnid];
     //int valtp = this.c.typeMap[fn.ins[0]];
 
-    IntArr args = emptyIntArr();
+    int[] args = new int[]();
     args.push(basereg);
     args.push(reg);
     this.call(fnid, args);
@@ -775,7 +665,7 @@ void compileStmt (Scope this, Node node) {
 
     if (left.len() > 1) {
       if (right.tp == "call") {
-        IntArr regs = compileCall(this, right);
+        int[] regs = compileCall(this, right);
         if (regs.len() < left.len()) {
           error(node, "Cannot assign " + itos(regs.len()) + " values to " + itos(left.len()) + " expressions");
         }
@@ -820,7 +710,7 @@ void compileStmt (Scope this, Node node) {
     return;
   }
   if (node.tp == "call") {
-    IntArr rets = compileCall(this, node);
+    int[] rets = compileCall(this, node);
     return;
   }
   if (node.tp == "return") {
@@ -830,7 +720,7 @@ void compileStmt (Scope this, Node node) {
     if (count == expected) {} else {
       error(node, "Function returns " + itos(expected) + " values, but " + itos(count) + " were returned");
     }
-    IntArr args = emptyIntArr();
+    int[] args = new int[]();
     int i = 0;
     while (i < count) {
       Node expr = exprlist.child(i);
@@ -895,9 +785,9 @@ void codegen (Compiler c) {
 // =============================== //
 
 void makeBasics (Compiler c) {
-  c.setModule("argument", new Module("hidden", "", "", emptyStrArr(), emptyStrArr(), 0-1));
+  c.setModule("argument", new Module("hidden", "", "", new string[](), new string[](), 0-1));
   // Exported module
-  c.pushModule(new Module("hidden", "", "", emptyStrArr(), emptyStrArr(), 0-1));
+  c.pushModule(new Module("hidden", "", "", new string[](), new string[](), 0-1));
 
   string coreM = c.pushModule(globalModule("cobre.core", 0-1)); // #2
   string intM = c.pushModule(globalModule("cobre.int", 0-1)); // #3
@@ -1064,8 +954,8 @@ Function, string fnFromNode (Compiler c, Node node) {
 }
 
 void thisArg (Function fn, string arg) {
-  StrArr oldArr = fn.ins;
-  StrArr newArr = emptyStrArr();
+  string[] oldArr = fn.ins;
+  string[] newArr = new string[]();
   newArr.push(arg);
   int i = 0;
   while (i < oldArr.len()) {
@@ -1074,8 +964,8 @@ void thisArg (Function fn, string arg) {
   }
   fn.ins = newArr;
 
-  StrArr oldArr = fn.in_names;
-  StrArr newArr = emptyStrArr();
+  string[] oldArr = fn.in_names;
+  string[] newArr = new string[]();
   newArr.push("this");
   int i = 0;
   while (i < oldArr.len()) {
@@ -1103,8 +993,8 @@ void makeImports (Compiler c) {
       if (argsnd.tp == "none") {
         // Nothing, no arguments
       } else if (argsnd.tp == "arglist") {
-        StrArr args = emptyStrArr();
-        StrArr argnames = emptyStrArr();
+        string[] args = new string[]();
+        string[] argnames = new string[]();
         int j = 0;
         while (j < argsnd.len()) {
           Node argnd = argsnd.child(j);
@@ -1250,7 +1140,7 @@ void makeTypes (Compiler c) {
 
     if (node.tp == "type") {
       string base = node.child(0).val;
-      StrArr args = emptyStrArr(), argnames = emptyStrArr();
+      string[] args = new string[](), argnames = new string[]();
       args.push(base);
       argnames.push("0");
 
@@ -1285,8 +1175,8 @@ void makeTypes (Compiler c) {
       c.casts.push(new Cast(alias, base, fromid+1));
     }
     if (node.tp == "struct") {
-      StrArr args = emptyStrArr();
-      StrArr argnames = emptyStrArr();
+      string[] args = new string[]();
+      string[] argnames = new string[]();
 
       string basemod = c.pushModule(globalModule("cobre.record", node.line));
       string argmod = c.pushModule(defineModule(args, argnames, node.line));
@@ -1423,14 +1313,14 @@ Compiler compile (string src) {
     newMap(),
     newMap(),
     newMap(),
-    emptyModuleArr(),
-    emptyTypeArr(),
-    emptyFunctionArr(),
+    new Module[](),
+    new Type[](),
+    new Function[](),
     newMap(),
     newMap(),
     newMap(),
-    emptyConstArr(),
-    emptyCastArr()
+    new Constant[](),
+    new Cast[]()
   );
 
   makeBasics(c);
@@ -1570,7 +1460,7 @@ void writeFunctions (Compiler c, file f) {
   }
 }
 
-void writeCode (file f, InstArr code) {
+void writeCode (file f, Inst[] code) {
   writenum(f, code.len());
 
   int i = 0;
