@@ -404,54 +404,54 @@ string compileTypeName (Compiler this, Node node) {
       string argmod = this.pushModule(defineModule(args, argnames, node.line));
       string moduleid = this.pushModule(buildModule(basemod, argmod, node.line));
 
-      int id = this.types.len();
       Type tp = newType(moduleid, "");
+      int id = this.types.len();
       this.types.push(tp);
       this.typeMap[name] = id;
 
-      int getid = this.functions.len();
       Function getfn = newFunction();
       getfn.mod = moduleid;
       getfn.ins.push(name);
       getfn.ins.push("int");
       getfn.outs.push(innerName);
       getfn.name = "get";
+      int getid = this.functions.len();
       this.functions.push(getfn);
       tp.methods["get"] = getid;
 
-      int setid = this.functions.len();
       Function setfn = newFunction();
       setfn.mod = moduleid;
       setfn.ins.push(name);
       setfn.ins.push("int");
       setfn.ins.push(innerName);
       setfn.name = "set";
+      int setid = this.functions.len();
       this.functions.push(setfn);
       tp.methods["set"] = setid;
 
-      int pushid = this.functions.len();
       Function pushfn = newFunction();
       pushfn.mod = moduleid;
       pushfn.ins.push(name);
       pushfn.ins.push(innerName);
       pushfn.name = "push";
+      int pushid = this.functions.len();
       this.functions.push(pushfn);
       tp.methods["push"] = pushid;
 
-      int lenid = this.functions.len();
       Function lenfn = newFunction();
       lenfn.mod = moduleid;
       lenfn.ins.push(name);
-      lenfn.ins.push(innerName);
+      lenfn.outs.push("int");
       lenfn.name = "len";
+      int lenid = this.functions.len();
       this.functions.push(lenfn);
       tp.methods["len"] = lenid;
 
-      int emptyid = this.functions.len();
       Function emptyfn = newFunction();
       emptyfn.mod = moduleid;
       emptyfn.outs.push(name);
       emptyfn.name = "empty";
+      int emptyid = this.functions.len();
       this.functions.push(emptyfn);
       tp.constructor = emptyid;
     }
@@ -1313,7 +1313,7 @@ void makeTypes (Compiler c) {
         Node member = node.child(j);
         if (member.tp == "decl") {
           string name = member.val;
-          string ftp = member.child(0).val;
+          string ftp = compileTypeName(c, member.child(0));
 
           argnames.push(itos(args.len()));
           args.push(ftp);
