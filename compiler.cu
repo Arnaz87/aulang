@@ -4,6 +4,8 @@ import cobre.system {
   void quit (int);
   string readall (string);
 
+  void error (string) as syserr;
+
   type file as file; 
   file open (string filename, string mode);
   void write (file, string);
@@ -388,6 +390,77 @@ struct Scope {
   }
 }
 
+string compileTypeName (Compiler this, Node node) {
+  int id; string name;
+  if (node.tp == "array") {
+    string innerName = compileTypeName(this, node.child(0));
+    name = innerName + "[]";
+    if (this.typeMap[name] < 0) {
+      StrArr args = emptyStrArr(), argnames = emptyStrArr();
+      args.push(innerName);
+      argnames.push("0");
+
+      string basemod = this.pushModule(globalModule("cobre.array", node.line));
+      string argmod = this.pushModule(defineModule(args, argnames, node.line));
+      string moduleid = this.pushModule(buildModule(basemod, argmod, node.line));
+
+      int id = this.types.len();
+      Type tp = newType(moduleid, "");
+      this.types.push(tp);
+      this.typeMap[name] = id;
+
+      int getid = this.functions.len();
+      Function getfn = newFunction();
+      getfn.mod = moduleid;
+      getfn.ins.push(name);
+      getfn.ins.push("int");
+      getfn.outs.push(innerName);
+      getfn.name = "get";
+      this.functions.push(getfn);
+      tp.methods["get"] = getid;
+
+      int setid = this.functions.len();
+      Function setfn = newFunction();
+      setfn.mod = moduleid;
+      setfn.ins.push(name);
+      setfn.ins.push("int");
+      setfn.ins.push(innerName);
+      setfn.name = "set";
+      this.functions.push(setfn);
+      tp.methods["set"] = setid;
+
+      int pushid = this.functions.len();
+      Function pushfn = newFunction();
+      pushfn.mod = moduleid;
+      pushfn.ins.push(name);
+      pushfn.ins.push(innerName);
+      pushfn.name = "push";
+      this.functions.push(pushfn);
+      tp.methods["push"] = pushid;
+
+      int lenid = this.functions.len();
+      Function lenfn = newFunction();
+      lenfn.mod = moduleid;
+      lenfn.ins.push(name);
+      lenfn.ins.push(innerName);
+      lenfn.name = "len";
+      this.functions.push(lenfn);
+      tp.methods["len"] = lenid;
+
+      int emptyid = this.functions.len();
+      Function emptyfn = newFunction();
+      emptyfn.mod = moduleid;
+      emptyfn.outs.push(name);
+      emptyfn.name = "empty";
+      this.functions.push(emptyfn);
+      tp.constructor = emptyid;
+    }
+    return name;
+  } else if (node.tp == "type") {
+    return node.val;
+  } else syserr("???");
+}
+
 void errorln (string msg, int line) {
   string pos = "";
   if (line < 0) {} else {
@@ -577,14 +650,17 @@ int compileExpr (Scope this, Node node) {
     } else error(node, "get method must receive 2 parameters");
   }
   if (node.tp == "new") {
-    string tpname = node.val;
-    int tpid = this.c.gettp(tpname, node.line);
+    Node ch = node.child(0);
+
+    string tpname = compileTypeName(this.c, ch);
+    int tpid = this.gettp(tpname);
+
     Type tp = this.c.types[tpid];
     int fnid = tp.constructor;
     if (fnid < 0) error(node, "Unknown constructor for " + tpname);
     Function fn = this.c.functions[fnid];
     int expected = fn.ins.len();
-    Node exprlist = node.child(0);
+    Node exprlist = node.child(1);
     int count = exprlist.len();
     if (expected == count) {} else {
       error(node, "Constructor expects " + itos(expected) + " parameters, but " + itos(count) + " were passed");
@@ -669,8 +745,8 @@ void compileStmt (Scope this, Node node) {
     return;
   }
   if (node.tp == "decl") {
-    int tp = this.gettp(node.val);
-    int i = 0;
+    int tp = this.gettp(compileTypeName(this.c, node.child(0)));
+    int i = 1;
     while (i < node.len()) {
       Node part = node.child(i);
       string name = part.val;
@@ -961,8 +1037,7 @@ void makeBasics (Compiler c) {
 // 10: int greater or equal
 // 11: int less or equal
 
-
-Function, string fnFromNode (Node node) {
+Function, string fnFromNode (Compiler c, Node node) {
   string alias = node.child(2).val;
   if (alias == "") alias = node.val;
   Function f = newFunction();
@@ -973,7 +1048,7 @@ Function, string fnFromNode (Node node) {
   int k = 0;
   while (k < innd.len()) {
     Node argnd = innd.child(k);
-    f.ins.push(argnd.child(0).val);
+    f.ins.push(compileTypeName(c, argnd.child(0)));
     f.in_names.push(argnd.child(1).val);
     k = k+1;
   }
@@ -981,7 +1056,7 @@ Function, string fnFromNode (Node node) {
   Node outnd = node.child(1);
   int k = 0;
   while (k < outnd.len()) {
-    f.outs.push(outnd.child(k).val);
+    f.outs.push(compileTypeName(c, outnd.child(k)));
     k = k+1;
   }
 
@@ -1073,7 +1148,7 @@ void makeImports (Compiler c) {
             if (member.tp == "function") {
               int fnid = c.functions.len();
               Function f; string fn_alias;
-              f, fn_alias = fnFromNode(member);
+              f, fn_alias = fnFromNode(c, member);
               f.mod = modid;
               f.name = f.name + suffix;
               thisArg(f, tp_alias);
@@ -1133,7 +1208,7 @@ void makeImports (Compiler c) {
         } else if (item.tp == "function") {
           int fnid = c.functions.len();
           Function f; string alias;
-          f, alias = fnFromNode(item);
+          f, alias = fnFromNode(c, item);
           f.mod = modid;
           c.functions.push(f);
           c.fnMap[alias] = fnid;
@@ -1272,7 +1347,7 @@ void makeTypes (Compiler c) {
         } else if (member.tp == "function") {
           int fnid = c.functions.len();
           Function f; string fn_alias;
-          f, fn_alias = fnFromNode(member);
+          f, fn_alias = fnFromNode(c, member);
           f.name = fn_alias;
           f.node = newNullNode(member.child(3));
           c.functions.push(f);
@@ -1310,11 +1385,11 @@ void makeFunctions (Compiler c) {
       pub = 1<0;
     }
     if (node.tp == "function") {
-      int id = c.functions.len();
       Function f; string name;
-      f, name = fnFromNode(node);
+      f, name = fnFromNode(c, node);
       f.name = name;
       f.node = newNullNode(node.child(3));
+      int id = c.functions.len();
       c.functions.push(f);
       c.fnMap[name] = id;
       if (pub) c.fnExports[name] = id;

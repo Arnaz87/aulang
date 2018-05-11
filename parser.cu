@@ -141,6 +141,21 @@ void check (token tk, string tp) {
 //            Expressions          //
 // =============================== //
 
+
+Node parseType (Parser p) {
+  int line = p.line();
+  Node node = newNode("type", p.getname()).inline(line);
+  if (p.peek().tp == "[") {} else goto noarr;
+  if (p.peekat(1).tp == "]") {} else goto noarr;
+    p.next(); p.next();
+    Node basenode = node;
+    node = newNode("array", "").inline(line);
+    node.push(basenode);
+  noarr:
+  return node;
+}
+
+
 bool isUnop (string ty) {
   if (ty == "-") return 0<1;
   if (ty == "!") return 0<1;
@@ -188,7 +203,8 @@ Node parseBaseExpr (Parser p) {
   } else if (ty == "name") {
     node = newNode("var", tk.val);
   } else if (ty == "new") {
-    node = newNode("new", p.getname());
+    node = newNode("new", "");
+    node.push(parseType(p));
     check(p.next(), "(");
     node.push(parseExprList(p, ")"));
   } else { error("invalid expression", tk); }
@@ -291,7 +307,7 @@ Node parseIdentItem (Parser p) {
   if (p.maybe("void")) {}
   else {
     nextout:
-    outs.push(newNode("type", p.getname()));
+    outs.push(parseType(p));
     if (p.maybe(",")) goto nextout;
   }
 
@@ -302,7 +318,7 @@ Node parseIdentItem (Parser p) {
     if (p.peek().tp == ")") goto endin;
     nextin:
       Node inNode = newNode("arg", "");
-      inNode.push(newNode("type", p.getname()));
+      inNode.push(parseType(p));
       string argname = "";
       if (p.peek().tp == "name")
         argname = p.getname();
@@ -325,7 +341,7 @@ Node parseIdentItem (Parser p) {
     return node;
   } else if (outs.len() == 1) {
     if (p.maybe(";")) {
-      Node tpnode = newNode("type", outs.child(0).val);
+      Node tpnode = outs.child(0);
       Node declnode = newNode("decl", name);
       declnode.line = line;
       declnode.push(tpnode);
@@ -472,7 +488,8 @@ Node parseAssignment (Parser p, Node first) {
 }
 
 Node parseDecl (Parser p) {
-  Node node = newNode("decl", p.getname());
+  Node node = newNode("decl", "");
+  node.push(parseType(p));
 
   nextpart:
     Node partnode = newNode("declpart", p.getname());
@@ -522,6 +539,9 @@ Node parseStmt (Parser p) {
       string name = p.getname(); p.next();
       return newNode("label", name).inline(line);
     }
+    if (ty == "[")
+      if (p.peekat(2).tp == "]")
+        return parseDecl(p).inline(line);
     if (ty == "name") return parseDecl(p).inline(line);
   }
   Node expr = parseExpr(p);
