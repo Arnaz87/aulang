@@ -280,8 +280,14 @@ string parseLongName (Parser p) {
   string name = "";
   nextname:
     name = name + p.getname();
-    if (p.peek().tp == ".") goto sep;
-    if (p.peek().tp == ":") goto sep;
+    if (p.maybe(".")) {
+      name = name + "\x1f";
+      goto nextname;
+    }
+    if (p.maybe(":")) {
+      name = name + "\x1d";
+      goto nextname;
+    }
     return name;
   sep:
     name = name + p.peek().tp;

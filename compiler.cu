@@ -298,7 +298,7 @@ string compileTypeName (Compiler this, Node node) {
       args.push(innerName);
       argnames.push("0");
 
-      string basemod = this.pushModule(globalModule("cobre.array", node.line));
+      string basemod = this.pushModule(globalModule("cobre\x1farray", node.line));
       string argmod = this.pushModule(defineModule(args, argnames, node.line));
       string moduleid = this.pushModule(buildModule(basemod, argmod, node.line));
 
@@ -787,12 +787,13 @@ void makeBasics (Compiler c) {
   // Exported module
   c.pushModule(new Module("hidden", "", "", new string[](), new string[](), 0-1));
 
-  string coreM = c.pushModule(globalModule("cobre.core", 0-1)); // #2
-  string intM = c.pushModule(globalModule("cobre.int", 0-1)); // #3
-  string strM = c.pushModule(globalModule("cobre.string", 0-1)); // #4
+  string boolM = c.pushModule(globalModule("cobre\x1fbool", 0-1)); // #2
+  string intM = c.pushModule(globalModule("cobre\x1fint", 0-1)); // #3
+  string strM = c.pushModule(globalModule("cobre\x1fstring", 0-1)); // #4
+  string bufferM = c.pushModule(globalModule("cobre\x1fbuffer", 0-1)); // #5
 
-  newType(c, coreM, "bool");
-  newType(c, coreM, "bin");
+  newType(c, boolM, "bool");
+  newType(c, bufferM, "buffer");
   newType(c, intM, "int");
   newType(c, strM, "string");
   newType(c, strM, "char");
@@ -1017,7 +1018,7 @@ void makeImports (Compiler c) {
             Node member = item.child(k);
 
             string suffix = "";
-            if (item.val == "") {} else { suffix = ":" + item.val; }
+            if (item.val == "") {} else { suffix = "\x1d" + item.val; }
 
             if (member.tp == "function") {
               Function f; string fn_alias;
@@ -1030,17 +1031,17 @@ void makeImports (Compiler c) {
               string name = member.val;
               string tpnm = member.child(0).val;
 
-              string getname = name + ":get" + suffix;
-              string setname = name + ":set" + suffix;
+              string getname = name + "\x1dget" + suffix;
+              string setname = name + "\x1dset" + suffix;
 
               Function getfn = newFunction(c);
-              getfn.name = name + ":get" + suffix;
+              getfn.name = name + "\x1dget" + suffix;
               getfn.ins.push(tp_alias);
               getfn.outs.push(tpnm);
               getfn.mod = modid;
 
               Function setfn = newFunction(c);
-              setfn.name = name + ":set" + suffix;
+              setfn.name = name + "\x1dset" + suffix;
               setfn.ins.push(tp_alias);
               setfn.ins.push(tpnm);
               setfn.mod = modid;
@@ -1117,7 +1118,7 @@ void makeTypes (Compiler c) {
       args.push(base);
       argnames.push("0");
 
-      string basemod = c.pushModule(globalModule("cobre.typeshell", node.line));
+      string basemod = c.pushModule(globalModule("cobre\x1ftypeshell", node.line));
       string argmod = c.pushModule(defineModule(args, argnames, node.line));
       string moduleid = c.pushModule(buildModule(basemod, argmod, node.line));
 
@@ -1145,7 +1146,7 @@ void makeTypes (Compiler c) {
       string[] args = new string[]();
       string[] argnames = new string[]();
 
-      string basemod = c.pushModule(globalModule("cobre.record", node.line));
+      string basemod = c.pushModule(globalModule("cobre\x1frecord", node.line));
       string argmod = c.pushModule(defineModule(args, argnames, node.line));
       string moduleid = c.pushModule(buildModule(basemod, argmod, node.line));
 
@@ -1189,8 +1190,8 @@ void makeTypes (Compiler c) {
           tp.getters[name] = getter.id;
           tp.setters[name] = setter.id;
 
-          if (pub) c.fnExports[name + ":get:" + alias] = getter.id;
-          if (pub) c.fnExports[name + ":set:" + alias] = setter.id;
+          if (pub) c.fnExports[name + "\x1dget\x1d" + alias] = getter.id;
+          if (pub) c.fnExports[name + "\x1dset\x1d" + alias] = setter.id;
 
           fieldid = fieldid + 1;
         } else if (member.tp == "function") {
@@ -1200,7 +1201,7 @@ void makeTypes (Compiler c) {
           f.node = newNullNode(member.child(3));
           c.functions.push(f);
           tp.methods[fn_alias] = f.id;
-          c.fnExports[fn_alias + ":" + alias] = f.id;
+          c.fnExports[fn_alias + "\x1d" + alias] = f.id;
         } else {
           print("Unknown struct member " + member.tp);
           quit(1);
@@ -1312,7 +1313,7 @@ void writestr (file f, string s) {
 
 void writeExports (Compiler c, file f) {
   int exportcount = c.fnExports.arr.len() + c.tpExports.arr.len() + c.modExports.arr.len();
-  writebyte(f, 1); // Export module, kind 1 is defined
+  writebyte(f, 2); // Export module, kind 2 is defined
   writenum(f, exportcount);
   int i = 0;
   while (i < c.tpExports.arr.len()) {
@@ -1352,14 +1353,14 @@ void writeModules (Compiler c, file f) {
     Module m = c.modules[i];
 
     if (m.kind == "global") {
-      writebyte(f, 0);
+      writebyte(f, 1);
       writestr(f, m.name);
     } else if (m.kind == "use") {
       writebyte(f, 3);
       writenum(f, c.modMap[m.name]);
       writestr(f, m.argument);
     } else if (m.kind == "define") {
-      writebyte(f, 1);
+      writebyte(f, 2);
       writebyte(f, m.items.len());
       int j = 0;
       while (j < m.items.len()) {
@@ -1555,7 +1556,7 @@ void writeMetadata (Compiler c, file f) {
 
 void writeCompiler (Compiler c, string filename) {
   file f = open(filename, "w");
-  write(f, "Cobre 0.5");
+  write(f, "Cobre 0.6");
   writebyte(f, 0); // end signature
 
   writeModules(c, f);

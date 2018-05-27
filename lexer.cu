@@ -54,6 +54,21 @@ bool isDigit (char ch) {
   return 0<0; // false
 }
 
+bool isHex (char ch) {
+  if (isDigit(ch)) return 0<1;
+  int code = codeof(ch);
+  if (code >= 97)
+    if (code <= 102)
+      return 0<1;
+  return 1<0;
+}
+
+int hexVal (char ch) {
+  int code = codeof(ch);
+  if (isDigit(ch)) return code-48;
+  return 10 + code-97;
+}
+
 bool isAlpha (char ch) {
   int code = codeof(ch);
 
@@ -294,6 +309,19 @@ TkArr tokens (string input) {
             val = addch(val, newchar(10)); // Line feed
           } else if (codeof(ch) == 116) { // t
             val = addch(val, newchar(9)); // Horizontal tab
+          } else if (codeof(ch) == 120) { // x
+            if (pos+2 >= len) error("Unfinished string", line);
+            ch, pos = charat(input, pos);
+            if (isHex(ch)) {
+              int n = hexVal(ch)*16;
+              ch, pos = charat(input, pos);
+              if (isHex(ch)) {
+                n = n+hexVal(ch);
+                val = addch(val, newchar(n));
+                goto beginq;
+              }
+            }
+            error("Invalid hexadecimal code", line);
           } else {
             val = addch(addch(val, newchar(92)), ch);
           }
@@ -309,9 +337,7 @@ TkArr tokens (string input) {
       if (quoteCode == 96) tk = new token("name", val, line);  // `
     }
 
-    else {
-      error(addch("Unexpected character ", ch), line);
-    }
+    else error(addch("Unexpected character ", ch), line);
 
     // Push the token
     arr.push(tk);

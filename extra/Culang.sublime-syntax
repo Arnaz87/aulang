@@ -129,5 +129,9 @@ contexts:
         1: punctuation.definition.comment.culang
 
   escapes:
+    - match: \\x[0-9a-f][0-9a-f]
+      scope: constant.character.escape.culang
+    - match: \\x..
+      scope: invalid.illegal.culang
     - match: \\.
       scope: constant.character.escape.culang
