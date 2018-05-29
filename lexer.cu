@@ -1,9 +1,10 @@
 
 import cobre.system {
-  void print (string);
-  string readall (string);
-  void quit (int);
+  void println (string);
+  void exit (int);
 }
+
+import culang.util { string readall (string filename); }
 
 import cobre.string {
   int codeof (char);
@@ -15,8 +16,8 @@ import cobre.string {
 }
 
 void error (string str, int line) {
-  print("Lexer error: " + str + ", at line " + itos(line));
-  quit(1);
+  println("Lexer error: " + str + ", at line " + itos(line));
+  exit(1);
 }
 
 import cobre.array(token) {
@@ -35,8 +36,8 @@ struct token {
   string val;
   int line;
 
-  void print (token this) {
-    print(itos(this.line) + ":   " + this.tp + " " + this.val);
+  void println (token this) {
+    println(itos(this.line) + ":   " + this.tp + " " + this.val);
   }
 }
 
@@ -353,10 +354,10 @@ void main () {
   string src = readall("test.cu");
   TkArr tks = tokens(src);
   int len = tks.len();
-  print(itos(len) + " tokens:");
+  println(itos(len) + " tokens:");
   int i = 0;
   while (i < len) {
-    tks[i].print();
+    tks[i].println();
     i = i+1;
   }
 }

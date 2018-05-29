@@ -4,11 +4,12 @@
 // =============================== //
 
 import cobre.system {
-  void print (string);
-  void quit (int);
-  string readall (string);
+  void println (string);
+  void exit (int);
   void error (string) as syserr;
 }
+
+import culang.util { string readall (string); }
 
 import cobre.string {
   string itos (int);
@@ -48,7 +49,7 @@ struct Node {
     if (this.line < 0) {}
     else { pos = "["+itos(this.line)+"] "; }
 
-    print(indent + pos + this.tp + " " + this.val);
+    println(indent + pos + this.tp + " " + this.val);
     int i = 0;
     while (i < this.len()) {
       this.child(i).print(indent + "  ");
@@ -66,7 +67,7 @@ Node newNode (string tp, string val) {
   return new Node(tp, val, 0-1, EmptyNodeArr());
 }
 
-import culang.lexer {
+import lex {
   TkArr tokens (string);
 
   type token {
@@ -108,11 +109,13 @@ struct Parser {
   }
 
   bool maybe (Parser this, string tp) {
+    bool t = 0<1;
+    bool f = 1<0;
     if (this.peek().tp == tp) {
       this.next();
-      return 0<1;
+      return t;
     }
-    return 1<0;
+    return f;
   }
 
   int line (Parser this) {
@@ -123,8 +126,8 @@ struct Parser {
 void error (string msg, token tk) {
   string pos = "line " + itos(tk.line);
   if (tk.tp == "eof") pos = "end of file";
-  print("Parse error: " + msg + ", at " + pos);
-  quit(1);
+  println("Parse error: " + msg + ", at " + pos);
+  exit(1);
 }
 
 void check (token tk, string tp) {
@@ -289,10 +292,6 @@ string parseLongName (Parser p) {
       goto nextname;
     }
     return name;
-  sep:
-    name = name + p.peek().tp;
-    p.next();
-    goto nextname;
 }
 
 Node parseNameList (Parser p, string tp, string sep) {

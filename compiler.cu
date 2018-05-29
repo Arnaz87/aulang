@@ -886,7 +886,7 @@ void makeBasics (Compiler c) {
   // #10
   Function fn = newFunction(c);
   fn.mod = intM;
-  fn.name = "gte";
+  fn.name = "ge";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("bool");
@@ -894,7 +894,7 @@ void makeBasics (Compiler c) {
   // #11
   Function fn = newFunction(c);
   fn.mod = intM;
-  fn.name = "lte";
+  fn.name = "le";
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("bool");
@@ -1685,7 +1685,13 @@ void printCompiler (Compiler c) {
 
 
     if (f.hasCode()) {
-      print("[" + itos(i) + "]: <Code>" + args);
+      //print("[" + itos(i) + "]: <Code>" + args);
+      print("[" + itos(i) + "]: " + args);
+      int j = 0;
+      while (j < f.code.len()) {
+        print("  " + f.code[j].inst);
+        j = j+1;
+      }
     } else {
       print("[" + itos(i) + "]: " + f.mod + "." + f.name + args);
     }
