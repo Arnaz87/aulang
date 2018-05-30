@@ -4,6 +4,12 @@ C-like programming language running on the [Cobre VM](https://github.com/Arnaz87
 
 [Doucumentation](/culang.md).
 
+To install it, you first need to install the [Cobre VM](https://github.com/Arnaz87/cobrevm), and then run `bash build.sh install`.
+
+To compile a cobre file, run `cobre culang <source.cu> <target>` and run it with `cobre <target>`. Aditionally, that module can then be installed system-wide with `cobre --install <target>`.
+
+Running `bash build.sh bootstrap` compiles the source code with whatever version of culang is installed, and then compiles it again with the resulting modules.
+
 **TODO**:
 
 - scopes (currently a single scope per function)
@@ -19,5 +25,3 @@ C-like programming language running on the [Cobre VM](https://github.com/Arnaz87
 - struct-like types
 - unions
 - null
-
-To install it, you first need to install the [Cobre VM](https://github.com/Arnaz87/cobrevm), and then run `make install`. Then to compile a cobre file, run `cobre culang <source.cu> <target>` and run it with `cobre <target>`. Aditionally, that module can then be installed system-wide with `cobre --install <target>`
