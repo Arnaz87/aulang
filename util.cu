@@ -1,12 +1,22 @@
 
-import cobre.buffer { type buffer; int size (buffer) as bufsize; }
-import cobre.string { string `new` (buffer) as newstr; }
+import cobre.buffer {
+  type buffer;
+  int size (buffer) as bufsize;
+  buffer `new` (int size) as newbuf;
+  void set (buffer, int pos, int val) as bufset;
+}
+import cobre.string {
+  string `new` (buffer) as newstr;
+  buffer tobuffer (string);
+}
 import cobre.io {
   type file; 
   type mode;
   mode r ();
+  mode w ();
   file open (string, mode);
   buffer read (file, int);
+  void write (file, buffer);
   bool eof (file);
 }
 
@@ -20,4 +30,12 @@ string readall (string path) {
   if (eof(f)) {} else goto repeat;
 
   return str;
+}
+
+file _open (string path, string dummy) { return open(path, w()); }
+void _write (file f, string str) { write(f, tobuffer(str)); }
+void writebyte (file f, int b) {
+  buffer buf = newbuf(1);
+  bufset(buf, 0, b);
+  write(f, buf);
 }

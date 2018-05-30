@@ -3,6 +3,7 @@
 //         Imports & Types         //
 // =============================== //
 
+// *
 import cobre.system {
   void println (string);
   void exit (int);
@@ -10,6 +11,18 @@ import cobre.system {
 }
 
 import culang.util { string readall (string); }
+/*
+
+import cobre.system {
+  void print (string);
+  void quit (int);
+  string readall (string filename);
+  void error (string) as syserr;
+}
+
+void println (string txt) { print(txt); }
+void exit (int status) { quit(status); }
+*/
 
 import cobre.string {
   string itos (int);
@@ -67,7 +80,7 @@ Node newNode (string tp, string val) {
   return new Node(tp, val, 0-1, EmptyNodeArr());
 }
 
-import lex {
+import culang.lexer {
   TkArr tokens (string);
 
   type token {

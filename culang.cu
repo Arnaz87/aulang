@@ -1,12 +1,12 @@
 
 import cobre.system {
-  void print (string);
-  string readall (string);
-
+  void println (string);
   int argc ();
-  string args (int);
-  void quit(int);
+  string argv (int);
+  void exit(int);
 }
+
+import culang.util { string readall (string); }
 
 import culang.compiler {
   type Compiler;
@@ -17,11 +17,11 @@ import culang.compiler {
 
 void main () {
   if (argc() == 3) {} else {
-    print("Usage: " + args(0) + " <input> <output>");
-    quit(1);
+    println("Usage: " + argv(0) + " <input> <output>");
+    exit(1);
   }
-  string src = readall(args(1));
+  string src = readall(argv(1));
   Compiler c = compile(src);
   codegen(c);
-  writeCompiler(c, args(2));
+  writeCompiler(c, argv(2));
 }

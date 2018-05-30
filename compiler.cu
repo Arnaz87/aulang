@@ -1,8 +1,11 @@
 
+/* Cobre 0.5
+
 import cobre.system {
   void print (string);
-  void quit (int);
   string readall (string);
+
+  void quit (int);
 
   void error (string) as syserr;
 
@@ -11,6 +14,27 @@ import cobre.system {
   void write (file, string);
   void writebyte (file, int);
 }
+
+void println (string msg) { print(msg); }
+*/
+
+// Cobre 0.6
+
+import cobre.system {
+  void println (string);
+  void exit (int);
+  void error (string) as syserr;
+}
+
+import cobre.io { type file; }
+import culang.util {
+  string readall (string);
+  file _open (string filename, string dummy) as open;
+  void _write (file, string) as write;
+  void writebyte (file, int);
+}
+void quit (int status) { exit(status); }
+//
 
 import cobre.string {
   string itos(int);
@@ -71,7 +95,7 @@ struct Map {
     int i = 0;
     while (i < this.pos) {
       Pair pair = this.arr[i];
-      print(ident + pair.key + ": " + itos(pair.id));
+      println(ident + pair.key + ": " + itos(pair.id));
       i = i+1;
     }
   }
@@ -352,7 +376,7 @@ void errorln (string msg, int line) {
   if (line < 0) {} else {
     pos = ", at line " + itos(line);
   }
-  print("Compile error: " + msg + pos);
+  println("Compile error: " + msg + pos);
   quit(1);
 }
 
@@ -1064,7 +1088,7 @@ void makeImports (Compiler c) {
               tp.constructor = f.id;
 
             } else {
-              print("Unknown type member " + member.tp);
+              println("Unknown type member " + member.tp);
               quit(1);
             }
             k = k+1;
@@ -1080,7 +1104,7 @@ void makeImports (Compiler c) {
           if (alias == "") alias = item.val;
           c.setModule(alias, mod);
         } else {
-          print("Unknown imported item: " + item.tp);
+          println("Unknown imported item: " + item.tp);
           quit(1);
         }
         j = j+1;
@@ -1200,7 +1224,7 @@ void makeTypes (Compiler c) {
           tp.methods[fn_alias] = f.id;
           c.fnExports[fn_alias + "\x1d" + alias] = f.id;
         } else {
-          print("Unknown struct member " + member.tp);
+          println("Unknown struct member " + member.tp);
           quit(1);
         }
         j = j+1;
@@ -1603,16 +1627,16 @@ void writeCompiler (Compiler c, string filename) {
 // =============================== //
 
 void printCompiler (Compiler c) {
-  print("Module Map:");
+  println("Module Map:");
   c.modMap.print("");
 
-  print("Type Map:");
+  println("Type Map:");
   c.typeMap.print("");
 
-  print("\nFunction Map:");
+  println("\nFunction Map:");
   c.fnMap.print("");
 
-  print("\nModules:");
+  println("\nModules:");
   int i = 0;
   while (i < c.modules.len()) {
     Module m = c.modules[i];
@@ -1630,38 +1654,38 @@ void printCompiler (Compiler c) {
       }
       desc = desc + "}";
     }
-    print("[" + itos(i) + "]: " + desc);
+    println("[" + itos(i) + "]: " + desc);
     i = i+1;
   }
 
-  print("\nTypes:");
+  println("\nTypes:");
   int i = 0;
   while (i < c.types.len()) {
     Type t = c.types[i];
-    print("[" + itos(i) + "]: " + t.mod + "." + t.name);
+    println("[" + itos(i) + "]: " + t.mod + "." + t.name);
     if (t.constructor < 0) {} else {
-      print("  new: " + itos(t.constructor));
+      println("  new: " + itos(t.constructor));
     }
     if (t.getters.any()) {
-      print("  getters:");
+      println("  getters:");
       t.getters.print("    ");
     }
     if (t.setters.any()) {
-      print("  setters:");
+      println("  setters:");
       t.setters.print("    ");
     }
     if (t.methods.any()) {
-      print("  methods:");
+      println("  methods:");
       t.methods.print("    ");
     }
     if (t.casts.any()) {
-      print("  casts to:");
+      println("  casts to:");
       t.casts.print("    ");
     }
     i = i+1;
   }
 
-  print("\nFunctions:");
+  println("\nFunctions:");
   int i = 0;
   while (i < c.functions.len()) {
     Function f = c.functions[i];
@@ -1682,26 +1706,26 @@ void printCompiler (Compiler c) {
 
 
     if (f.hasCode()) {
-      //print("[" + itos(i) + "]: <Code>" + args);
-      print("[" + itos(i) + "]: " + args);
+      //println("[" + itos(i) + "]: <Code>" + args);
+      println("[" + itos(i) + "]: " + args);
       int j = 0;
       while (j < f.code.len()) {
-        print("  " + f.code[j].inst);
+        println("  " + f.code[j].inst);
         j = j+1;
       }
     } else {
-      print("[" + itos(i) + "]: " + f.mod + "." + f.name + args);
+      println("[" + itos(i) + "]: " + f.mod + "." + f.name + args);
     }
     i = i+1;
   }
 
-  print("\nType exports:");
+  println("\nType exports:");
   c.tpExports.print("");
 
-  print("\nFunction exports:");
+  println("\nFunction exports:");
   c.fnExports.print("");
 
-  print("\nModule exports:");
+  println("\nModule exports:");
   c.modExports.print("");
 }
 

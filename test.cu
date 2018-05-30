@@ -1,2 +1,3 @@
 import cobre.system { void println (string); }
-void main () { println("Hola Mundo!"); }
+import cobre.string { string itos(int); }
+void main () { println("Hola Mundo! " + itos(40 + 2)); }

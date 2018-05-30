@@ -1,9 +1,17 @@
 
+/*import cobre.system {
+  void print (string);
+  void quit (int);
+  string readall (string filename);
+}
+
+void println (string txt) { print(txt); }
+void exit (int status) { quit(status); }*/
+
 import cobre.system {
   void println (string);
   void exit (int);
 }
-
 import culang.util { string readall (string filename); }
 
 import cobre.string {
