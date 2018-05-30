@@ -333,9 +333,7 @@ string compileTypeName (Compiler this, Node node) {
       lenfn.ins.push(name);
       lenfn.outs.push("int");
       lenfn.name = "len";
-      int lenid = this.functions.len();
-      this.functions.push(lenfn);
-      tp.methods["len"] = lenid;
+      tp.methods["len"] = lenfn.id;
 
       Function emptyfn = newFunction(this);
       emptyfn.mod = moduleid;
@@ -1199,7 +1197,6 @@ void makeTypes (Compiler c) {
           f, fn_alias = fnFromNode(c, member);
           f.name = fn_alias;
           f.node = newNullNode(member.child(3));
-          c.functions.push(f);
           tp.methods[fn_alias] = f.id;
           c.fnExports[fn_alias + "\x1d" + alias] = f.id;
         } else {
