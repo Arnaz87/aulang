@@ -3,3 +3,7 @@ culang
 culang.lexer
 culang.parser
 culang.compiler
+culangutil
+culanglexer
+culangparser
+culangcompiler
