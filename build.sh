@@ -7,6 +7,9 @@ fi
 
 FILES="culang culang.lexer culang.parser culang.compiler culang.util"
 
+# Este comando remplaza todas las palabras por culang.palabra
+# echo $X | sed -E 's/\w+/culang.&/g'
+
 if [ "$1" == "bootstrap" ]; then
   bash build.sh
   cd dist
@@ -24,16 +27,18 @@ if [ "$1" == "uninstall" ]; then
   exit
 fi
 
-compile () { echo compiling $1; cobre culang $1.cu dist/culang.$1; }
-compile util &&
-compile lexer &&
-compile parser &&
-compile compiler &&
-echo compiling culang &&
-cobre culang culang.cu dist/culang ||
-echo "Could not compile files"
+if [ "$1" != "install-only" ]; then
+  compile () { echo compiling $1; cobre culang $1.cu dist/culang.$1; }
+  compile util &&
+  compile lexer &&
+  compile parser &&
+  compile compiler &&
+  echo compiling culang &&
+  cobre culang culang.cu dist/culang ||
+  echo "Could not compile files"
+fi
 
-if [ "$1" == "install" ]; then
+if [ "$1" == "install" -o "$1" == "install-only" ]; then
   cd dist
   for a in $FILES; do
     cobre --install $a
