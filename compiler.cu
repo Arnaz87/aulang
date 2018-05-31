@@ -222,7 +222,7 @@ struct Compiler {
 
   int gettp (Compiler this, string name, int line) {
     int id = this.typeMap[name];
-    if (id < 0) errorln("Unkown type \"" + name + "\"", line);
+    if (id < 0) errorln("Unknown type \"" + name + "\"", line);
     return id;
   }
 
@@ -588,12 +588,13 @@ int compileExpr (Scope this, Node node) {
   }
   if (node.tp == "cast") {
     int basereg = compileExpr(this, node.child(0));
+    string tpname = compileTypeName(this.c, node.child(1));
     Type tp = this.c.types[this.regtypes[basereg]];
-    int fnid = tp.casts[node.val];
-    if (fnid < 0) error(node, "Unknown cast to \"" + node.val + "\"");
+    int fnid = tp.casts[tpname];
+    if (fnid < 0) error(node, "Unknown cast to \"" + tpname + "\"");
 
     Function fn = this.c.functions[fnid];
-    int rettp = this.c.gettp(node.val, node.line);
+    int rettp = this.c.gettp(tpname, node.line);
 
     int[] args = new int[]();
     args.push(basereg);
@@ -1135,7 +1136,7 @@ void makeTypes (Compiler c) {
     }
 
     if (node.tp == "type") {
-      string base = node.child(0).val;
+      string base = compileTypeName(c, node.child(0));
       string[] args = new string[](), argnames = new string[]();
       args.push(base);
       argnames.push("0");

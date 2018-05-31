@@ -252,8 +252,9 @@ Node parseSuffix (Parser p) {
     }
   int line = p.line();
   if (p.maybe("as")) {
-    Node nxt = newNode("cast", p.getname());
+    Node nxt = newNode("cast", "");
     nxt.push(base);
+    nxt.push(parseType(p));
     base = nxt.inline(line);
   }
   return base;
@@ -657,7 +658,7 @@ Node parseTopLevel (Parser p) {
   } else if (p.maybe("type")) {
     Node typenode = newNode("type", parseLongName(p));
     check(p.next(), "(");
-    Node base = newNode("base", p.getname());
+    Node base = parseType(p);
     typenode.push(base);
     check(p.next(), ")");
     check(p.next(), ";");
