@@ -161,13 +161,21 @@ void check (token tk, string tp) {
 Node parseType (Parser p) {
   int line = p.line();
   Node node = newNode("type", p.getname()).inline(line);
-  if (p.peek().tp == "[") {} else goto noarr;
-  if (p.peekat(1).tp == "]") {} else goto noarr;
+  repeat:
+    if (p.maybe("?")) {
+      Node basenode = node;
+      node = newNode("null", "").inline(line);
+      node.push(basenode);
+      goto repeat;
+    }
+    if (p.peek().tp == "[") {} else goto end;
+    if (p.peekat(1).tp == "]") {} else goto end;
     p.next(); p.next();
     Node basenode = node;
     node = newNode("array", "").inline(line);
     node.push(basenode);
-  noarr:
+    goto repeat;
+  end:
   return node;
 }
 
@@ -253,6 +261,7 @@ Node parseSuffix (Parser p) {
   int line = p.line();
   if (p.maybe("as")) {
     Node nxt = newNode("cast", "");
+    if (p.maybe("?")) nxt.tp = "anycast";
     nxt.push(base);
     nxt.push(parseType(p));
     base = nxt.inline(line);
@@ -561,6 +570,7 @@ Node parseStmt (Parser p) {
     if (ty == "[")
       if (p.peekat(2).tp == "]")
         return parseDecl(p).inline(line);
+    if (ty == "?") return parseDecl(p).inline(line);
     if (ty == "name") return parseDecl(p).inline(line);
   }
   Node expr = parseExpr(p);

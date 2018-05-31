@@ -314,7 +314,56 @@ struct Scope {
 
 string compileTypeName (Compiler this, Node node) {
   int id; string name;
-  if (node.tp == "array") {
+  if (node.tp == "null") {
+    string innerName = compileTypeName(this, node.child(0));
+    name = innerName + "?";
+    if (this.typeMap[name] < 0) {
+      string[] args = new string[](), argnames = new string[]();
+      args.push(innerName);
+      argnames.push("0");
+
+      string basemod = this.pushModule(globalModule("cobre\x1fnull", node.line));
+      string argmod = this.pushModule(defineModule(args, argnames, node.line));
+      string moduleid = this.pushModule(buildModule(basemod, argmod, node.line));
+
+      Type tp = newType(this, moduleid, "");
+      this.typeMap[name] = tp.id;
+
+      Function getfn = newFunction(this);
+      getfn.mod = moduleid;
+      getfn.ins.push(name);
+      getfn.outs.push(innerName);
+      getfn.name = "get";
+      tp.methods["get"] = getfn.id;
+
+      Function isnullfn = newFunction(this);
+      isnullfn.mod = moduleid;
+      isnullfn.ins.push(name);
+      isnullfn.outs.push("bool");
+      isnullfn.name = "isnull";
+      tp.methods["isnull"] = isnullfn.id;
+
+      Function nullfn = newFunction(this);
+      nullfn.mod = moduleid;
+      nullfn.outs.push(name);
+      nullfn.name = "null";
+      tp.constructor = nullfn.id;
+
+      Function newfn = newFunction(this);
+      newfn.mod = moduleid;
+      newfn.ins.push(innerName);
+      newfn.outs.push(name);
+      newfn.name = "new";
+      int innerid = this.typeMap[innerName];
+      if (innerid < 0) {
+        this.casts.push(new Cast(innerName, name, newfn.id));
+      } else {
+        Type innertp = this.types[innerid];
+        innertp.casts[name] = newfn.id;
+      }
+    }
+    return name;
+  } else if (node.tp == "array") {
     string innerName = compileTypeName(this, node.child(0));
     name = innerName + "[]";
     if (this.typeMap[name] < 0) {

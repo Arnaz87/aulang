@@ -139,6 +139,7 @@ bool isOp (char ch) {
   if (code == 46) return 0<1; // .
   if (code == 58) return 0<1; // :
   if (code == 59) return 0<1; // ;
+  if (code == 63) return 0<1; // ?
   if (code == 91) return 0<1; // [
   if (code == 93) return 0<1; // ]
   if (code == 123) return 0<1; // {

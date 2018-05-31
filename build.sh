@@ -27,7 +27,7 @@ if [ "$1" == "uninstall" ]; then
   exit
 fi
 
-if [ "$1" != "install-only" ]; then
+if [ "$1" != "install" ]; then
   compile () { echo compiling $1; cobre culang $1.cu dist/culang.$1; }
   compile util &&
   compile lexer &&
@@ -38,7 +38,7 @@ if [ "$1" != "install-only" ]; then
   echo "Could not compile files"
 fi
 
-if [ "$1" == "install" -o "$1" == "install-only" ]; then
+if [ "$1" == "install" -o "$1" == "install-build" ]; then
   cd dist
   for a in $FILES; do
     cobre --install $a
