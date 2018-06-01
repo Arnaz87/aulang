@@ -6,15 +6,14 @@ struct Pair { string k; string v; }
 bool eq (Pair p, string k) { return p.k == k; }
 
 import alist (Pair as T, string as K, eq as f) {
-  type R; Pair getR (R); bool testR (R);
-  type `` as Map { R get (string); void add (Pair); }
+  type `` as Map { Pair? get (string); void add (Pair); }
   Map `new` () as newMap;
 }
 
 void check (Map map, string key) {
-  R r = map[key];
-  if (testR(r)) println(key + " :(");
-  else println(getR(r).v + " :D");
+  Pair? r = map[key];
+  if (r.isnull()) println(key + " :(");
+  else println(r.get().v + " :D");
 }
 
 void main () {
