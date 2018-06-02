@@ -532,6 +532,23 @@ int compileExpr (Scope this, Node node) {
     int reg = this.decl(tp);
     return reg;
   }
+  if (node.tp == "true") {
+    this.call(12, new int[]());
+    return this.decl(this.gettp("bool"));
+  }
+  if (node.tp == "false") {
+    this.call(13, new int[]());
+    return this.decl(this.gettp("bool"));
+  }
+  if (node.tp == "unop") {
+    int a = compileExpr(this, node.child(0));
+    if (node.val == "!") {
+      int[] args = new int[]();
+      args.push(a);
+      this.call(14, args);
+      return this.decl(this.gettp("bool"));
+    } else error(node, "Unknown unary operator: " + node.val);
+  }
   if (node.tp == "binop") {
     int a = compileExpr(this, node.child(0));
     int b = compileExpr(this, node.child(1));
@@ -568,6 +585,24 @@ int compileExpr (Scope this, Node node) {
     Type xtpa = this.c.types[tpa];
     Type xtpb = this.c.types[tpb];
     error(node, "Operation " + node.val + " not supported for " + xtpa.name + " and " + xtpb.name);
+  }
+  if (node.tp == "logic") {
+    string end = this.lbl();
+
+    this.inst("var", 0,0);
+    int reg = this.decl(this.gettp("bool"));
+
+    int a = compileExpr(this, node.child(0));
+    this.inst("set", reg, a);
+    if      (node.val == "||") this.flow("jif", end, reg);
+    else if (node.val == "&&") this.flow("nif", end, reg);
+    else error(node, "Unkown logic operator " + node.val);
+
+    int b = compileExpr(this, node.child(1));
+    this.inst("set", reg, b);
+
+    this.uselbl(end);
+    return reg;
   }
   if (node.tp == "call") {
     int[] rets = compileCall(this, node);
@@ -970,6 +1005,25 @@ void makeBasics (Compiler c) {
   fn.ins.push("int");
   fn.ins.push("int");
   fn.outs.push("bool");
+
+  // #12
+  Function fn = newFunction(c);
+  fn.mod = boolM;
+  fn.name = "true";
+  fn.outs.push("bool");
+
+  // #13
+  Function fn = newFunction(c);
+  fn.mod = boolM;
+  fn.name = "false";
+  fn.outs.push("bool");
+
+  // #14
+  Function fn = newFunction(c);
+  fn.mod = boolM;
+  fn.name = "not";
+  fn.ins.push("bool");
+  fn.outs.push("bool");
 }
 
 // Basic functions:
@@ -985,6 +1039,9 @@ void makeBasics (Compiler c) {
 // 9: int div
 // 10: int greater or equal
 // 11: int less or equal
+// 12: true
+// 13: false
+// 14: bool not
 
 Function, string fnFromNode (Compiler c, Node node) {
   string alias = node.child(2).val;

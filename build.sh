@@ -10,12 +10,21 @@ FILES="culang culang.lexer culang.parser culang.compiler culang.util"
 # Este comando remplaza todas las palabras por culang.palabra
 # echo $X | sed -E 's/\w+/culang.&/g'
 
+if [ "$1" == "temp" ]; then
+  cd dist; cp $FILES ..; cd ..
+fi
+
 if [ "$1" == "bootstrap" ]; then
+  bash build.sh temp
   bash build.sh
-  cd dist
-  cp $FILES ..
-  cd ..
-  bash build.sh
+  rm -f $FILES
+  exit
+fi
+
+if [ "$1" == "test" ]; then
+  bash build.sh temp
+  cobre culang test.cu out
+  cobre out
   rm -f $FILES
   exit
 fi
@@ -35,7 +44,7 @@ if [ "$1" != "install" ]; then
   compile compiler &&
   echo compiling culang &&
   cobre culang culang.cu dist/culang ||
-  echo "Could not compile files"
+  (echo "Could not compile files"; exit)
 fi
 
 if [ "$1" == "install" -o "$1" == "install-build" ]; then

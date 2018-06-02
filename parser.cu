@@ -211,11 +211,6 @@ Node parseBaseExpr (Parser p) {
     Node node = parseExpr(p);
     check(p.next(), ")");
     return node;
-  } else if (isUnop(ty)) {
-    string op = ty;
-    Node base = parseBaseExpr(p);
-    node = newNode("unop", op);
-    node.push(base);
   } else if (ty == "num") {
     node = newNode("num", tk.val);
   } else if (ty == "str") {
@@ -236,6 +231,14 @@ Node parseBaseExpr (Parser p) {
 }
 
 Node parseSuffix (Parser p) {
+  if (isUnop(p.peek().tp)) {
+    int line = p.line();
+    string op = p.next().tp;
+    Node base = parseSuffix(p);
+    Node node = newNode("unop", op);
+    node.push(base);
+    return node.inline(line);
+  }
   Node base = parseBaseExpr(p);
   suffix:
     int line = p.line();

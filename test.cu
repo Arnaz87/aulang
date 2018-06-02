@@ -1,14 +1,12 @@
 import cobre.system { void println (string); }
-import cobre.string { string itos(int); }
+import cobre.string { string itos(int); int length (string); }
 
-void foo (string? x) {
-  if (x.isnull()) println("isnull");
-  else println(x.get());
+bool f (bool b) {
+  if (b) println("true");
+  else println("false");
+  return b;
 }
 
 void main () {
-  foo("Hola" as string?);
-  foo(new string?());
+  f(!f(true) && f(true));
 }
-
-//void main () { println("Hola Mundo! " + itos(40 + 2)); }
