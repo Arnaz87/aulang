@@ -175,8 +175,7 @@ struct Function {
   Line[] lineinfo;
 
   bool hasCode (Function this) {
-    if (this.node.isnull()) return 1<0;
-    else return 0<1;
+    return !this.node.isnull();
   }
 }
 
@@ -422,7 +421,7 @@ string compileTypeName (Compiler this, Node node) {
 
 void errorln (string msg, int line) {
   string pos = "";
-  if (line < 0) {} else {
+  if (line >= 0) {
     pos = ", at line " + itos(line);
   }
   println("Compile error: " + msg + pos);
@@ -444,7 +443,7 @@ int[] compileCall (Scope this, Node node) {
     if (id < 0) error(node, "Unknown function \"" + name + "\"");
     Function fn = this.c.functions[id];
 
-    if (argsnode.len() == fn.ins.len()) {} else {
+    if (!(argsnode.len() == fn.ins.len())) {
       error(node, "Function " + name + " accepts " + itos(fn.ins.len()) +
         " arguments, but " + itos(argsnode.len()) + " were passed");
     }
@@ -477,7 +476,7 @@ int[] compileCall (Scope this, Node node) {
     if (fnid < 0) error(base, "Unknown method \"" + name + "\"");
     Function fn = this.c.functions[fnid];
 
-    if (argsnode.len()+1 == fn.ins.len()) {} else {
+    if (!(argsnode.len()+1 == fn.ins.len())) {
       error(node, "Method " + name + " accepts " + itos(fn.ins.len()) +
         " arguments, but " + itos(argsnode.len()+1) + " were passed");
     }
@@ -632,7 +631,7 @@ int compileExpr (Scope this, Node node) {
     int fnid = tp.methods["get"];
     if (fnid < 0) error(node, "Unknown method \"get\"");
     Function fn = this.c.functions[fnid];
-    if (fn.outs.len() == 1) {} else error(node, "get method has to return 1 value");
+    if (!(fn.outs.len() == 1)) error(node, "get method has to return 1 value");
     int rettp = this.c.gettp(fn.outs[0], fn.line);
 
     if (fn.ins.len() == 2) {
@@ -656,7 +655,7 @@ int compileExpr (Scope this, Node node) {
     int expected = fn.ins.len();
     Node exprlist = node.child(1);
     int count = exprlist.len();
-    if (expected == count) {} else {
+    if (!(expected == count)) {
       error(node, "Constructor expects " + itos(expected) + " parameters, but " + itos(count) + " were passed");
     }
 
@@ -822,7 +821,7 @@ void compileStmt (Scope this, Node node) {
     Node exprlist = node.child(0);
     int count = exprlist.len();
     int expected = this.fn.outs.len();
-    if (count == expected) {} else {
+    if (!(count == expected)) {
       error(node, "Function returns " + itos(expected) + " values, but " + itos(count) + " were returned");
     }
     int[] args = new int[]();
@@ -1101,7 +1100,7 @@ void makeImports (Compiler c) {
     } else if (node.tp == "import") {
       modid = c.pushModule(globalModule(node.val, node.line));
     }
-    if (modid == "") {} else {
+    if (!(modid == "")) {
       if (node.len() == 0) error(node, "bodyless imports are not supported");
 
       Node bodynode = node.child(0);
@@ -1147,7 +1146,7 @@ void makeImports (Compiler c) {
             Node member = item.child(k);
 
             string suffix = "";
-            if (item.val == "") {} else { suffix = "\x1d" + item.val; }
+            if (!(item.val == "")) { suffix = "\x1d" + item.val; }
 
             if (member.tp == "function") {
               Function f; string fn_alias;
@@ -1235,10 +1234,10 @@ void makeTypes (Compiler c) {
   int i = 0;
   while (i < c.tree.len()) {
     Node node = c.tree.child(i);
-    bool pub = 0<1;
+    bool pub = true;
     if (node.tp == "private") {
       node = node.child(0);
-      pub = 1<0;
+      pub = false;
     }
 
     if (node.tp == "type") {
@@ -1356,10 +1355,10 @@ void makeFunctions (Compiler c) {
   int i = 0;
   while (i < c.tree.len()) {
     Node node = c.tree.child(i);
-    bool pub = 0<1;
+    bool pub = true;
     if (node.tp == "private") {
       node = node.child(0);
-      pub = 1<0;
+      pub = false;
     }
     if (node.tp == "function") {
       Function f; string name;
@@ -1539,7 +1538,7 @@ void writeFunctions (Compiler c, file f) {
       j = j+1;
     }
 
-    if (fn.hasCode()) {} else writestr(f, fn.name);
+    if (!fn.hasCode()) writestr(f, fn.name);
 
     i = i+1;
   }
@@ -1770,7 +1769,7 @@ void printCompiler (Compiler c) {
   while (i < c.types.len()) {
     Type t = c.types[i];
     println("[" + itos(i) + "]: " + t.mod + "." + t.name);
-    if (t.constructor < 0) {} else {
+    if (t.constructor >= 0) {
       println("  new: " + itos(t.constructor));
     }
     if (t.getters.any()) {

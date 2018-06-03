@@ -59,8 +59,7 @@ struct Node {
 
   void print (Node this, string indent) {
     string pos = "";
-    if (this.line < 0) {}
-    else { pos = "["+itos(this.line)+"] "; }
+    if (this.line >= 0) { pos = "["+itos(this.line)+"] "; }
 
     println(indent + pos + this.tp + " " + this.val);
     int i = 0;
@@ -122,13 +121,11 @@ struct Parser {
   }
 
   bool maybe (Parser this, string tp) {
-    bool t = 0<1;
-    bool f = 1<0;
     if (this.peek().tp == tp) {
       this.next();
-      return t;
+      return true;
     }
-    return f;
+    return false;
   }
 
   int line (Parser this) {
@@ -144,8 +141,7 @@ void error (string msg, token tk) {
 }
 
 void check (token tk, string tp) {
-  if (tk.tp == tp) {}
-  else {
+  if (!(tk.tp == tp)) {
     error("expected " + tp + " but got " + tk.tp, tk);
   }
 }
@@ -168,8 +164,8 @@ Node parseType (Parser p) {
       node.push(basenode);
       goto repeat;
     }
-    if (p.peek().tp == "[") {} else goto end;
-    if (p.peekat(1).tp == "]") {} else goto end;
+    if (!(p.peek().tp == "[")) goto end;
+    if (!(p.peekat(1).tp == "]")) goto end;
     p.next(); p.next();
     Node basenode = node;
     node = newNode("array", "").inline(line);
@@ -181,25 +177,23 @@ Node parseType (Parser p) {
 
 
 bool isUnop (string ty) {
-  if (ty == "-") return 0<1;
-  if (ty == "!") return 0<1;
-  return 0<0;
+  return (ty == "-") || (ty == "!");
 }
 
 bool isBinop (string ty) {
-  if (ty == "+") return 0<1;
-  if (ty == "-") return 0<1;
-  if (ty == "*") return 0<1;
-  if (ty == "/") return 0<1;
-  if (ty == "<") return 0<1;
-  if (ty == ">") return 0<1;
-  if (ty == "<=") return 0<1;
-  if (ty == "==") return 0<1;
-  if (ty == ">=") return 0<1;
-  if (ty == "!=") return 0<1;
-  if (ty == "&&") return 0<1;
-  if (ty == "||") return 0<1;
-  return 0<0;
+  if (ty == "+") return true;
+  if (ty == "-") return true;
+  if (ty == "*") return true;
+  if (ty == "/") return true;
+  if (ty == "<") return true;
+  if (ty == ">") return true;
+  if (ty == "<=") return true;
+  if (ty == "==") return true;
+  if (ty == ">=") return true;
+  if (ty == "!=") return true;
+  if (ty == "&&") return true;
+  if (ty == "||") return true;
+  return false;
 }
 
 Node parseBaseExpr (Parser p) {
@@ -335,8 +329,7 @@ Node parseIdentItem (Parser p) {
   token _tk = p.peek();
   int line = p.line();
   Node outs = newNode("outs", "");
-  if (p.maybe("void")) {}
-  else {
+  if (!p.maybe("void")) {
     nextout:
     outs.push(parseType(p));
     if (p.maybe(",")) goto nextout;
@@ -395,11 +388,11 @@ Node parseImport (Parser p) {
   if (p.maybe("module")) result.tp = "import-module";
   result.val = parseLongName(p);
 
-  bool hasbody = 1<0;
+  bool hasbody = false;
 
   Node argnode = newNode("none", "");
   if (p.maybe("(")) {
-    hasbody = 0<1;
+    hasbody = true;
     if (p.maybe("module")) {
       argnode.tp = "module";
       argnode.val = p.getname();
@@ -420,7 +413,7 @@ Node parseImport (Parser p) {
     check(p.next(), ")");
   }
 
-  if (p.peek().tp == "{") hasbody = 0<1;
+  if (p.peek().tp == "{") hasbody = true;
 
   if (hasbody) {
     check(p.next(), "{");
@@ -470,8 +463,7 @@ Node parseImport (Parser p) {
               check(p.next(), ";");
             typenode.push(item);
           }
-          if (p.maybe("}")) {}
-          else goto nextmember;
+          if (!p.maybe("}")) goto nextmember;
         } else check(p.next(), ";");
 
         bodynode.push(typenode.inline(line));
@@ -503,7 +495,7 @@ Node parseAssignment (Parser p, Node first) {
   left.push(first);
 
   nextleft:
-    if (p.maybe(",")) {} else goto endleft;
+    if (!p.maybe(",")) goto endleft;
     left.push(parseExpr(p));
     goto nextleft;
   endleft:
@@ -652,8 +644,7 @@ Node parseTopLevel (Parser p) {
     return node.inline(_tk.line);
   }
 
-  bool ispriv = 1<0;
-  if (p.maybe("private")) {ispriv = 0<1;}
+  bool ispriv = p.maybe("private");
 
   Node node;
   if (p.maybe("struct")) {

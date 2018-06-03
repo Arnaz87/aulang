@@ -1,13 +1,4 @@
 
-/*import cobre.system {
-  void print (string);
-  void quit (int);
-  string readall (string filename);
-}
-
-void println (string txt) { print(txt); }
-void exit (int status) { quit(status); }*/
-
 import cobre.system {
   void println (string);
   void exit (int);
@@ -57,19 +48,19 @@ bool isDigit (char ch) {
   int code = codeof(ch);
   if (code >= 48) { // 0
     if (code <= 57) { // 9
-      return 0<1; // true
+      return true;
     }
   }
-  return 0<0; // false
+  return false;
 }
 
 bool isHex (char ch) {
-  if (isDigit(ch)) return 0<1;
+  if (isDigit(ch)) return true;
   int code = codeof(ch);
   if (code >= 97)
     if (code <= 102)
-      return 0<1;
-  return 1<0;
+      return true;
+  return false;
 }
 
 int hexVal (char ch) {
@@ -82,101 +73,95 @@ bool isAlpha (char ch) {
   int code = codeof(ch);
 
   if (code == 95) // _
-    return 0<1;
+    return true;
 
   if (code >= 65) // A
     if (code <= 90) // Z
-      return 0<1;
+      return true;
 
   if (code >= 97) // a
     if (code <= 122) // z
-      return 0<1;
+      return true;
 
-  return 0<0; // false
-}
-
-bool isAlphaNum (char ch) {
-  if (isAlpha(ch)) return 0<1;
-  if (isDigit(ch)) return 0<1;
-  return 0<0; // false
+  return false;
 }
 
 bool isKw (string s) {
-  if (s == "true") return 0<1;
-  if (s == "false") return 0<1;
-  if (s == "null") return 0<1;
-  if (s == "void") return 0<1;
+  if (s == "true") return true;
+  if (s == "false") return true;
+  if (s == "null") return true;
+  if (s == "void") return true;
 
-  if (s == "if") return 0<1;
-  if (s == "else") return 0<1;
-  if (s == "while") return 0<1;
-  if (s == "return") return 0<1;
-  if (s == "continue") return 0<1;
-  if (s == "break") return 0<1;
-  if (s == "goto") return 0<1;
+  if (s == "if") return true;
+  if (s == "else") return true;
+  if (s == "while") return true;
+  if (s == "return") return true;
+  if (s == "continue") return true;
+  if (s == "break") return true;
+  if (s == "goto") return true;
 
-  if (s == "as") return 0<1;
-  if (s == "new") return 0<1;
-  if (s == "type") return 0<1;
-  if (s == "struct") return 0<1;
-  if (s == "import") return 0<1;
-  if (s == "module") return 0<1;
-  if (s == "extern") return 0<1;
-  if (s == "export") return 0<1;
-  if (s == "private") return 0<1;
+  if (s == "as") return true;
+  if (s == "new") return true;
+  if (s == "type") return true;
+  if (s == "struct") return true;
+  if (s == "import") return true;
+  if (s == "module") return true;
+  if (s == "extern") return true;
+  if (s == "export") return true;
+  if (s == "private") return true;
   
-  return 1<0;
+  return false;
 }
 
 bool isOp (char ch) {
   int code = codeof(ch);
-  if (code == 40) return 0<1; // (
-  if (code == 41) return 0<1; // )
-  if (code == 42) return 0<1; // *
-  if (code == 43) return 0<1; // +
-  if (code == 44) return 0<1; // ,
-  if (code == 45) return 0<1; // -
-  if (code == 46) return 0<1; // .
-  if (code == 58) return 0<1; // :
-  if (code == 59) return 0<1; // ;
-  if (code == 63) return 0<1; // ?
-  if (code == 91) return 0<1; // [
-  if (code == 93) return 0<1; // ]
-  if (code == 123) return 0<1; // {
-  if (code == 125) return 0<1; // }
-  return 0<0; // false
+  if (code == 40) return true; // (
+  if (code == 41) return true; // )
+  if (code == 42) return true; // *
+  if (code == 43) return true; // +
+  if (code == 44) return true; // ,
+  if (code == 45) return true; // -
+  if (code == 46) return true; // .
+  if (code == 58) return true; // :
+  if (code == 59) return true; // ;
+  if (code == 63) return true; // ?
+  if (code == 91) return true; // [
+  if (code == 93) return true; // ]
+  if (code == 123) return true; // {
+  if (code == 125) return true; // }
+  return false;
 }
 
 bool maybeEq (char ch) {
   int code = codeof(ch);
-  if (code == 33) return 0<1; // !
-  if (code == 60) return 0<1; // <
-  if (code == 61) return 0<1; // =
-  if (code == 62) return 0<1; // >
-  return 0<0; // false
+  if (code == 33) return true; // !
+  if (code == 60) return true; // <
+  if (code == 61) return true; // =
+  if (code == 62) return true; // >
+  return false;
 }
 
 bool maybeDouble (char ch) {
   int code = codeof(ch);
-  if (code == 38) return 0<1; // &
-  if (code == 124) return 0<1; // |
-  return 1<0;
+  if (code == 38) return true; // &
+  if (code == 124) return true; // |
+  return false;
 }
 
 bool isSpace (char ch) {
   int code = codeof(ch);
-  if (code == 9)  { return 0<1; } // \t
-  if (code == 10) { return 0<1; } // \n
-  if (code == 32) { return 0<1; } // ' '
-  return 0<0; // false
+  if (code == 9)  return true; // \t
+  if (code == 10) return true; // \n
+  if (code == 32) return true; // ' '
+  return false;
 }
 
 bool isQuote (char ch) {
   int code = codeof(ch);
-  if (code == 34) { return 0<1; } // "
-  if (code == 39) { return 0<1; } // '
-  if (code == 96) { return 0<1; } // `
-  return 0<0; // false
+  if (code == 34) return true; // "
+  if (code == 39) return true; // '
+  if (code == 96) return true; // `
+  return false;
 }
 
 TkArr tokens (string input) {
@@ -256,7 +241,7 @@ TkArr tokens (string input) {
       string val = addch("", ch);
       if (pos >= len) { goto endname; }
       ch, pos = charat(input, pos);
-      while (isAlphaNum(ch)) {
+      while (isAlpha(ch) || isDigit(ch)) {
         val = addch(val, ch);
         if (pos >= len) { goto endname; }
         ch, pos = charat(input, pos);
@@ -308,10 +293,10 @@ TkArr tokens (string input) {
         if (codeof(ch) == 92) { // Escape
           if (pos >= len) error("Unfinished string", line);
           ch, pos = charat(input, pos);
-          bool copyit = 1<0;
-          if (codeof(ch) == 92) copyit = 0<1;
-          if (codeof(ch) == 34) copyit = 0<1;
-          if (codeof(ch) == 39) copyit = 0<1;
+          bool copyit =
+            (codeof(ch) == 92) ||
+            (codeof(ch) == 34) ||
+            (codeof(ch) == 39);
 
           if (copyit) {
             val = addch(val, ch);

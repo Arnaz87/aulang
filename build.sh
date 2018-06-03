@@ -15,7 +15,7 @@ if [ "$1" == "temp" ]; then
 fi
 
 if [ "$1" == "bootstrap" ]; then
-  bash build.sh temp
+  bash build.sh temp &&
   bash build.sh
   rm -f $FILES
   exit
