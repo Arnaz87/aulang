@@ -3,7 +3,6 @@
 //         Imports & Types         //
 // =============================== //
 
-// *
 import cobre.system {
   void println (string);
   void exit (int);
@@ -11,18 +10,6 @@ import cobre.system {
 }
 
 import culang.util { string readall (string); }
-/*
-
-import cobre.system {
-  void print (string);
-  void quit (int);
-  string readall (string filename);
-  void error (string) as syserr;
-}
-
-void println (string txt) { print(txt); }
-void exit (int status) { quit(status); }
-*/
 
 import cobre.string {
   string itos (int);
@@ -376,6 +363,15 @@ Node parseIdentItem (Parser p) {
       node.push(newNode("item", name));
       return node;
     }
+    if (p.maybe("=")) {
+      Node tpnode = outs.child(0);
+      Node node = newNode("decl_assign", name);
+      node.line = line;
+      node.push(tpnode);
+      node.push(parseExpr(p));
+      check(p.next(), ";");
+      return node;
+    }
   }
   check(p.peek(), "("); // already failed '(', but give error message
 }
@@ -673,7 +669,7 @@ Node parseTopLevel (Parser p) {
     node = parseIdentItem(p);
     if (node.tp == "function") {
       node.push(parseBlock(p));
-    } else {
+    } else if (!(node.tp == "decl_assign")) {
       error("invalid top level statement", _tk);
     }
   }

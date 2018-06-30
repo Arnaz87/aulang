@@ -24,4 +24,7 @@ Running `bash build.sh bootstrap` compiles the source code with whatever version
 - for, switch, do while, break, continue *(Is it better to not include them?)*
 - struct-like types
 - unions
-- null
+- maybe improve null syntax
+- any syntax
+- compiler.cu is stupid, 1800 LOC! that's too much
+- inspect imported modules and import their items automatically

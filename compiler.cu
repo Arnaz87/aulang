@@ -1,25 +1,4 @@
 
-/* Cobre 0.5
-
-import cobre.system {
-  void print (string);
-  string readall (string);
-
-  void quit (int);
-
-  void error (string) as syserr;
-
-  type file as file; 
-  file open (string filename, string mode);
-  void write (file, string);
-  void writebyte (file, int);
-}
-
-void println (string msg) { print(msg); }
-*/
-
-// Cobre 0.6
-
 import cobre.system {
   void println (string);
   void exit (int);
@@ -34,7 +13,6 @@ import culang.util {
   void writebyte (file, int);
 }
 void quit (int status) { exit(status); }
-//
 
 import cobre.string {
   string itos(int);
@@ -173,15 +151,20 @@ struct Function {
   Inst[] code;
   int line;
   Line[] lineinfo;
+  bool is_const;
 
   bool hasCode (Function this) {
     return !this.node.isnull();
   }
 }
 
+Function pureFunction () {
+  return new Function(0, "", "", new string[](), new string[](), new string[](), nullNode(), new Inst[](), 0, new Line[](), false);
+}
+
 Function newFunction (Compiler c) {
-  int id = c.functions.len();
-  Function f = new Function(id, "", "", new string[](), new string[](), new string[](), nullNode(), new Inst[](), 0, new Line[]());
+  Function f = pureFunction();
+  f.id = c.functions.len();
   c.functions.push(f);
   return f;
 }
@@ -189,6 +172,11 @@ Function newFunction (Compiler c) {
 struct Constant {
   string kind;
   string val;
+  int fn_id;
+}
+
+Constant newConstant (string kind, string val) {
+  return new Constant(kind, val, 0);
 }
 
 struct Inst {
@@ -210,6 +198,7 @@ struct Compiler {
   Map typeMap;
   Map fnMap;
   Map modMap;
+  Map constMap;
   Module[] modules;
   Type[] types;
   Function[] functions;
@@ -508,10 +497,24 @@ int[] compileCall (Scope this, Node node) {
 }
 
 int compileExpr (Scope this, Node node) {
-  if (node.tp == "var") return this.getvar(node.val, node);
+  if (node.tp == "var") {
+    string name = node.val;
+    int reg = this.vars[name];
+    if (reg < 0) {
+      int const_id = this.c.constMap[name];
+      if (const_id < 0) error(node, "Unknown variable \"" + name + "\"");
+      Constant const = this.c.constants[const_id];
+      Function fn = this.c.functions[const.fn_id];
+      int tpid = this.c.typeMap[fn.outs[0]];
+
+      this.constant(const_id);
+      reg = this.decl(tpid);
+    }
+    return reg;
+  }
   if (node.tp == "num") {
     int id = this.c.constants.len();
-    this.c.constants.push(new Constant("int", node.val));
+    this.c.constants.push(newConstant("int", node.val));
     this.constant(id);
     int tp = this.gettp("int");
     int reg = this.decl(tp);
@@ -519,9 +522,9 @@ int compileExpr (Scope this, Node node) {
   }
   if (node.tp == "str") {
     int rawid = this.c.constants.len();
-    this.c.constants.push(new Constant("bin", node.val));
+    this.c.constants.push(newConstant("bin", node.val));
     int id = this.c.constants.len();
-    this.c.constants.push(new Constant("str", ""));
+    this.c.constants.push(newConstant("str", ""));
 
     int[] args;
 
@@ -851,7 +854,12 @@ void codegen (Compiler c) {
   while (i < c.functions.len()) {
     Function fn = c.functions[i];
 
-    if (fn.hasCode()) {
+    if (fn.is_const) {
+      Scope scope = newScope(c, fn);
+      int[] args = new int[]();
+      args.push(compileExpr(scope, fn.node.get()));
+      scope.fn.code.push(new Inst("end", 0, 0, "", args));
+    } else if (fn.hasCode()) {
       Scope scope = newScope(c, fn);
 
       int j = 0;
@@ -1368,6 +1376,21 @@ void makeFunctions (Compiler c) {
       c.fnMap[name] = f.id;
       if (pub) c.fnExports[name] = f.id;
     }
+    if (node.tp == "decl_assign") {
+      string name = node.val;
+      Function f = newFunction(c);
+      f.is_const = true;
+      f.name = name;
+      f.outs.push(compileTypeName(c, node.child(0)));
+      f.node = newNullNode(node.child(1));
+
+      id const_id = c.constants.len();
+      Constant const = newConstant("call", "");
+      const.fn_id = f.id;
+      c.constants.push(const);
+      c.constMap[name] = const_id;
+      //if (pub) c.fnExports[name] = f.id;
+    }
     i = i+1;
   }
 }
@@ -1394,6 +1417,7 @@ Compiler compile (string src) {
 
   Compiler c = new Compiler(
     parsed,
+    newMap(),
     newMap(),
     newMap(),
     newMap(),
@@ -1434,6 +1458,7 @@ void writenum (file f, int n) {
 }
 
 void writestr (file f, string s) {
+  // TODO: strlen returns a number without real meaning, convert to a buffer instead
   writenum(f, strlen(s));
   write(f, s);
 }
@@ -1706,17 +1731,17 @@ void writeCompiler (Compiler c, string filename) {
     if (cns.kind == "int") {
       writebyte(f, 1); // kind 1 is an int constant
       writenum(f, atoi(cns.val));
-    }
-    if (cns.kind == "bin") {
+    } else if (cns.kind == "bin") {
       writebyte(f, 2); // kind 2 is a binary constant
       writestr(f, cns.val);
-    }
-    if (cns.kind == "str") {
+    } else if (cns.kind == "str") {
       // Strings ar built using the bin constant just before them
       int binindex = (i-1) + c.functions.len();
       int function = 0; // new string function index
       writenum(f, function + 16);
       writenum(f, binindex);
+    } else if (cns.kind == "call") {
+      writenum(f, cns.fn_id + 16);
     }
     i = i+1;
   }
