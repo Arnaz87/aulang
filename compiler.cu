@@ -57,6 +57,15 @@ struct Map {
     //quit(1);
   }
 
+  string findKey (Map this, int id) {
+    int i = this.pos;
+    while (i > 0) {
+      i = i-1;
+      Pair pair = this.arr[i];
+      if (id == pair.id) return pair.key;
+    }
+  }
+
   void set (Map this, string key, int value) {
     Pair pair = new Pair(key, value);
     int p = this.pos;
@@ -291,8 +300,7 @@ struct Scope {
   }
 
   void constant (Scope this, int id) {
-    int funlen = this.c.functions.len();
-    this.call(funlen + id, new int[]());
+    this.fn.code.push(new Inst("const", id, 0, "", new int[]()));
   }
 
   void uselbl (Scope this, string name) {
@@ -406,6 +414,19 @@ string compileTypeName (Compiler this, Node node) {
   } else if (node.tp == "type") {
     return node.val;
   } else syserr("???");
+}
+
+string anyModuleOf (Compiler this, string typename) {
+  string modname = "__any__" + typename;
+  if (this.modMap[modname] < 0) {
+    string[] args = new string[](), argnames = new string[]();
+    args.push(typename);
+    argnames.push("0");
+
+    string argmod = this.pushModule(defineModule(args, argnames, 0-1));
+    this.setModule(modname, buildModule("__any__", argmod, 0-1));
+  }
+  return modname;
 }
 
 void errorln (string msg, int line) {
@@ -674,13 +695,50 @@ int compileExpr (Scope this, Node node) {
   }
   if (node.tp == "cast") {
     int basereg = compileExpr(this, node.child(0));
-    string tpname = compileTypeName(this.c, node.child(1));
-    Type tp = this.c.types[this.regtypes[basereg]];
-    int fnid = tp.casts[tpname];
-    if (fnid < 0) error(node, "Unknown cast to \"" + tpname + "\"");
+    string targetTypeName = compileTypeName(this.c, node.child(1));
+    int sourceTypeId = this.regtypes[basereg];
+    Type sourceType = this.c.types[sourceTypeId];
+
+    int fnid = sourceType.casts[targetTypeName];
+
+    // if reg is of type any, target type is nullable, and no cast exists
+    if ((sourceTypeId == 5) && (node.child(1).tp == "null") && (fnid < 0)) {
+      // source: any
+      // target: some nullable type
+      string innerName = compileTypeName(this.c, node.child(1).child(0));
+      string moduleid = anyModuleOf(this.c, innerName);
+
+      Function getfn = newFunction(this.c);
+      getfn.mod = moduleid;
+      getfn.ins.push("any");
+      getfn.outs.push(targetTypeName);
+      getfn.name = "get";
+
+      fnid = getfn.id;
+      sourceType.casts[targetTypeName] = fnid;
+    }
+
+    // if target type is any, and no cast exists
+    if ((this.c.typeMap[targetTypeName] == 5) && (fnid < 0)) {
+      // source: some type
+      // target: any
+      string sourceTypeName = this.c.typeMap.findKey(sourceTypeId);
+      string moduleid = anyModuleOf(this.c, sourceTypeName);
+
+      Function getfn = newFunction(this.c);
+      getfn.mod = moduleid;
+      getfn.ins.push(sourceTypeName);
+      getfn.outs.push(targetTypeName);
+      getfn.name = "new";
+
+      fnid = getfn.id;
+      sourceType.casts[targetTypeName] = fnid;
+    }
+
+    if (fnid < 0) error(node, "Unknown cast to \"" + targetTypeName + "\"");
 
     Function fn = this.c.functions[fnid];
-    int rettp = this.c.gettp(tpname, node.line);
+    int rettp = this.c.gettp(targetTypeName, node.line);
 
     int[] args = new int[]();
     args.push(basereg);
@@ -905,18 +963,22 @@ void makeBasics (Compiler c) {
   string intM = c.pushModule(globalModule("cobre\x1fint", 0-1)); // #3
   string strM = c.pushModule(globalModule("cobre\x1fstring", 0-1)); // #4
   string bufferM = c.pushModule(globalModule("cobre\x1fbuffer", 0-1)); // #5
+  c.setModule("__any__", globalModule("cobre\x1fany", 0-1)); // #6
+  string anyM = "__any__";
 
   newType(c, boolM, "bool");
   newType(c, bufferM, "buffer");
   newType(c, intM, "int");
   newType(c, strM, "string");
   newType(c, strM, "char");
+  newType(c, anyM, "any");
 
   c.typeMap["bool"] = 0;
   c.typeMap["__bin__"] = 1;
   c.typeMap["int"] = 2;
   c.typeMap["string"] = 3;
   c.typeMap["char"] = 4;
+  c.typeMap["any"] = 5;
 
   // #0
   Function fn = newFunction(c);
@@ -1569,7 +1631,7 @@ void writeFunctions (Compiler c, file f) {
   }
 }
 
-void writeCode (file f, Inst[] code) {
+void writeCode (file f, Inst[] code, int fcount) {
   writenum(f, code.len());
 
   int i = 0;
@@ -1612,6 +1674,9 @@ void writeCode (file f, Inst[] code) {
         writenum(f, inst.args[j]);
         j = j+1;
       }
+    } else if (k == "const") {
+      int fnid = inst.a + fcount;
+      writenum(f, fnid + 16);
     }
     else errorln("Unknown instruction: " + k, 0-1);
     i = i+1;
@@ -1619,11 +1684,12 @@ void writeCode (file f, Inst[] code) {
 }
 
 void writeBodies (Compiler c, file f) {
+  int fcount = c.functions.len();
   int i = 0;
-  while (i < c.functions.len()) {
+  while (i < fcount) {
     Function fn = c.functions[i];
     if (fn.hasCode()) 
-      writeCode(f, fn.code);
+      writeCode(f, fn.code, fcount);
     i = i+1;
   }
 }
