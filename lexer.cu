@@ -101,6 +101,7 @@ bool isKw (string s) {
   if (s == "goto") return true;
 
   if (s == "as") return true;
+  if (s == "is") return true;
   if (s == "new") return true;
   if (s == "type") return true;
   if (s == "struct") return true;

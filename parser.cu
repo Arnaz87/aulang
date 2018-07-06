@@ -243,9 +243,15 @@ Node parseSuffix (Parser p) {
       goto suffix;
     }
   int line = p.line();
-  if (p.maybe("as")) {
+  while (p.maybe("as")) {
     Node nxt = newNode("cast", "");
     if (p.maybe("?")) nxt.tp = "anycast";
+    nxt.push(base);
+    nxt.push(parseType(p));
+    base = nxt.inline(line);
+  }
+  if (p.maybe("is")) {
+    Node nxt = newNode("is", "");
     nxt.push(base);
     nxt.push(parseType(p));
     base = nxt.inline(line);

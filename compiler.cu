@@ -693,6 +693,34 @@ int compileExpr (Scope this, Node node) {
     this.call(fnid, args);
     return this.decl(tpid);
   }
+  if (node.tp == "is") {
+    int basereg = compileExpr(this, node.child(0));
+    int sourceTypeId = this.regtypes[basereg];
+    if (!(sourceTypeId == 5)) error(node, "Expression is not of type any");
+    string targetTypeName = compileTypeName(this.c, node.child(1));
+    string fn_name = "__any_test_" + targetTypeName;
+    int fnid = this.c.fnMap[fn_name];
+    if (fnid < 0) {
+      string moduleid = anyModuleOf(this.c, targetTypeName);
+
+      Function getfn = newFunction(this.c);
+      getfn.mod = moduleid;
+      getfn.ins.push("any");
+      getfn.outs.push("bool");
+      getfn.name = "test";
+
+      fnid = getfn.id;
+      this.c.fnMap[fn_name] = fnid;
+    }
+
+    Function fn = this.c.functions[fnid];
+    int rettp = this.c.gettp("bool", node.line);
+
+    int[] args = new int[]();
+    args.push(basereg);
+    this.call(fnid, args);
+    return this.decl(rettp);
+  }
   if (node.tp == "cast") {
     int basereg = compileExpr(this, node.child(0));
     string targetTypeName = compileTypeName(this.c, node.child(1));
@@ -701,12 +729,11 @@ int compileExpr (Scope this, Node node) {
 
     int fnid = sourceType.casts[targetTypeName];
 
-    // if reg is of type any, target type is nullable, and no cast exists
-    if ((sourceTypeId == 5) && (node.child(1).tp == "null") && (fnid < 0)) {
+    // if reg is of type any and no cast exists
+    if ((sourceTypeId == 5) && (fnid < 0)) {
       // source: any
-      // target: some nullable type
-      string innerName = compileTypeName(this.c, node.child(1).child(0));
-      string moduleid = anyModuleOf(this.c, innerName);
+      // target: base type
+      string moduleid = anyModuleOf(this.c, targetTypeName);
 
       Function getfn = newFunction(this.c);
       getfn.mod = moduleid;
@@ -718,9 +745,9 @@ int compileExpr (Scope this, Node node) {
       sourceType.casts[targetTypeName] = fnid;
     }
 
-    // if target type is any, and no cast exists
+    // if target type is any and no cast exists
     if ((this.c.typeMap[targetTypeName] == 5) && (fnid < 0)) {
-      // source: some type
+      // source: base type
       // target: any
       string sourceTypeName = this.c.typeMap.findKey(sourceTypeId);
       string moduleid = anyModuleOf(this.c, sourceTypeName);
