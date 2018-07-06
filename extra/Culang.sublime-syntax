@@ -13,33 +13,38 @@ variables:
   constant_kw: true|false|null
   type_kw: type|struct|module|void
   other_kw: import|extern|export|private
-  operator_kw: new|as
+  operator_kw: new|as|is
   all_kw: '{{control_kw}}|{{constant_kw}}|{{operator_kw}}|{{type_kw}}|{{other_kw}}'
   name: '\b(?!(?:{{all_kw}})\b)(?:(?!\d)\w+|`(?:[^`]|\\.)*`)\b'
   alias: '(?:as\s+{{name}}\s*)'
+  type_mod: '(?:\?|\[\])*'
 
 contexts:
 
   # All complex syntactic structures
   main:
-    - match: \b(new)\s+({{name}})
+    - match: \b(new)\s+({{name}})({{type_mod}})
       captures:
         1: keyword.operator.new.culang
         2: support.type.culang
+        3: punctuation.modifier.type.culang
 
-    - match: (?:\b(void)|({{name}})(?:\s*,\s*({{name}}))*)\s+({{name}})\s*(\()
+    - match: '(?:\b(void)|({{name}})({{type_mod}})(?:\s*,\s*({{name}})({{type_mod}}))*)\s+({{name}})\s*(\()'
       captures:
         1: storage.type.culang
         2: support.type.culang
-        3: support.type.culang
-        4: entity.name.function.culang
-        5: punctuation.secion.parameters.begin.culang
+        3: punctuation.modifier.type.culang
+        4: support.type.culang
+        5: punctuation.modifier.type.culang
+        6: entity.name.function.culang
+        7: punctuation.section.parameters.begin.culang
       push: parameters
 
-    - match: \b(type|struct)\s+({{name}})
+    - match: \b(type|struct)\s+({{name}})({{type_mod}})
       captures:
         1: storage.type.culang
         2: entity.name.type.culang
+        3: punctuation.modifier.type.culang
 
     - match: \b(import)\s+({{name}})(?:(\.)({{name}}))*
       scope: meta.import.culang
@@ -47,9 +52,10 @@ contexts:
         1: keyword.other.import.culang
         3: punctuation.separator.culang
 
-    - match: ({{name}})\s+(?={{name}})
+    - match: '({{name}})({{type_mod}})\s+(?={{name}})'
       captures:
         1: support.type.culang
+        2: punctuation.modifier.type.culang
 
     - match: \b({{name}})\s*\(
       captures:
@@ -64,14 +70,15 @@ contexts:
 
   parameters:
     - meta_scope: meta.parameters.culang
-    - match: \b({{name}})\s*({{name}})?\b
+    - match: \b({{name}})({{type_mod}})\s*({{name}})?\b
       captures:
         1: support.type.culang
-        2: variable.parameter.culang
+        2: punctuation.modifier.type.culang
+        3: variable.parameter.culang
     - match: ','
       scope: punctuaction.separator.parameter.culang
     - match: \)
-      scope: punctuation.secion.parameters.end.culang
+      scope: punctuation.section.parameters.end.culang
       pop: true
     - include: lexical
 
@@ -96,7 +103,11 @@ contexts:
       scope: keyword.operator.culang
     - match: '\b\d+\b'
       scope: constant.numeric.culang
-    - match: '\b(int|float|bool|char|string)\b' # default types
+    - match: '\b({{name}})(\?|\[\])+'
+      captures:
+        1: support.type.culang
+        2: punctuation.modifier.type.culang
+    - match: '\b(int|float|bool|char|string|any)\b' # default types
       scope: support.type.culang
     - match: \'.\'
       scope: constant.character.culang
