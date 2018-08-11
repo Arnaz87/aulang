@@ -1,12 +1,8 @@
 
-import cobre.system { void println (string); }
-
-void f (any a) {
-  if (a is string) println(a as string);
-  else println(":C");
-}
-
 void main () {
-  f("hola" as any);
-  f(4 as any);
+  float a = itof(3) / itof(2);
+  if (a > itof(1)) println("a > 1");
+  if (a < itof(1)) println("a < 1");
+  if (a < itof(2)) println("a < 2");
+  println(ftos(a));
 }

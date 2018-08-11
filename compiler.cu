@@ -582,28 +582,47 @@ int compileExpr (Scope this, Node node) {
     args.push(a); args.push(b);
     // int
     if (tpa == 2) if (tpb == 2) {
-      if     (node.val == "==") this.call(1, args);
-      else if (node.val == ">") this.call(3, args);
-      else if (node.val == "<") this.call(4, args);
+      int tpr = 2;
+      if     (node.val == "==") { this.call(1, args); tpr = 0; }
+      else if (node.val == ">") { this.call(3, args); tpr = 0; }
+      else if (node.val == "<") { this.call(4, args); tpr = 0; }
       else if (node.val == "+") this.call(2, args);
       else if (node.val == "-") this.call(7, args);
       else if (node.val == "*") this.call(8, args);
       else if (node.val == "/") this.call(9, args);
-      else if (node.val == ">=") this.call(10, args);
-      else if (node.val == "<=") this.call(11, args);
+      else if (node.val == ">=") { this.call(10, args); tpr = 0; }
+      else if (node.val == "<=") { this.call(11, args); tpr = 0; }
       else {
         error(node, "Unsupported int operation: " + node.val);
       }
-      return this.decl(2);
+      return this.decl(tpr);
+    }
+    // float
+    if (tpa == 6) if (tpb == 6) {
+      int tpr = 6;
+      if     (node.val == "==") { this.call(19, args); tpr = 0; }
+      else if (node.val == ">") { this.call(21, args); tpr = 0; }
+      else if (node.val == "<") { this.call(20, args); tpr = 0; }
+      else if (node.val == "+") this.call(15, args);
+      else if (node.val == "-") this.call(16, args);
+      else if (node.val == "*") this.call(17, args);
+      else if (node.val == "/") this.call(18, args);
+      else if (node.val == ">=") { this.call(23, args); tpr = 0; }
+      else if (node.val == "<=") { this.call(22, args); tpr = 0; }
+      else {
+        error(node, "Unsupported float operation: " + node.val);
+      }
+      return this.decl(tpr);
     }
     // string
     if (tpa == 3) if (tpb == 3) {
-      if     (node.val == "==") this.call(5, args);
+      int tpr = 3;
+      if     (node.val == "==") { this.call(5, args); tpr = 0; }
       else if (node.val == "+") this.call(6, args);
       else {
         error(node, "Unsupported string operation: " + node.val);
       }
-      return this.decl(3);
+      return this.decl(tpr);
     }
     Type xtpa = this.c.types[tpa];
     Type xtpb = this.c.types[tpb];
@@ -992,6 +1011,9 @@ void makeBasics (Compiler c) {
   string bufferM = c.pushModule(globalModule("cobre\x1fbuffer", 0-1)); // #5
   c.setModule("__any__", globalModule("cobre\x1fany", 0-1)); // #6
   string anyM = "__any__";
+  string floatM = c.pushModule(globalModule("cobre\x1ffloat", 0-1));
+
+  string sysM = c.pushModule(globalModule("cobre\x1fsystem", 0-1));
 
   newType(c, boolM, "bool");
   newType(c, bufferM, "buffer");
@@ -999,6 +1021,7 @@ void makeBasics (Compiler c) {
   newType(c, strM, "string");
   newType(c, strM, "char");
   newType(c, anyM, "any");
+  newType(c, floatM, "float");
 
   c.typeMap["bool"] = 0;
   c.typeMap["__bin__"] = 1;
@@ -1006,6 +1029,7 @@ void makeBasics (Compiler c) {
   c.typeMap["string"] = 3;
   c.typeMap["char"] = 4;
   c.typeMap["any"] = 5;
+  c.typeMap["float"] = 6;
 
   // #0
   Function fn = newFunction(c);
@@ -1120,6 +1144,117 @@ void makeBasics (Compiler c) {
   fn.name = "not";
   fn.ins.push("bool");
   fn.outs.push("bool");
+
+  // #15
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "add";
+  fn.ins.push("float");
+  fn.ins.push("float");
+  fn.outs.push("float");
+
+  // #16
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "sub";
+  fn.ins.push("float");
+  fn.ins.push("float");
+  fn.outs.push("float");
+
+  // #17
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "mul";
+  fn.ins.push("float");
+  fn.ins.push("float");
+  fn.outs.push("float");
+
+  // #18
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "div";
+  fn.ins.push("float");
+  fn.ins.push("float");
+  fn.outs.push("float");
+
+  // #19
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "eq";
+  fn.ins.push("float");
+  fn.ins.push("float");
+  fn.outs.push("bool");
+
+  // #20
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "lt";
+  fn.ins.push("float");
+  fn.ins.push("float");
+  fn.outs.push("bool");
+
+  // #21
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "gt";
+  fn.ins.push("float");
+  fn.ins.push("float");
+  fn.outs.push("bool");
+
+  // #22
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "le";
+  fn.ins.push("float");
+  fn.ins.push("float");
+  fn.outs.push("bool");
+
+  // #23
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "ge";
+  fn.ins.push("float");
+  fn.ins.push("float");
+  fn.outs.push("bool");
+
+  // #24
+  Function fn = newFunction(c);
+  fn.mod = sysM;
+  fn.name = "println";
+  fn.ins.push("string");
+  c.fnMap["println"] = 24;
+
+  // #25
+  Function fn = newFunction(c);
+  fn.mod = strM;
+  fn.name = "itos";
+  fn.ins.push("int");
+  fn.outs.push("string");
+  c.fnMap["itos"] = 25;
+
+  // #26
+  Function fn = newFunction(c);
+  fn.mod = strM;
+  fn.name = "ftos";
+  fn.ins.push("float");
+  fn.outs.push("string");
+  c.fnMap["ftos"] = 26;
+
+  // #27
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "itof";
+  fn.ins.push("int");
+  fn.outs.push("float");
+  c.fnMap["itof"] = 27;
+
+  // #28
+  Function fn = newFunction(c);
+  fn.mod = floatM;
+  fn.name = "ftoi";
+  fn.ins.push("int");
+  fn.outs.push("string");
+  c.fnMap["ftoi"] = 28;
 }
 
 // Basic functions:
@@ -1138,6 +1273,22 @@ void makeBasics (Compiler c) {
 // 12: true
 // 13: false
 // 14: bool not
+
+// 15: float add
+// 16: float sub
+// 17: float mul
+// 18: float div
+// 19: float eq
+// 20: float less than
+// 21: float greater than
+// 22: float less or equal
+// 23: float greater or equal
+
+// 24: println
+// 25: int to string
+// 26: float to string
+// 27: int to float
+// 28: float to int
 
 Function, string fnFromNode (Compiler c, Node node) {
   string alias = node.child(2).val;
