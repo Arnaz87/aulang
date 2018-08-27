@@ -1252,8 +1252,8 @@ void makeBasics (Compiler c) {
   Function fn = newFunction(c);
   fn.mod = floatM;
   fn.name = "ftoi";
-  fn.ins.push("int");
-  fn.outs.push("string");
+  fn.ins.push("float");
+  fn.outs.push("int");
   c.fnMap["ftoi"] = 28;
 }
 
