@@ -1,5 +1,5 @@
 
-import cobre.system {
+import auro.system {
   void println (string);
   int argc ();
   string argv (int);

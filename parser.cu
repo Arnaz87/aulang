@@ -3,7 +3,7 @@
 //         Imports & Types         //
 // =============================== //
 
-import cobre.system {
+import auro.system {
   void println (string);
   void exit (int);
   void error (string) as syserr;
@@ -11,11 +11,11 @@ import cobre.system {
 
 import culang.util { string readall (string); }
 
-import cobre.string {
+import auro.string {
   string itos (int);
 }
 
-import cobre.array (NodeShell) {
+import auro.array (NodeShell) {
   type `` as NodeArr {
     NodeShell get (int);
     void push (NodeShell);
@@ -76,7 +76,7 @@ import culang.lexer {
   }
 }
 
-import cobre.array(token) {
+import auro.array(token) {
   type `` as TkArr {
     token get (int);
     int len ();

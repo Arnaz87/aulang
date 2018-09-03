@@ -1,15 +1,15 @@
 
-import cobre.buffer {
+import auro.buffer {
   type buffer;
   int size (buffer) as bufsize;
   buffer `new` (int size) as newbuf;
   void set (buffer, int pos, int val) as bufset;
 }
-import cobre.string {
+import auro.string {
   string `new` (buffer) as newstr;
   buffer tobuffer (string);
 }
-import cobre.io {
+import auro.io {
   type file; 
   type mode;
   mode r ();

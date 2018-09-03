@@ -1,11 +1,11 @@
 
-import cobre.system {
+import auro.system {
   void println (string);
   void exit (int);
   void error (string) as syserr;
 }
 
-import cobre.io { type file; }
+import auro.io { type file; }
 import culang.util {
   string readall (string);
   file _open (string filename, string dummy) as open;
@@ -14,7 +14,7 @@ import culang.util {
 }
 void quit (int status) { exit(status); }
 
-import cobre.string {
+import auro.string {
   string itos(int);
   int length (string) as strlen;
 
@@ -135,7 +135,7 @@ Type newType (Compiler c, string mod, string name) {
   return t;
 }
 
-import cobre.`null` (Node) {
+import auro.`null` (Node) {
   type `` as NodeNull {
     bool isnull ();
     Node get ();
@@ -318,7 +318,7 @@ string compileTypeName (Compiler this, Node node) {
       args.push(innerName);
       argnames.push("0");
 
-      string basemod = this.pushModule(globalModule("cobre\x1fnull", node.line));
+      string basemod = this.pushModule(globalModule("auro\x1fnull", node.line));
       string argmod = this.pushModule(defineModule(args, argnames, node.line));
       string moduleid = this.pushModule(buildModule(basemod, argmod, node.line));
 
@@ -367,7 +367,7 @@ string compileTypeName (Compiler this, Node node) {
       args.push(innerName);
       argnames.push("0");
 
-      string basemod = this.pushModule(globalModule("cobre\x1farray", node.line));
+      string basemod = this.pushModule(globalModule("auro\x1farray", node.line));
       string argmod = this.pushModule(defineModule(args, argnames, node.line));
       string moduleid = this.pushModule(buildModule(basemod, argmod, node.line));
 
@@ -1005,15 +1005,15 @@ void makeBasics (Compiler c) {
   // Exported module
   c.pushModule(new Module("hidden", "", "", new string[](), new string[](), 0-1));
 
-  string boolM = c.pushModule(globalModule("cobre\x1fbool", 0-1)); // #2
-  string intM = c.pushModule(globalModule("cobre\x1fint", 0-1)); // #3
-  string strM = c.pushModule(globalModule("cobre\x1fstring", 0-1)); // #4
-  string bufferM = c.pushModule(globalModule("cobre\x1fbuffer", 0-1)); // #5
-  c.setModule("__any__", globalModule("cobre\x1fany", 0-1)); // #6
+  string boolM = c.pushModule(globalModule("auro\x1fbool", 0-1)); // #2
+  string intM = c.pushModule(globalModule("auro\x1fint", 0-1)); // #3
+  string strM = c.pushModule(globalModule("auro\x1fstring", 0-1)); // #4
+  string bufferM = c.pushModule(globalModule("auro\x1fbuffer", 0-1)); // #5
+  c.setModule("__any__", globalModule("auro\x1fany", 0-1)); // #6
   string anyM = "__any__";
-  string floatM = c.pushModule(globalModule("cobre\x1ffloat", 0-1));
+  string floatM = c.pushModule(globalModule("auro\x1ffloat", 0-1));
 
-  string sysM = c.pushModule(globalModule("cobre\x1fsystem", 0-1));
+  string sysM = c.pushModule(globalModule("auro\x1fsystem", 0-1));
 
   newType(c, boolM, "bool");
   newType(c, bufferM, "buffer");
@@ -1494,7 +1494,7 @@ void makeTypes (Compiler c) {
       args.push(base);
       argnames.push("0");
 
-      string basemod = c.pushModule(globalModule("cobre\x1ftypeshell", node.line));
+      string basemod = c.pushModule(globalModule("auro\x1ftypeshell", node.line));
       string argmod = c.pushModule(defineModule(args, argnames, node.line));
       string moduleid = c.pushModule(buildModule(basemod, argmod, node.line));
 
@@ -1522,7 +1522,7 @@ void makeTypes (Compiler c) {
       string[] args = new string[]();
       string[] argnames = new string[]();
 
-      string basemod = c.pushModule(globalModule("cobre\x1frecord", node.line));
+      string basemod = c.pushModule(globalModule("auro\x1frecord", node.line));
       string argmod = c.pushModule(defineModule(args, argnames, node.line));
       string moduleid = c.pushModule(buildModule(basemod, argmod, node.line));
 
@@ -1952,7 +1952,7 @@ void writeMetadata (Compiler c, file f) {
 
 void writeCompiler (Compiler c, string filename) {
   file f = open(filename, "w");
-  write(f, "Cobre 0.6");
+  write(f, "Auro 0.6");
   writebyte(f, 0); // end signature
 
   writeModules(c, f);

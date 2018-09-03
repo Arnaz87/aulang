@@ -1,11 +1,11 @@
 
-import cobre.system {
+import auro.system {
   void println (string);
   void exit (int);
 }
 import culang.util { string readall (string filename); }
 
-import cobre.string {
+import auro.string {
   int codeof (char);
   char newchar (int);
   char, int charat(string, int);
@@ -19,7 +19,7 @@ void error (string str, int line) {
   exit(1);
 }
 
-import cobre.array(token) {
+import auro.array(token) {
   type `` as TkArr {
     //new (token, int);
     token get (int);

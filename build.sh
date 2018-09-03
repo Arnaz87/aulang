@@ -22,35 +22,37 @@ if [ "$1" == "bootstrap" ]; then
 fi
 
 if [ "$1" == "test" ]; then
-  bash build.sh temp
-  cobre culang test.cu out
-  cobre out
+  bash build.sh temp &&
+  echo compiling out &&
+  auro culang test.cu out &&
+  echo running out &&
+  auro out
   rm -f $FILES
   exit
 fi
 
 if [ "$1" == "uninstall" ]; then
   for a in $FILES; do
-    cobre --remove $a
+    auro --remove $a
   done
   exit
 fi
 
 if [ "$1" != "install" ]; then
-  compile () { echo compiling $1; cobre culang $1.cu dist/culang.$1; }
+  compile () { echo compiling $1; auro culang $1.cu dist/culang.$1; }
   compile util &&
   compile lexer &&
   compile parser &&
   compile compiler &&
   echo compiling culang &&
-  cobre culang culang.cu dist/culang ||
+  auro culang culang.cu dist/culang ||
   (echo "Could not compile files"; exit)
 fi
 
 if [ "$1" == "install" -o "$1" == "install-build" ]; then
   cd dist
   for a in $FILES; do
-    cobre --install $a
+    auro --install $a
   done
   exit
 fi
