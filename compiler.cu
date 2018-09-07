@@ -5,13 +5,6 @@ import auro.system {
   void error (string) as syserr;
 }
 
-import auro.io { type file; }
-import culang.util {
-  string readall (string);
-  file _open (string filename, string dummy) as open;
-  void _write (file, string) as write;
-  void writebyte (file, int);
-}
 void quit (int status) { exit(status); }
 
 import auro.string {
@@ -216,6 +209,7 @@ struct Compiler {
   Map modExports;
   Constant[] constants;
   Cast[] casts;
+  Writer writer;
 
   int gettp (Compiler this, string name, int line) {
     int id = this.typeMap[name];
@@ -1652,7 +1646,7 @@ void makeExports (Compiler c) {
   }
 }
 
-Compiler compile (string src) {
+Compiler createCompiler (string src) {
   Node parsed = parse(src);
 
   Compiler c = new Compiler(
@@ -1668,7 +1662,8 @@ Compiler compile (string src) {
     newMap(),
     newMap(),
     new Constant[](),
-    new Cast[]()
+    new Cast[](),
+    newWriter()
   );
 
   makeBasics(c);
@@ -1685,189 +1680,184 @@ Compiler compile (string src) {
 //           File Writing          //
 // =============================== //
 
-void wnum (file f, int n) {
-  if (n > 127) wnum(f, n/128);
-  while (n > 127) n = n - ((n/128)*128);
-  writebyte(f, n + 128);
+import auro.buffer { type buffer; }
+import culang.writer {
+  type Writer {
+    void byte (int);
+    void num (int);
+    void str (string);
+    void rawstr (string);
+    buffer tobuffer ();
+  }
+
+  Writer newWriter ();
 }
 
-void writenum (file f, int n) {
-  if (n > 127) wnum(f, n/128);
-  while (n > 127) n = n - ((n/128)*128);
-  writebyte(f, n);
-}
-
-void writestr (file f, string s) {
-  // TODO: strlen returns a number without real meaning, convert to a buffer instead
-  writenum(f, strlen(s));
-  write(f, s);
-}
-
-void writeExports (Compiler c, file f) {
+void writeExports (Compiler c) {
   int exportcount = c.fnExports.arr.len() + c.tpExports.arr.len() + c.modExports.arr.len();
-  writebyte(f, 2); // Export module, kind 2 is defined
-  writenum(f, exportcount);
+  c.writer.byte(2); // Export module, kind 2 is defined
+  c.writer.num(exportcount);
   int i = 0;
   while (i < c.tpExports.arr.len()) {
     Pair p = c.tpExports.arr[i];
-    writebyte(f, 1);
-    writenum(f, p.id);
-    writestr(f, p.key);
+    c.writer.byte(1);
+    c.writer.num(p.id);
+    c.writer.str(p.key);
     i = i+1;
   }
 
   int i = 0;
   while (i < c.fnExports.arr.len()) {
     Pair p = c.fnExports.arr[i];
-    writebyte(f, 2);
-    writenum(f, p.id);
-    writestr(f, p.key);
+    c.writer.byte(2);
+    c.writer.num(p.id);
+    c.writer.str(p.key);
     i = i+1;
   }
 
   int i = 0;
   while (i < c.modExports.arr.len()) {
     Pair p = c.modExports.arr[i];
-    writebyte(f, 0);
-    writenum(f, p.id);
-    writestr(f, p.key);
+    c.writer.byte(0);
+    c.writer.num(p.id);
+    c.writer.str(p.key);
     i = i+1;
   }
 }
 
-void writeModules (Compiler c, file f) {
-  writenum(f, c.modules.len() - 1); // The argument module (0) is not counted
+void writeModules (Compiler c) {
+  c.writer.num(c.modules.len() - 1); // The argument module (0) is not counted
 
-  writeExports(c, f);
+  writeExports(c);
 
   int i = 2; // Omit argument and export (exports already written)
   while (i < c.modules.len()) {
     Module m = c.modules[i];
 
     if (m.kind == "global") {
-      writebyte(f, 1);
-      writestr(f, m.name);
+      c.writer.byte(1);
+      c.writer.str(m.name);
     } else if (m.kind == "use") {
-      writebyte(f, 3);
-      writenum(f, c.modMap[m.name]);
-      writestr(f, m.argument);
+      c.writer.byte(3);
+      c.writer.num(c.modMap[m.name]);
+      c.writer.str(m.argument);
     } else if (m.kind == "define") {
-      writebyte(f, 2);
-      writebyte(f, m.items.len());
+      c.writer.byte(2);
+      c.writer.byte(m.items.len());
       int j = 0;
       while (j < m.items.len()) {
         int id, k;
         id, k = c.getitem(m.items[j], m.line);
         // getitem second result is compatible with the module format
-        writebyte(f, k);
-        writenum(f, id);
-        writestr(f, m.itemnames[j]);
+        c.writer.byte(k);
+        c.writer.num(id);
+        c.writer.str(m.itemnames[j]);
         j = j+1;
       }
     } else if (m.kind == "build") {
-      writebyte(f, 4);
+      c.writer.byte(4);
       int baseid = c.modMap[m.name];
       int argid = c.modMap[m.argument];
-      writenum(f, baseid);
-      writenum(f, argid);
+      c.writer.num(baseid);
+      c.writer.num(argid);
     } else errorln("Unknown module kind " + m.kind, 0-1);
     i = i+1;
   }
 }
 
-void writeFunctions (Compiler c, file f) {
-  writenum(f, c.functions.len());
+void writeFunctions (Compiler c) {
+  c.writer.num(c.functions.len());
 
   int i = 0;
   while (i < c.functions.len()) {
     Function fn = c.functions[i];
 
-    if (fn.hasCode()) writebyte(f, 1);
-    else writenum(f, c.modMap[fn.mod]+2);
+    if (fn.hasCode()) c.writer.byte(1);
+    else c.writer.num(c.modMap[fn.mod]+2);
 
-    writenum(f, fn.ins.len());
+    c.writer.num(fn.ins.len());
     int j = 0;
     while (j < fn.ins.len()) {
       string tpname = fn.ins[j];
       int tpid = c.gettp(tpname, fn.line);
-      writenum(f, tpid);
+      c.writer.num(tpid);
       j = j+1;
     }
 
-    writenum(f, fn.outs.len());
+    c.writer.num(fn.outs.len());
     int j = 0;
     while (j < fn.outs.len()) {
       string tpname = fn.outs[j];
       int tpid = c.gettp(tpname, fn.line);
-      writenum(f, tpid);
+      c.writer.num(tpid);
       j = j+1;
     }
 
-    if (!fn.hasCode()) writestr(f, fn.name);
+    if (!fn.hasCode()) c.writer.str(fn.name);
 
     i = i+1;
   }
 }
 
-void writeCode (file f, Inst[] code, int fcount) {
-  writenum(f, code.len());
+void writeCode (Compiler c, Inst[] code, int fcount) {
+  c.writer.num(code.len());
 
   int i = 0;
   while (i < code.len()) {
     Inst inst = code[i];
     string k = inst.inst;
     if (k == "end") {
-      writebyte(f, 0);
+      c.writer.byte(0);
       int j = 0;
       while (j < inst.args.len()) {
-        writenum(f, inst.args[j]);
+        c.writer.num(inst.args[j]);
         j = j+1;
       }
     }
-    else if (k == "var") writebyte(f, 2);
+    else if (k == "var") c.writer.byte(2);
     else if (k == "set") {
-      writebyte(f, 4);
-      writenum(f, inst.a);
-      writenum(f, inst.b);
+      c.writer.byte(4);
+      c.writer.num(inst.a);
+      c.writer.num(inst.b);
     }
     else if (k == "jmp") {
-      writebyte(f, 5);
-      writenum(f, inst.a);
+      c.writer.byte(5);
+      c.writer.num(inst.a);
     }
     else if (k == "jif") {
-      writebyte(f, 6);
-      writenum(f, inst.a);
-      writenum(f, inst.b);
+      c.writer.byte(6);
+      c.writer.num(inst.a);
+      c.writer.num(inst.b);
     }
     else if (k == "nif") {
-      writebyte(f, 7);
-      writenum(f, inst.a);
-      writenum(f, inst.b);
+      c.writer.byte(7);
+      c.writer.num(inst.a);
+      c.writer.num(inst.b);
     }
     else if (k == "call") {
       int fnid = inst.a;
-      writenum(f, fnid + 16);
+      c.writer.num(fnid + 16);
       int j = 0;
       while (j < inst.args.len()) {
-        writenum(f, inst.args[j]);
+        c.writer.num(inst.args[j]);
         j = j+1;
       }
     } else if (k == "const") {
       int fnid = inst.a + fcount;
-      writenum(f, fnid + 16);
+      c.writer.num(fnid + 16);
     }
     else errorln("Unknown instruction: " + k, 0-1);
     i = i+1;
   }
 }
 
-void writeBodies (Compiler c, file f) {
+void writeBodies (Compiler c) {
   int fcount = c.functions.len();
   int i = 0;
   while (i < fcount) {
     Function fn = c.functions[i];
     if (fn.hasCode()) 
-      writeCode(f, fn.code, fcount);
+      writeCode(c, fn.code, fcount);
     i = i+1;
   }
 }
@@ -1884,7 +1874,7 @@ int atoi (string str) {
   return value;
 }
 
-void writeMetadata (Compiler c, file f) {
+void writeMetadata (Compiler c) {
 
   // Third item, function list
   int fcount = 0;
@@ -1897,52 +1887,52 @@ void writeMetadata (Compiler c, file f) {
 
   int itemcount = fcount + 2; // "source map" + file + functions
 
-  writenum(f, 4); // 1 items (1<<2)
-    writenum(f, itemcount*4); // items
-      writenum(f, 42); // 10 chars (10<<2 | 2)
-      write(f, "source map");
+  c.writer.num(4); // 1 items (1<<2)
+    c.writer.num(itemcount*4); // items
+      c.writer.num(42); // 10 chars (10<<2 | 2)
+      c.writer.rawstr("source map");
 
-      writenum(f, 8); // 2 items (2<<2)
-        writenum(f, 18); // 10 chars (4<<2 | 2)
-        write(f, "file");
-        writenum(f, 38); // 10 chars (9<<2 | 2)
-        write(f, "<file.cu>");
+      c.writer.num(8); // 2 items (2<<2)
+        c.writer.num(18); // 10 chars (4<<2 | 2)
+        c.writer.rawstr("file");
+        c.writer.num(38); // 10 chars (9<<2 | 2)
+        c.writer.rawstr("<file.cu>");
 
   int i = 0;
   while (i < c.functions.len()) {
     Function fn = c.functions[i];
     if (fn.hasCode()) {
-      writenum(f, 5*4); // 5 items
+      c.writer.num(5*4); // 5 items
 
-      writenum(f, 34); // 8 characters
-      write(f, "function");
+      c.writer.num(34); // 8 characters
+      c.writer.rawstr("function");
 
-      writenum(f, (i*2)+1);
+      c.writer.num((i*2)+1);
 
-      writenum(f, 8); // 2 items
-        writenum(f, 18); // 4 chars
-        write(f, "name");
+      c.writer.num(8); // 2 items
+        c.writer.num(18); // 4 chars
+        c.writer.rawstr("name");
 
-        writenum(f, (strlen(fn.name)*4)+2);
-        write(f, fn.name);
+        c.writer.num((strlen(fn.name)*4)+2);
+        c.writer.rawstr(fn.name);
 
-      writenum(f, 8); // 2 items
-        writenum(f, 18); // 4 chars
-        write(f, "line");
+      c.writer.num(8); // 2 items
+        c.writer.num(18); // 4 chars
+        c.writer.rawstr("line");
 
-        writenum(f, (fn.line*2)+1);
+        c.writer.num((fn.line*2)+1);
 
       int lcount = fn.lineinfo.len();
-      writenum(f, (lcount+1)*4);
-        writenum(f, 18); // 4 chars
-        write(f, "code");
+      c.writer.num((lcount+1)*4);
+        c.writer.num(18); // 4 chars
+        c.writer.rawstr("code");
 
         int j = 0;
         while (j < fn.lineinfo.len()) {
           Line ln = fn.lineinfo[j];
-          writenum(f, 8); // 2 items
-          writenum(f, (ln.inst*2)+1);
-          writenum(f, (ln.line*2)+1);
+          c.writer.num(8); // 2 items
+          c.writer.num((ln.inst*2)+1);
+          c.writer.num((ln.line*2)+1);
           j = j+1;
         }
     }
@@ -1950,49 +1940,50 @@ void writeMetadata (Compiler c, file f) {
   }
 }
 
-void writeCompiler (Compiler c, string filename) {
-  file f = open(filename, "w");
-  write(f, "Auro 0.6");
-  writebyte(f, 0); // end signature
+buffer getBuffer (Compiler c) {
+  c.writer.rawstr("Auro 0.6");
+  c.writer.byte(0); // end signature
 
-  writeModules(c, f);
+  writeModules(c);
 
-  writenum(f, c.types.len());
+  c.writer.num(c.types.len());
   int i = 0;
   while (i < c.types.len()) {
     Type tp = c.types[i];
-    writenum(f, c.modMap[tp.mod]+1);
-    writestr(f, tp.name);
+    c.writer.num(c.modMap[tp.mod]+1);
+    c.writer.str(tp.name);
     i = i+1;
   }
 
-  writeFunctions(c, f);
+  writeFunctions(c);
 
-  writenum(f, c.constants.len());
+  c.writer.num(c.constants.len());
   int i = 0;
   while (i < c.constants.len()) {
     Constant cns = c.constants[i];
     if (cns.kind == "int") {
-      writebyte(f, 1); // kind 1 is an int constant
-      writenum(f, atoi(cns.val));
+      c.writer.byte(1); // kind 1 is an int constant
+      c.writer.num(atoi(cns.val));
     } else if (cns.kind == "bin") {
-      writebyte(f, 2); // kind 2 is a binary constant
-      writestr(f, cns.val);
+      c.writer.byte(2); // kind 2 is a binary constant
+      c.writer.str(cns.val);
     } else if (cns.kind == "str") {
       // Strings ar built using the bin constant just before them
       int binindex = (i-1) + c.functions.len();
       int function = 0; // new string function index
-      writenum(f, function + 16);
-      writenum(f, binindex);
+      c.writer.num(function + 16);
+      c.writer.num(binindex);
     } else if (cns.kind == "call") {
-      writenum(f, cns.fn_id + 16);
+      c.writer.num(cns.fn_id + 16);
     }
     i = i+1;
   }
 
-  writeBodies(c, f);
+  writeBodies(c);
 
-  writeMetadata(c, f);
+  writeMetadata(c);
+
+  return c.writer.tobuffer();
 }
 
 
@@ -2000,6 +1991,22 @@ void writeCompiler (Compiler c, string filename) {
 // =============================== //
 //             Interface           //
 // =============================== //
+
+buffer compile (string src) {
+  Compiler c = createCompiler(src);
+  codegen(c);
+  return getBuffer(c);
+}
+
+import auro.io {
+  type file;
+  type mode as filemode;
+  filemode w ();
+  file open (string, filemode);
+  void write (file, buffer);
+}
+
+import culang.util { string readall (string); }
 
 void printCompiler (Compiler c) {
   println("Module Map:");
@@ -2106,10 +2113,13 @@ void printCompiler (Compiler c) {
 
 void main () {
   string src = readall("test.cu");
-  Compiler c = compile(src);
+  Compiler c = createCompiler(src);
 
   codegen(c);
 
   printCompiler(c);
-  writeCompiler(c, "out");
+  buffer buf = getBuffer(c);
+
+  file f = open("out", w());
+  write(f, buf);
 }

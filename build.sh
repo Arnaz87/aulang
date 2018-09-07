@@ -22,9 +22,9 @@ if [ "$1" == "bootstrap" ]; then
 fi
 
 if [ "$1" == "test" ]; then
-  bash build.sh temp &&
+  bash build.sh &&
   echo compiling out &&
-  auro culang test.cu out &&
+  auro --dir dist/ culang test.cu out &&
   echo running out &&
   auro out
   rm -f $FILES
@@ -43,6 +43,7 @@ if [ "$1" != "install" ]; then
   compile util &&
   compile lexer &&
   compile parser &&
+  compile writer &&
   compile compiler &&
   echo compiling culang &&
   auro culang culang.cu dist/culang ||
