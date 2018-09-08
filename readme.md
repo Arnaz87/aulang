@@ -1,30 +1,27 @@
-# Culang
+# Aulang
 
-C-like programming language running on the [Cobre VM](https://github.com/Arnaz87/cobrevm). The language is complete enough to be written in itself, but it's not very practical yet.
+C-like programming language running on the [Auro VM](https://gitlab.com/aurovm). The language is complete enough to be written in itself, but it's not very practical yet.
 
-[Doucumentation](/culang.md).
+[Doucumentation](/aulang.md).
 
-To install it, you first need to install the [Cobre VM](https://github.com/Arnaz87/cobrevm), and then run `bash build.sh install`.
+To install it, you first need to install the [Auro VM implementation](https://gitlab.com/aurovm/aurovm), and then run `bash build.sh install`.
 
-To compile a cobre file, run `cobre culang <source.cu> <target>` and run it with `cobre <target>`. Aditionally, that module can then be installed system-wide with `cobre --install <target>`.
+To compile a auro file, run `auro aulang <source.cu> <target>` and run it with `auro <target>`. Aditionally, that module can then be installed system-wide with `auro --install <target>`.
 
-Running `bash build.sh bootstrap` compiles the source code with whatever version of culang is installed, and then compiles it again with the resulting modules.
+Running `bash build.sh bootstrap` compiles the source code with whatever version of aulang is already installed, and then compiles it again with the resulting modules.
 
 **TODO**:
 
-- scopes (currently a single scope per function)
-- Typechecking
-- float type
+- Operator precedence
+- Lexical scopes (currently a single scope per function)
+- Good typechecking
 - char type
 - Multiple sized primitives
-- Array syntax
+- Module independent arrays
 - Module syntax
-- Statics/Constants
-- boolean expressions and ternary
 - for, switch, do while, break, continue *(Is it better to not include them?)*
 - struct-like types
 - unions
 - maybe improve null syntax
-- any syntax
-- compiler.cu is stupid, 1800 LOC! that's too much
+- compiler.au is too big, 2100 LOC!
 - inspect imported modules and import their items automatically

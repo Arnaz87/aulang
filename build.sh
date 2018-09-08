@@ -5,7 +5,7 @@ if [ "$1" == "-h" -o "$1" == "--help" -o "$1" == "help" ]; then
   exit
 fi
 
-FILES="aulang aulang.lexer aulang.parser aulang.compiler aulang.util"
+FILES="aulang aulang.lexer aulang.parser aulang.compiler aulang.util aulang.writer"
 
 # Este comando remplaza todas las palabras por aulang.palabra
 # echo $X | sed -E 's/\w+/aulang.&/g'

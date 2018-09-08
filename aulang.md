@@ -1,23 +1,23 @@
-# Aulang
+# Auro language (Aulang)
 
 *[2018-01-09 16:45]*
 
-The Au language is a thin layer on top of the Auro module format similar to C.
+The Auro language is a thin layer on top of the Auro module format similar to C.
 
 # Lexical
 
-Lexically Au is the same as C with the following remarks:
+Lexically Aulang is the same as C with the following remarks:
 
-- There is no octal integer literal
 - There is no pointer related syntax, but there is array syntax
-- A quoted identifier is like a string but delimited with \` instead of " and has the same meaning as a regular identifier
 - String literals have type `string` instead of `char[]`
+- A quoted identifier is like a string but delimited with \` instead of " and has the same meaning as a regular identifier
 - The set of reserved keywords is different than C's:
   + true, false, void, null, new, if, else, while, return, continue, break, goto, type, module, import, export, as
 - Default types are not keywords but implicitly imported types:
   + bool, int, float, string
+- There is no octal integer literal
 
-Note: the code snippets are marked as C to take advantage of markdown syntax highlighters, but it's actually Culang code.
+Note: the code snippets are marked as C to take advantage of markdown syntax highlighters, but it's actually Auro code.
 
 
 # Imports
@@ -73,6 +73,8 @@ import a.b {
 ~~~
 
 # Structs
+
+This will be renamed to records
 
 ~~~c
 // Equivalent to:
@@ -266,3 +268,19 @@ Arithmetic operations are overloaded for int and float, the addition operation i
 Cu doesn't cast expressions implicitly, nor does an explicit cast expression exists, if casting is desired it must be trough library functions.
 
 Function calls that return multiple values, when used in expressions an not in multi assignments, only use the first result and discard the rest.
+
+## Function expressions
+
+~~~c
+// if the function is declared, it can be refered to by its name
+foreach(xs, some_function);
+
+// @ indicates an anonymous function, it's followed by a
+// nameless function definition (maybe void is optional?)
+foreach(xs, @void (int x) {println(itos(x));})
+
+// if preceded by a value, a closure is created over that value,
+// inside the function it's refered as "this"
+int n = 42;
+int[] ys = map(xs, n @ int (int x) {return x + this;})
+~~~
