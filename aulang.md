@@ -1,12 +1,12 @@
-# Cu
+# Aulang
 
 *[2018-01-09 16:45]*
 
-The Cu language is a thin layer on top of the Cobre module format similar to C.
+The Au language is a thin layer on top of the Auro module format similar to C.
 
 # Lexical
 
-Lexically Cu is the same as C with the following remarks:
+Lexically Au is the same as C with the following remarks:
 
 - There is no octal integer literal
 - There is no pointer related syntax, but there is array syntax

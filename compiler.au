@@ -15,7 +15,7 @@ import auro.string {
   char, int charat(string, int);
 }
 
-import culang.parser {
+import aulang.parser {
   type Node as Node {
     string tp;
     string val;
@@ -1681,7 +1681,7 @@ Compiler createCompiler (string src) {
 // =============================== //
 
 import auro.buffer { type buffer; }
-import culang.writer {
+import aulang.writer {
   type Writer {
     void byte (int);
     void num (int);
@@ -2006,7 +2006,7 @@ import auro.io {
   void write (file, buffer);
 }
 
-import culang.util { string readall (string); }
+import aulang.util { string readall (string); }
 
 void printCompiler (Compiler c) {
   println("Module Map:");
