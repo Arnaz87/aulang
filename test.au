@@ -1,2 +1,32 @@
+import auro.buffer {
+  type buffer;
+  int size (buffer);
+  int get (buffer, int);
+}
 
-void main () { println("Hola Mundo"); }
+import aulang.writer {
+  type Writer {
+    void byte (int);
+    void num (int);
+    void str (string);
+    void rawstr (string);
+    buffer tobuffer ();
+  }
+  Writer newWriter ();
+}
+
+void main () {
+  Writer w = newWriter();
+  int i = 120;
+  while (i < (120+20)) {
+    w.num(i);
+    i = i+1;
+  }
+  buffer buf = w.tobuffer();
+
+  int i = 0;
+  while (i < size(buf)) {
+    println(itos(get(buf, i)));
+    i = i+1;
+  }
+}

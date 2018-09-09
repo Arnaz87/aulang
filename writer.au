@@ -12,7 +12,7 @@ import auro.string {
   buffer tobuffer (string) as strbuf;
 }
 
-private int MAX = 512;
+private int MAX = 64*8;
 
 private type PartShell (Part);
 struct Part {
@@ -54,12 +54,12 @@ struct Writer {
   }
 
   void _num (Writer this, int n) {
-    if (n > 127) this._num(shr(n, 8));
+    if (n > 127) this._num(shr(n, 7));
     this.byte(or(and(n, 127), 128));
   }
 
   void num (Writer this, int n) {
-    if (n > 127) this._num(shr(n, 8));
+    if (n > 127) this._num(shr(n, 7));
     this.byte(and(n, 127));
   }
 
@@ -97,7 +97,8 @@ struct Writer {
   }
 }
 
-Writer newWriter () {
+private Writer _new () {
   Part part = newPart();
   return new Writer(part, part, 0);
 }
+export _new as `new\x1dWriter`;

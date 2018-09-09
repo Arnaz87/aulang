@@ -39,13 +39,13 @@ import a.b {
   int, char f2 (int, int);
 
   // Unlike non imported functions, the names can also have field
-  // separatos like modules, and also metanames can be indicated
-  // separated with ':', but they have to be aliased because regular
-  // identifiers can't have those features.
-  void f3.a:b () as f3;
+  // separators like modules, and metanames can also be used, each
+  // separated with '$', but to be used in normal code they have to
+  // be aliased because there is no syntax for separators
+  void f3.a$b () as f3;
 
   // This can be used with f4 as no other function has the same main name
-  void f4:a ();
+  void f4$a ();
 
   // Imports the type t and is used with "t"
   type t;
@@ -63,8 +63,8 @@ import a.b {
 
     // Methods with the "get" and "set" metanames are accessed as fields,
     // they need not be aliased, if aliased they are used as methods.
-    int x1:get ();
-    void x1:set (int);
+    int x1$get ();
+    void x1$set (int);
 
     // All methods, including fields are inferred to have a first argument
     // of type t, and is automatically named "this".
@@ -95,8 +95,8 @@ struct T {
   void f () {}
 
   // Setters and getters methods can act like fileds of that name
-  int c:get () {return 1;}
-  void c:set (int c) {}
+  int c$get () {return 1;}
+  void c$set (int c) {}
 
   // All of these functions work with any struct declared in any other
   // module with the same types in the same order
@@ -117,7 +117,7 @@ type T {
 // A type with a base, creates a type MyInt that is not compatible with int
 type MyInt (int) {
   // Fields do not work, only methods, including getters and setters
-  int f:get () {
+  int f$get () {
     // The as operator can convert a value of MyInt to an int.
     int x = this as int;
     return x;

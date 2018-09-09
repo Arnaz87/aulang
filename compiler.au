@@ -1663,7 +1663,7 @@ Compiler createCompiler (string src) {
     newMap(),
     new Constant[](),
     new Cast[](),
-    newWriter()
+    new Writer()
   );
 
   makeBasics(c);
@@ -1683,14 +1683,13 @@ Compiler createCompiler (string src) {
 import auro.buffer { type buffer; }
 import aulang.writer {
   type Writer {
+    new ();
     void byte (int);
     void num (int);
     void str (string);
     void rawstr (string);
     buffer tobuffer ();
   }
-
-  Writer newWriter ();
 }
 
 void writeExports (Compiler c) {
