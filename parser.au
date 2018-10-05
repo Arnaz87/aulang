@@ -26,44 +26,17 @@ import auro.array (NodeShell) {
 
 type NodeShell (Node);
 
-struct Node {
-  string tp;
-  string val;
-  int line;
-  NodeArr children;
+import aulang.node {
+  type Node {
+    new (string tp, string val);
+    string tp;
+    string val;
+    int line;
+    Node child (int);
+    void push (Node);
 
-  int len (Node this) {
-    return this.children.len();
+    void print (string indentation);
   }
-
-  Node child (Node this, int index) {
-    return this.children[index] as Node;
-  }
-
-  void push (Node this, Node child) {
-    this.children.push(child as NodeShell);
-  }
-
-  void print (Node this, string indent) {
-    string pos = "";
-    if (this.line >= 0) { pos = "["+itos(this.line)+"] "; }
-
-    println(indent + pos + this.tp + " " + this.val);
-    int i = 0;
-    while (i < this.len()) {
-      this.child(i).print(indent + "  ");
-      i = i+1;
-    }
-  }
-
-  Node inline (Node this, int line) {
-    this.line = line;
-    return this;
-  }
-}
-
-Node newNode (string tp, string val) {
-  return new Node(tp, val, 0-1, EmptyNodeArr());
 }
 
 import aulang.lexer {
@@ -143,11 +116,11 @@ void check (token tk, string tp) {
 
 Node parseType (Parser p) {
   int line = p.line();
-  Node node = newNode("type", p.getname()).inline(line);
+  Node node = new Node("type", p.getname()).inline(line);
   repeat:
     if (p.maybe("?")) {
       Node basenode = node;
-      node = newNode("null", "").inline(line);
+      node = new Node("null", "").inline(line);
       node.push(basenode);
       goto repeat;
     }
@@ -155,7 +128,7 @@ Node parseType (Parser p) {
     if (!(p.peekat(1).tp == "]")) goto end;
     p.next(); p.next();
     Node basenode = node;
-    node = newNode("array", "").inline(line);
+    node = new Node("array", "").inline(line);
     node.push(basenode);
     goto repeat;
   end:
@@ -193,17 +166,17 @@ Node parseBaseExpr (Parser p) {
     check(p.next(), ")");
     return node;
   } else if (ty == "num") {
-    node = newNode("num", tk.val);
+    node = new Node("num", tk.val);
   } else if (ty == "str") {
-    node = newNode("str", tk.val);
+    node = new Node("str", tk.val);
   } else if (ty == "true") {
-    node = newNode("true", "");
+    node = new Node("true", "");
   } else if (ty == "false") {
-    node = newNode("false", "");
+    node = new Node("false", "");
   } else if (ty == "name") {
-    node = newNode("var", tk.val);
+    node = new Node("var", tk.val);
   } else if (ty == "new") {
-    node = newNode("new", "");
+    node = new Node("new", "");
     node.push(parseType(p));
     check(p.next(), "(");
     node.push(parseExprList(p, ")"));
@@ -216,7 +189,7 @@ Node parseSuffix (Parser p) {
     int line = p.line();
     string op = p.next().tp;
     Node base = parseSuffix(p);
-    Node node = newNode("unop", op);
+    Node node = new Node("unop", op);
     node.push(base);
     return node.inline(line);
   }
@@ -224,18 +197,18 @@ Node parseSuffix (Parser p) {
   suffix:
     int line = p.line();
     if (p.maybe("(")) {
-      Node nxt = newNode("call", "");
+      Node nxt = new Node("call", "");
       nxt.push(base);
       nxt.push(parseExprList(p, ")"));
       base = nxt.inline(line);
       goto suffix;
     } else if (p.maybe(".")) {
-      Node nxt = newNode("field", p.getname());
+      Node nxt = new Node("field", p.getname());
       nxt.push(base);
       base = nxt.inline(line);
       goto suffix;
     } else if (p.maybe("[")) {
-      Node nxt = newNode("index", "");
+      Node nxt = new Node("index", "");
       nxt.push(base);
       nxt.push(parseExpr(p));
       check(p.next(), "]");
@@ -244,14 +217,14 @@ Node parseSuffix (Parser p) {
     }
   int line = p.line();
   while (p.maybe("as")) {
-    Node nxt = newNode("cast", "");
+    Node nxt = new Node("cast", "");
     if (p.maybe("?")) nxt.tp = "anycast";
     nxt.push(base);
     nxt.push(parseType(p));
     base = nxt.inline(line);
   }
   if (p.maybe("is")) {
-    Node nxt = newNode("is", "");
+    Node nxt = new Node("is", "");
     nxt.push(base);
     nxt.push(parseType(p));
     base = nxt.inline(line);
@@ -264,7 +237,7 @@ Node parseExpr (Parser p) {
   while (isBinop(p.peek().tp)) {
     string op = p.next().tp;
     Node right = parseSuffix(p);
-    Node node = newNode("binop", op);
+    Node node = new Node("binop", op);
     if (op == "||") node.tp = "logic";
     if (op == "&&") node.tp = "logic";
     node.push(left);
@@ -275,7 +248,7 @@ Node parseExpr (Parser p) {
 }
 
 Node parseExprList (Parser p, string end) {
-  Node node = newNode("exprlist", "");
+  Node node = new Node("exprlist", "");
   if (p.peek().tp == end) goto end;
   nextexpr:
     node.push(parseExpr(p));
@@ -308,9 +281,9 @@ string parseLongName (Parser p) {
 }
 
 Node parseNameList (Parser p, string tp, string sep) {
-  Node node = newNode(tp, "");
+  Node node = new Node(tp, "");
   repeat:
-    node.push(newNode("name", p.getname()));
+    node.push(new Node("name", p.getname()));
     if (p.peek().tp == sep) {
       p.next();
       goto repeat;
@@ -321,7 +294,7 @@ Node parseNameList (Parser p, string tp, string sep) {
 Node parseIdentItem (Parser p) {
   token _tk = p.peek();
   int line = p.line();
-  Node outs = newNode("outs", "");
+  Node outs = new Node("outs", "");
   if (!p.maybe("void")) {
     nextout:
     outs.push(parseType(p));
@@ -331,15 +304,15 @@ Node parseIdentItem (Parser p) {
   string name = parseLongName(p);
 
   if (p.maybe("(")) {
-    Node ins = newNode("ins", "");
+    Node ins = new Node("ins", "");
     if (p.peek().tp == ")") goto endin;
     nextin:
-      Node inNode = newNode("arg", "");
+      Node inNode = new Node("arg", "");
       inNode.push(parseType(p));
       string argname = "";
       if (p.peek().tp == "name")
         argname = p.getname();
-      inNode.push(newNode("name", argname));
+      inNode.push(new Node("name", argname));
       ins.push(inNode);
       if (p.peek().tp == ",") {
         p.next();
@@ -351,27 +324,27 @@ Node parseIdentItem (Parser p) {
     string alias = "";
     if (p.maybe("as")) alias = p.getname();
 
-    Node node = newNode("function", name).inline(line);
+    Node node = new Node("function", name).inline(line);
     node.push(ins);
     node.push(outs);
-    node.push(newNode("alias", alias));
+    node.push(new Node("alias", alias));
     return node;
   } else if (outs.len() == 1) {
     if (p.maybe(";")) {
       Node tpnode = outs.child(0);
-      Node declnode = newNode("decl", name);
+      Node declnode = new Node("decl", name);
       declnode.line = line;
       declnode.push(tpnode);
       return declnode;
     }
     if (p.maybe("as")) {
-      Node node = newNode("alias", p.getname());
-      node.push(newNode("item", name));
+      Node node = new Node("alias", p.getname());
+      node.push(new Node("item", name));
       return node;
     }
     if (p.maybe("=")) {
       Node tpnode = outs.child(0);
-      Node node = newNode("decl_assign", name);
+      Node node = new Node("decl_assign", name);
       node.line = line;
       node.push(tpnode);
       node.push(parseExpr(p));
@@ -386,13 +359,13 @@ Node parseIdentItem (Parser p) {
 Node parseImport (Parser p) {
   // import keyword already consumed
 
-  Node result = newNode("import", "");
+  Node result = new Node("import", "");
   if (p.maybe("module")) result.tp = "import-module";
   result.val = parseLongName(p);
 
   bool hasbody = false;
 
-  Node argnode = newNode("none", "");
+  Node argnode = new Node("none", "");
   if (p.maybe("(")) {
     hasbody = true;
     if (p.maybe("module")) {
@@ -403,10 +376,10 @@ Node parseImport (Parser p) {
     argnode.tp = "arglist";
     if (p.peek().tp == ")") goto endarg;
     nextarg:
-      Node argNode = newNode("name", p.getname());
+      Node argNode = new Node("name", p.getname());
       if (p.maybe("as")) {
         Node prev = argNode;
-        argNode = newNode("alias", p.getname());
+        argNode = new Node("alias", p.getname());
         argNode.push(prev);
       }
       argnode.push(argNode);
@@ -420,7 +393,7 @@ Node parseImport (Parser p) {
   if (hasbody) {
     check(p.next(), "{");
 
-    Node bodynode = newNode("body", "");
+    Node bodynode = new Node("body", "");
     bodynode.push(argnode);
 
     nextitem:
@@ -428,27 +401,27 @@ Node parseImport (Parser p) {
       int line = p.line();
       if (p.maybe("}")) goto end;
       else if (p.maybe("type")) {
-        Node typenode = newNode("type", parseLongName(p));
+        Node typenode = new Node("type", parseLongName(p));
 
         string alias = "";
         if (p.maybe("as")) alias = p.getname();
-        typenode.push(newNode("alias", alias));
+        typenode.push(new Node("alias", alias));
 
         if (p.maybe("{")) {
           nextmember:
           int line = p.line();
           if (p.maybe("new")) {
-            Node item = newNode("new", "").inline(line);
-            Node ins = newNode("ins", "");
+            Node item = new Node("new", "").inline(line);
+            Node ins = new Node("ins", "");
             check(p.next(), "(");
             if (p.peek().tp == ")") goto endin;
             nextin:
-              Node inNode = newNode("arg", "");
-              inNode.push(newNode("type", p.getname()));
+              Node inNode = new Node("arg", "");
+              inNode.push(new Node("type", p.getname()));
               string argname = "";
               if (p.peek().tp == "name")
                 argname = p.getname();
-              inNode.push(newNode("name", argname));
+              inNode.push(new Node("name", argname));
               ins.push(inNode);
               if (p.peek().tp == ",") {
                 p.next();
@@ -470,10 +443,10 @@ Node parseImport (Parser p) {
 
         bodynode.push(typenode.inline(line));
       } else if (p.maybe("module")) {
-        Node item = newNode("module", parseLongName(p));
+        Node item = new Node("module", parseLongName(p));
         string alias = "";
         if (p.maybe("as")) alias = p.getname();
-        item.push(newNode("alias", alias));
+        item.push(new Node("alias", alias));
         check(p.next(), ";");
         bodynode.push(item.inline(line));
       } else {
@@ -493,7 +466,7 @@ Node parseImport (Parser p) {
 }
 
 Node parseAssignment (Parser p, Node first) {
-  Node left = newNode("exprlist", "");
+  Node left = new Node("exprlist", "");
   left.push(first);
 
   nextleft:
@@ -506,18 +479,18 @@ Node parseAssignment (Parser p, Node first) {
   Node expr = parseExpr(p);
   check(p.next(), ";");
 
-  Node node = newNode("assignment", "");
+  Node node = new Node("assignment", "");
   node.push(left);
   node.push(expr);
   return node;
 }
 
 Node parseDecl (Parser p) {
-  Node node = newNode("decl", "");
+  Node node = new Node("decl", "");
   node.push(parseType(p));
 
   nextpart:
-    Node partnode = newNode("declpart", p.getname());
+    Node partnode = new Node("declpart", p.getname());
     if (p.maybe("=")) partnode.push(parseExpr(p));
     node.push(partnode);
     if (p.maybe(",")) goto nextpart;
@@ -531,17 +504,17 @@ Node parseStmt (Parser p) {
   token _tk = p.peek();
   if (p.peek().tp == "{") return parseBlock(p);
   if (p.maybe("goto")) {
-    Node node = newNode("goto", p.getname());
+    Node node = new Node("goto", p.getname());
     check(p.next(), ";");
     return node.inline(line);
   }
   if (p.maybe("return")) {
-    Node node = newNode("return", "");
+    Node node = new Node("return", "");
     node.push(parseExprList(p, ";"));
     return node.inline(line);
   }
   if (p.maybe("if")) {
-    Node node = newNode("if", "");
+    Node node = new Node("if", "");
     check(p.next(), "(");
     node.push(parseExpr(p));
     check(p.next(), ")");
@@ -551,7 +524,7 @@ Node parseStmt (Parser p) {
     return node.inline(line);
   }
   if (p.maybe("while")) {
-    Node node = newNode("while", "");
+    Node node = new Node("while", "");
     check(p.next(), "(");
     node.push(parseExpr(p));
     check(p.next(), ")");
@@ -562,7 +535,7 @@ Node parseStmt (Parser p) {
     string ty = p.peekat(1).tp;
     if (ty == ":") {
       string name = p.getname(); p.next();
-      return newNode("label", name).inline(line);
+      return new Node("label", name).inline(line);
     }
     if (ty == "[")
       if (p.peekat(2).tp == "]")
@@ -581,7 +554,7 @@ Node parseStmt (Parser p) {
 }
 
 Node parseBlock (Parser p) {
-  Node result = newNode("block", "");
+  Node result = new Node("block", "");
   check(p.next(), "{");
   repeat:
   if (p.maybe("}")) return result;
@@ -592,18 +565,18 @@ Node parseBlock (Parser p) {
 }
 
 Node parseModule (Parser p) {
-  Node modnode = newNode("module-def", p.getname());
+  Node modnode = new Node("module-def", p.getname());
   if (p.maybe("=")) {
     modnode.tp = "module-assign";
     Node valnode;
     if (p.maybe("import")) {
-      valnode = newNode("import", parseLongName(p));
+      valnode = new Node("import", parseLongName(p));
     } else {
-      valnode = newNode("module", p.getname());
+      valnode = new Node("module", p.getname());
       if (p.maybe("(")) {
         valnode.tp = "functor";
         check(p.next(), "module");
-        valnode.push(newNode("module", p.getname()));
+        valnode.push(new Node("module", p.getname()));
         check(p.next(), ")");
       }
     }
@@ -612,15 +585,15 @@ Node parseModule (Parser p) {
     return modnode;
   }
   check(p.next(), "{");
-  Node bodynode = newNode("body", "");
+  Node bodynode = new Node("body", "");
   nextitem:
     if (p.peek().tp == "}") goto enditem;
     string name = p.getname();
     string alias = name;
     if (p.maybe("as")) alias = p.getname();
     check(p.next(), ";");
-    Node itemnode = newNode("item", name);
-    itemnode.push(newNode("alias", alias));
+    Node itemnode = new Node("item", name);
+    itemnode.push(new Node("alias", alias));
     bodynode.push(itemnode);
     goto nextitem;
   enditem:
@@ -641,8 +614,8 @@ Node parseTopLevel (Parser p) {
     string alias = item;
     if (p.maybe("as")) alias = p.getname();
     check(p.next(), ";");
-    Node node = newNode("export", alias);
-    node.push(newNode("item", item));
+    Node node = new Node("export", alias);
+    node.push(new Node("item", item));
     return node.inline(_tk.line);
   }
 
@@ -650,7 +623,7 @@ Node parseTopLevel (Parser p) {
 
   Node node;
   if (p.maybe("struct")) {
-    Node typenode = newNode("struct", parseLongName(p));
+    Node typenode = new Node("struct", parseLongName(p));
     check(p.next(), "{");
     nextmember:
       if (p.maybe("}")) goto endmember;
@@ -662,12 +635,20 @@ Node parseTopLevel (Parser p) {
     endmember:
     node = typenode.inline(_tk.line);
   } else if (p.maybe("type")) {
-    Node typenode = newNode("type", parseLongName(p));
-    check(p.next(), "(");
-    Node base = parseType(p);
-    typenode.push(base);
-    check(p.next(), ")");
-    check(p.next(), ";");
+    Node typenode = new Node("type", parseLongName(p));
+    if (p.maybe("(")) {
+      check(p.next(), "(");
+      Node base = parseType(p);
+      typenode.push(base);
+      check(p.next(), ")");
+      check(p.next(), ";");
+    } else if (p.maybe("=")) {
+      typenode.tp = "type-assign";
+      typenode.push(new Node("name", p.getname()));
+      check(p.next(), ".");
+      typenode.push(new Node("name", p.getname()));
+      check(p.next(), ";");
+    }
     node = typenode.inline(_tk.line);
   } else if (p.maybe("module")) {
     node = parseModule(p);
@@ -682,7 +663,7 @@ Node parseTopLevel (Parser p) {
   //if (p.maybe("module")) return parseModule(p);
 
   if (ispriv) {
-    Node privnode = newNode("private", "");
+    Node privnode = new Node("private", "");
     privnode.push(node);
     return privnode;
   } else return node;
@@ -696,7 +677,7 @@ Node parseTopLevel (Parser p) {
 // =============================== //
 
 Node parse (string src) {
-  Node result = newNode("program", "");
+  Node result = new Node("program", "");
 
   Parser parser = new Parser(tokens(src), 0);
 
@@ -711,7 +692,7 @@ Node parse (string src) {
 }
 
 void main () {
-  string src = readall("test.cu");
+  string src = readall("test.au");
   Node program = parse(src);
   program.print("");
 }

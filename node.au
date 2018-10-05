@@ -1,0 +1,53 @@
+
+
+import auro.utils.arraylist (NodeShell) {
+  type `` as NodeArr {
+    NodeShell get (int);
+    void push (NodeShell);
+    int len ();
+  }
+  NodeArr empty () as EmptyNodeArr;
+}
+
+type NodeShell (Node);
+
+struct Node {
+  string tp;
+  string val;
+  int line;
+  NodeArr children;
+
+  int len (Node this) {
+    return this.children.len();
+  }
+
+  Node child (Node this, int index) {
+    return this.children[index] as Node;
+  }
+
+  void push (Node this, Node child) {
+    this.children.push(child as NodeShell);
+  }
+
+  void print (Node this, string indent) {
+    string pos = "";
+    if (this.line >= 0) { pos = "["+itos(this.line)+"] "; }
+
+    println(indent + pos + this.tp + " " + this.val);
+    int i = 0;
+    while (i < this.len()) {
+      this.child(i).print(indent + "  ");
+      i = i+1;
+    }
+  }
+
+  Node inline (Node this, int line) {
+    this.line = line;
+    return this;
+  }
+}
+
+private Node _new (string tp, string val) {
+  return new Node(tp, val, 0-1, EmptyNodeArr());
+}
+export _new as `new\x1dNode`;

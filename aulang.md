@@ -19,6 +19,49 @@ Lexically Aulang is the same as C with the following remarks:
 
 Note: the code snippets are marked as C to take advantage of markdown syntax highlighters, but it's actually Auro code.
 
+# Basics
+
+~~~c
+// Global modules
+module system = import auro.system;
+// Member modules of other modules
+module unsafe = system.unsafe;
+// Module definitions
+module int_param {
+  T = int;
+  // Alternative syntax
+  int as T;
+}
+module int_param { T = int; }
+// Parametric modules
+module int_arr_mod = array(intparam);
+
+// Types can only be members of other modules
+type int_arr = int_arr_mod.array;
+
+// functions can be either from another module
+void println (string param) = system.println;
+// Or defined here
+void main () {}
+
+// Any non ternary nor logic expression is valid
+int my_const = 40 + 2;
+
+export mymodule;
+
+// Item name syntax is allowed when importing items from modules and when
+// defining items. $ is replaced with the metaname separator 0x1d.
+int arr_get
+~~~
+
+# Imports
+
+~~~c
+// The compiler knows the contents of any visible source file or auro module
+import auro.system.int;
+import auro.system.*;
+~~~
+
 
 # Imports
 

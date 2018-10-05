@@ -1,0 +1,255 @@
+import auro.system { void error(string); }
+
+import aulang.parser {
+  type Node as Node {
+    string tp;
+    string val;
+    int line;
+
+    int len ();
+    Node child (int);
+  }
+  Node parse (string);
+}
+
+import auro.buffer { type buffer; }
+import aulang.writer {
+  type Writer {
+    new ();
+    void byte (int);
+    void num (int);
+    void str (string);
+    void rawstr (string);
+    buffer tobuffer ();
+  }
+}
+
+// =============================== //
+//               Types             //
+// =============================== //
+
+import auro.utils.stringmap (any) {
+  type `` as Map {
+    new ();
+    any? get (string);
+    void set (string, any);
+  }
+}
+
+struct Pair { string k; any v; }
+import auro.utils.arraylist (Pair) {
+  type `` as `Pair[]` {
+    new ();
+    int len();
+    Pair get (int);
+    void push (Pair);
+  }
+}
+
+struct Item {
+  string tp;
+  string name;
+  int line;
+}
+
+struct Module {
+  int id;
+  string kind;
+  string name;
+  any argument;
+  Pair[] items;
+  int line;
+}
+
+struct Type {
+  int id;
+  string name;
+  any mod;
+}
+
+import auro.utils.arraylist (Module) {
+  type `` as `Module[]` {
+    new ();
+    int len();
+    Module get (int);
+    void push (Module);
+  }
+}
+
+import auro.utils.arraylist (Type) {
+  type `` as `Type[]` {
+    new ();
+    int len();
+    Type get (int);
+    void push (Type);
+  }
+}
+
+struct Compiler {
+  string filename;
+  Node program;
+  Map items;
+  Writer writer;
+
+  Module[] modules;
+  Type[] types;
+
+  any getItem (Compiler this, any a) {
+    if (a is Item) {
+      Item item = a as Item;
+      any? _a = this.items[item.name];
+      if (_a.isnull()) this.error(item.tp + " " + item.name + " not found", item.line);
+      a = _a.get();
+
+      string atp = "unknown";
+      if (a is Module) atp = "module";
+      if (a is Type) atp = "type";
+      if ((item.tp == atp) || (item.tp == "")) return a;
+      this.error(item.name + " is a " + atp, item.line);
+    }
+    return a;
+  }
+
+  Module Module (Compiler this) {
+    Module mod = new Module(this.modules.len() + 1, "", "", false as any, new Pair[](), 0);
+    this.modules.push(mod);
+    return mod;
+  }
+
+  Type Type (Compiler this, string name, any mod) {
+    Type t = new Type(this.types.len(), name, mod);
+    this.types.push(t);
+    return t;
+  }
+
+  void error (Compiler this, string msg, int line) {
+    error(msg + ", at " + this.filename + " at line " + itos(line));
+  }
+}
+
+// =============================== //
+//             Compiler            //
+// =============================== //
+
+buffer compile (Node program, string filename) {
+  Compiler c = new Compiler (
+    filename, program,
+    new Map(), new Writer(),
+    new Module[](), new Type[]()
+  );
+  Module exported = c.Module(); // First module is the exported module
+  exported.kind = "define";
+
+  int i = 0;
+  while (i < c.program.len()) {
+    Node node = c.program.child(i);
+    i = i+1;
+
+    if (node.tp == "module-assign") {
+      Module mod = c.Module();
+      mod.line = node.line;
+      c.items[node.val] = mod as any;
+
+      Node vnode = node.child(0);
+
+      if (vnode.tp == "import") {
+        mod.kind = "import";
+        mod.name = vnode.val;
+      }
+      else c.error(vnode.tp + " module expression", vnode.line);
+    }
+
+    if (node.tp == "module-def") { c.error("Module definition", node.line); }
+
+    if (node.tp == "type-assign") {
+      string mod = node.child(0).val;
+      string name = node.child(1).val;
+      Type t = c.Type(name, new Item("module", mod, node.line) as any);
+      c.items[node.val] = t as any;
+    }
+  }
+
+  return getBuffer(c);
+}
+
+// =============================== //
+//              Writer             //
+// =============================== //
+
+void writeModules (Compiler c) {
+  Writer w = c.writer;
+  Module[] mods = c.modules;
+
+  w.num(mods.len());
+
+  int i = 0;
+  while (i < mods.len()) {
+    Module mod = mods[i];
+    i = i+1;
+    if (mod.kind == "import") {
+      w.byte(1);
+      w.str(mod.name);
+    } else if (mod.kind == "define") {
+      w.byte(2);
+      w.num(mod.items.len());
+      int j = 0;
+      while (j < mod.items.len()) {
+        error("???");
+        Pair pair = mod.items[j];
+        w.str(pair.k);
+      }
+    }
+    else error("What am i doing?");
+  }
+}
+
+void writeTypes (Compiler c) {
+  Writer w = c.writer;
+
+  w.num(c.types.len());
+
+  int i = 0;
+  while (i < c.types.len()) {
+    Type t = c.types[i];
+    i = i+1;
+    Module mod = c.getItem(t.mod) as Module;
+    w.num(mod.id + 1);
+    w.str(t.name);
+  }
+}
+
+buffer getBuffer (Compiler c) {
+  Writer w = c.writer;
+
+  w.rawstr("Auro 0.6");
+  w.byte(0);
+
+  writeModules(c);
+  writeTypes(c);
+  w.num(0); // Functions
+  w.num(0); // Constants
+  w.num(0); // Metadata
+
+  return w.tobuffer();
+}
+
+// =============================== //
+//             Interface           //
+// =============================== //
+
+import auro.io {
+  type file;
+  type mode as filemode;
+  filemode w ();
+  file open (string, filemode);
+  void write (file, buffer);
+}
+
+import aulang.util { string readall (string); }
+
+void main () {
+  string src = readall("test.au");
+  buffer buf = compile(parse(src), "test.au");
+  file f = open("out", w());
+  write(f, buf);
+}
