@@ -1,12 +1,12 @@
 
 
 import auro.utils.arraylist (NodeShell) {
-  type `` as NodeArr {
+  type `` as `Node[]` {
+    new ();
     NodeShell get (int);
     void push (NodeShell);
     int len ();
   }
-  NodeArr empty () as EmptyNodeArr;
 }
 
 type NodeShell (Node);
@@ -15,7 +15,7 @@ struct Node {
   string tp;
   string val;
   int line;
-  NodeArr children;
+  Node[] children;
 
   int len (Node this) {
     return this.children.len();
@@ -48,6 +48,6 @@ struct Node {
 }
 
 private Node _new (string tp, string val) {
-  return new Node(tp, val, 0-1, EmptyNodeArr());
+  return new Node(tp, val, 0-1, new Node[]());
 }
 export _new as `new\x1dNode`;

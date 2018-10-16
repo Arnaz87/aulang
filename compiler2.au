@@ -1,6 +1,6 @@
 import auro.system { void error(string); }
 
-import aulang.parser {
+import aulang.node {
   type Node as Node {
     string tp;
     string val;
@@ -9,8 +9,9 @@ import aulang.parser {
     int len ();
     Node child (int);
   }
-  Node parse (string);
 }
+
+import parser { Node parse (string); }
 
 import auro.buffer { type buffer; }
 import aulang.writer {
@@ -108,6 +109,8 @@ struct Compiler {
       if (_a.isnull()) this.error(item.tp + " " + item.name + " not found", item.line);
       a = _a.get();
 
+      if (item.tp == "item") return a;
+
       string atp = "unknown";
       if (a is Module) atp = "module";
       if (a is Type) atp = "type";
@@ -115,10 +118,11 @@ struct Compiler {
       this.error(item.name + " is a " + atp, item.line);
     }
     if (a is string) {
-      string k = a as string;
+      error("String item values give unhelpful error messages");
+      /*string k = a as string;
       any? _a = this.items[k];
       if (_a.isnull()) this.error(k + " not found", 0-1);
-      a = _a.get();
+      a = _a.get();*/
     }
     return a;
   }
@@ -179,12 +183,13 @@ buffer compile (Node program, string filename) {
       mod.line = node.line;
       c.items[node.val] = mod as any;
 
-      Node body = node.child(0);
       int j = 0;
-      while (j < body.len()) {
-        Node inode = body.child(j);
-        string alias = inode.child(0).val;
-        any item = c.getItem(inode.val as any);
+      while (j < node.len()) {
+        Node inode = node.child(j);
+        string alias = inode.val;
+        if (!(inode.child(0).tp == "item"))
+          c.error("Currently only items can be exported", inode.line);
+        any item = c.getItem(new Item("item", inode.child(0).val, inode.line) as any);
         mod[alias] = item;
         j = j+1;
       }

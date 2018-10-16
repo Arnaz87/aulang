@@ -34,8 +34,10 @@ import aulang.node {
     int line;
     Node child (int);
     void push (Node);
+    int len ();
 
     void print (string indentation);
+    Node inline (int);
   }
 }
 
@@ -585,20 +587,20 @@ Node parseModule (Parser p) {
     return modnode;
   }
   check(p.next(), "{");
-  Node bodynode = new Node("body", "");
   nextitem:
     if (p.peek().tp == "}") goto enditem;
+    int line = p.peek().line;
+    string alias = p.getname();
+    check(p.next(), "=");
     string name = p.getname();
-    string alias = name;
-    if (p.maybe("as")) alias = p.getname();
     check(p.next(), ";");
-    Node itemnode = new Node("item", name);
-    itemnode.push(new Node("alias", alias));
-    bodynode.push(itemnode);
+    Node itemnode = new Node("item", alias);
+    itemnode.line = line;
+    itemnode.push(new Node("item", name));
+    modnode.push(itemnode);
     goto nextitem;
   enditem:
   check(p.next(), "}");
-  modnode.push(bodynode);
   return modnode;
 }
 
@@ -651,7 +653,7 @@ Node parseTopLevel (Parser p) {
     }
     node = typenode.inline(_tk.line);
   } else if (p.maybe("module")) {
-    node = parseModule(p);
+    node = parseModule(p).inline(_tk.line);
   } else {
     node = parseIdentItem(p);
     if (node.tp == "function") {
