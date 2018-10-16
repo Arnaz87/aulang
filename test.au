@@ -2,3 +2,11 @@ module system = import auro.system;
 module string_mod = import auro.string;
 
 type string = string_mod.string;
+
+module exported {
+  string as str;
+  system as sys;
+  string_mod as str_m;
+}
+
+export exported;

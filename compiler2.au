@@ -59,6 +59,10 @@ struct Module {
   any argument;
   Pair[] items;
   int line;
+
+  void set (Module this, string k, any v) {
+    this.items.push(new Pair(k, v));
+  }
 }
 
 struct Type {
@@ -72,7 +76,9 @@ import auro.utils.arraylist (Module) {
     new ();
     int len();
     Module get (int);
+    void set (int, Module);
     void push (Module);
+    void remove (int);
   }
 }
 
@@ -93,6 +99,7 @@ struct Compiler {
 
   Module[] modules;
   Type[] types;
+  any exported;
 
   any getItem (Compiler this, any a) {
     if (a is Item) {
@@ -107,11 +114,17 @@ struct Compiler {
       if ((item.tp == atp) || (item.tp == "")) return a;
       this.error(item.name + " is a " + atp, item.line);
     }
+    if (a is string) {
+      string k = a as string;
+      any? _a = this.items[k];
+      if (_a.isnull()) this.error(k + " not found", 0-1);
+      a = _a.get();
+    }
     return a;
   }
 
   Module Module (Compiler this) {
-    Module mod = new Module(this.modules.len() + 1, "", "", false as any, new Pair[](), 0);
+    Module mod = new Module(this.modules.len(), "", "", false as any, new Pair[](), 0);
     this.modules.push(mod);
     return mod;
   }
@@ -135,7 +148,8 @@ buffer compile (Node program, string filename) {
   Compiler c = new Compiler (
     filename, program,
     new Map(), new Writer(),
-    new Module[](), new Type[]()
+    new Module[](), new Type[](),
+    false as any
   );
   Module exported = c.Module(); // First module is the exported module
   exported.kind = "define";
@@ -159,13 +173,53 @@ buffer compile (Node program, string filename) {
       else c.error(vnode.tp + " module expression", vnode.line);
     }
 
-    if (node.tp == "module-def") { c.error("Module definition", node.line); }
+    else if (node.tp == "module-def") {
+      Module mod = c.Module();
+      mod.kind = "define";
+      mod.line = node.line;
+      c.items[node.val] = mod as any;
 
-    if (node.tp == "type-assign") {
+      Node body = node.child(0);
+      int j = 0;
+      while (j < body.len()) {
+        Node inode = body.child(j);
+        string alias = inode.child(0).val;
+        any item = c.getItem(inode.val as any);
+        mod[alias] = item;
+        j = j+1;
+      }
+    }
+
+    else if (node.tp == "type-assign") {
       string mod = node.child(0).val;
       string name = node.child(1).val;
       Type t = c.Type(name, new Item("module", mod, node.line) as any);
       c.items[node.val] = t as any;
+    }
+
+    else if (node.tp == "export") {
+      node child = node.child(0);
+      if (exported.items.len() > 0)
+        c.error("Export overrides public items", node.line);
+      if (!(c.exported is bool))
+        c.error("Export overrides previous export", node.line);
+
+      if (child.tp == "item") {
+        c.exported = new Item("module", child.val, node.line) as any;
+      } else c.error("Cannot export " + child.tp, node.line);
+    }
+  }
+
+  // Define export
+  if (!(c.exported is bool)) {
+    Module mod = c.getItem(c.exported) as Module;
+    c.modules[0] = mod;
+    int i = mod.id;
+    c.modules.remove(i);
+    mod.id = 0;
+    while (i < c.modules.len()) {
+      c.modules[i].id = i;
+      i = i+1;
     }
   }
 
@@ -194,9 +248,20 @@ void writeModules (Compiler c) {
       w.num(mod.items.len());
       int j = 0;
       while (j < mod.items.len()) {
-        error("???");
-        Pair pair = mod.items[j];
-        w.str(pair.k);
+        Pair p = mod.items[j];
+        any item = c.getItem(p.v);
+        int k, id;
+        if (item is Module) {
+          k = 0; id = (item as Module).id;
+        } else if (item is Type) {
+          k = 1; id = (item as Type).id;
+        } /*else if (p.v is Function) {
+          k = 2; id = (p.v as Function).id;
+        }*/ else error("???");
+        w.byte(k);
+        w.num(id);
+        w.str(p.k);
+        j = j+1;
       }
     }
     else error("What am i doing?");
