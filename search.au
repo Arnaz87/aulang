@@ -138,6 +138,9 @@ private struct Item {
   string name;
   _Item[] ins;
   _Item[] outs;
+
+  bool is_valid (Item this) { return !(this.mod == ""); }
+  string tostr (Item this) { return this.mod + "." + this.name; }
 }
 
 private type _Item (Item);
@@ -154,7 +157,9 @@ private struct ItemDef {
   string name;
 }
 
+// TODO: Optimize, it's doing about 3 more loops than necessary
 void makeModule (Module m, Reader r) {
+
   r.skip(9); // "Auro 0.6\n"
 
   string[] mods = new string[]();
@@ -207,24 +212,88 @@ void makeModule (Module m, Reader r) {
     mods.push(s);
   }
 
+  Item types = new Item[]();
+
   int typec = r.int();
   int i = 0;
   while (i < typec) {
     string mod = mods[r.int() - 2];
     string name = r.str();
 
-    int j = 0;
-    while (j < items.len()) {
-      ItemDef item = items[j];
-      if ((item.kind == 1) && (item.id == i)) {
-        if (mod == "") {
-          mod = m.name;
-          name = item.name;
-        }
-        m.map[item.name] = new Item(1, mod, name, new _Item[](), new _Item[]());
+    Item item = new Item(1, mod, name, new _Item[](), new _Item[]());
+    types.push(item);
+
+    i = i+1;
+  }
+
+  int i = 0;
+  while (i < items.len()) {
+    ItemDef def = items[i];
+    if (def.kind == 1) {
+      Item item = types[def.id];
+      if (item.mod == "") {
+        item.mod = m.name;
+        item.name = def.name;
       }
-      j = j+1;
+      m.map[def.name] = item;
     }
+    i = i+1;
+  }
+
+  Item funs = new Item[]();
+
+  int func = r.int();
+  int i = 0;
+  while (i < func) {
+    int kind = r.int();
+
+    Item item = new Item(2, m.name, "", new _Item[](), new _Item[]());
+
+    int inc = r.int();
+    while (inc > 0) {
+      item.ins.push(types[r.int()] as _Item);
+      inc = inc-1;
+    }
+
+    int outc = r.int();
+    while (outc > 0) {
+      item.outs.push(types[r.int()] as _Item);
+      outc = outc-1;
+    }
+
+    if (kind > 1) r.str(); // Skip name
+
+    funs.push(item);
+
+    i = i+1;
+  }
+
+
+  int i = 0;
+  while (i < items.len()) {
+    ItemDef def = items[i];
+    if (def.kind == 2) {
+      Item item = funs[def.id];
+
+      int j = 0;
+      while (j < item.ins.len()) {
+        if (!(item.ins[j] as Item).is_valid())
+          goto next;
+        j = j+1;
+      }
+
+      int j = 0;
+      while (j < item.outs.len()) {
+        if (!(item.outs[j] as Item).is_valid())
+          goto next;
+        j = j+1;
+      }
+
+      item.name = def.name;
+      m.map[def.name] = item;
+    }
+
+    next:
     i = i+1;
   }
 }
@@ -282,7 +351,30 @@ void main () {
     string k = pair.k;
     Item item = pair.v;
     if (item.kind == 1) {
-      println("type " + k + " = " + item.mod + "." + item.name);
+      println("type " + k + " = " + item.tostr());
+    }
+    if (item.kind == 2) {
+      string outs = "void";
+
+      int i = 0;
+      while (i < item.outs.len()) {
+        Item t = item.outs[i] as Item;
+        if (i == 0) outs = t.tostr();
+        else outs = outs + ", " + t.tostr();
+        i = i+1;
+      }
+
+      string ins = "";
+
+      int i = 0;
+      while (i < item.ins.len()) {
+        Item t = item.ins[i] as Item;
+        if (i == 0) ins = t.tostr();
+        else ins = ins + ", " + t.tostr();
+        i = i+1;
+      }
+
+      println(outs + " " + item.mod + "." + item.name + "(" + ins + ")");
     }
     next = iter.next();
   }
