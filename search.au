@@ -41,12 +41,21 @@ import auro.utils.arraylist (string) {
   }
 }
 
-import auro.utils.arraylist (Type) {
-  type `` as `Type[]` {
+import auro.utils.arraylist (Item) {
+  type `` as `Item[]` {
     new ();
     int len();
-    Type get (int);
-    void push (Type);
+    Item get (int);
+    void push (Item);
+  }
+}
+
+import auro.utils.arraylist (_Item) {
+  type `` as `_Item[]` {
+    new ();
+    int len();
+    _Item get (int);
+    void push (_Item);
   }
 }
 
@@ -99,13 +108,13 @@ private struct Reader {
 
 
 
-struct MapPair { string k; any v; }
+struct MapPair { string k; Item v; }
 
-import auro.utils.stringmap (any) {
+import auro.utils.stringmap (Item) {
   type `` as Map {
     new ();
-    any? get (string);
-    void set (string, any);
+    Item? get (string);
+    void set (string, Item);
   }
 
   type iterator {
@@ -123,17 +132,23 @@ import auro.utils.stringmap (any) {
 //             Compiler            //
 // =============================== //
 
-struct Type {
+private struct Item {
+  int kind;
   string mod;
   string name;
+  _Item[] ins;
+  _Item[] outs;
 }
+
+private type _Item (Item);
+export _Item as Item;
 
 private struct Module {
   string name;
   Map map;
 }
 
-private struct Item {
+private struct ItemDef {
   int kind;
   int id;
   string name;
@@ -151,7 +166,7 @@ void makeModule (Module m, Reader r) {
   // The export module is not define, abort
   if (!(r.byte() == 2)) return;
 
-  Item[] items = new Item[]();
+  ItemDef[] items = new ItemDef[]();
 
   int itemc = r.int();
   while (itemc > 0) {
@@ -159,7 +174,7 @@ void makeModule (Module m, Reader r) {
     int k = r.int();
     int id = r.int();
     string name = r.str();
-    items.push(new Item(k, id, name));
+    items.push(new ItemDef(k, id, name));
   }
 
   while (modc > 0) {
@@ -200,13 +215,13 @@ void makeModule (Module m, Reader r) {
 
     int j = 0;
     while (j < items.len()) {
-      Item item = items[j];
+      ItemDef item = items[j];
       if ((item.kind == 1) && (item.id == i)) {
         if (mod == "") {
           mod = m.name;
           name = item.name;
         }
-        m.map[item.name] = new Type(mod, name) as any;
+        m.map[item.name] = new Item(1, mod, name, new _Item[](), new _Item[]());
       }
       j = j+1;
     }
@@ -224,11 +239,35 @@ struct Searcher {
     makeModule(mod, reader);
     this.list.push(mod);
   }
+
+  _Item? get (Searcher this, string name) {
+    int i = this.list.len() - 1;
+    while (i >= 0) {
+      Module mod = this.list[i];
+      Item? it = mod.map[name];
+      if (!it.isnull()) return (it.get() as _Item) as _Item?;
+      i = i-1;
+    }
+    return new _Item?();
+  }
 }
 
 private Searcher _new () {
   return new Searcher(new Module[]());
 }
+
+export _new as `new\x1dSearcher`;
+
+int _kind (_Item _) { return (_ as Item).kind; }
+export _kind as `kind\x1dget\x1dItem`;
+string _mod (_Item _) { return (_ as Item).mod; }
+export _mod as `mod\x1dget\x1dItem`;
+string _name (_Item _) { return (_ as Item).name; }
+export _name as `name\x1dget\x1dItem`;
+Item[] _ins (_Item _) { return (_ as Item).ins; }
+export _ins as `ins\x1dget\x1dItem`;
+Item[] _outs (_Item _) { return (_ as Item).outs; }
+export _outs as `outs\x1dget\x1dItem`;
 
 void main () {
   Searcher search = _new();
@@ -241,8 +280,10 @@ void main () {
   while (!next.isnull()) {
     MapPair pair = next.get();
     string k = pair.k;
-    Type t = pair.v as Type;
-    println(k + " = " + t.mod + "." + t.name);
+    Item item = pair.v;
+    if (item.kind == 1) {
+      println("type " + k + " = " + item.mod + "." + item.name);
+    }
     next = iter.next();
   }
 }

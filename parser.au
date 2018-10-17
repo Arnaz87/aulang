@@ -606,8 +606,12 @@ Node parseModule (Parser p) {
 
 Node parseTopLevel (Parser p) {
   token _tk = p.peek();
-  if (p.maybe("import"))
-    return parseImport(p).inline(_tk.line);
+  if (p.maybe("import")) {
+    //return parseImport(p).inline(_tk.line);
+    Node node = new Node("import", p.getname()).inline(_tk.line);
+    check(p.next(), ";");
+    return node;
+  }
   if (p.maybe("extern")) {
     error("extern statements not yet supported", _tk);
   }

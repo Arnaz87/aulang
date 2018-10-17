@@ -51,7 +51,7 @@ export mymodule;
 
 // Item name syntax is allowed when importing items from modules and when
 // defining items. $ is replaced with the metaname separator 0x1d.
-int arr_get
+int arr$get
 ~~~
 
 # Imports

@@ -3,10 +3,14 @@ module string_mod = import auro.string;
 
 type string = string_mod.string;
 
+import search;
+
 module exported {
   str = string;
   sys = system;
   str_m = string_mod;
+  foo = Searcher;
 }
+
 
 export exported;

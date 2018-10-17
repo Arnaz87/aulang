@@ -25,6 +25,20 @@ import aulang.writer {
   }
 }
 
+import search {
+  type Item as SearchItem {
+    int kind;
+    string mod;
+    string name;
+  }
+
+  type Searcher {
+    new ();
+    void insert (string module_name);
+    SearchItem? get (string);
+  }
+}
+
 // =============================== //
 //               Types             //
 // =============================== //
@@ -102,10 +116,30 @@ struct Compiler {
   Type[] types;
   any exported;
 
+  Searcher search;
+
+  any? _getItem (Compiler this, string name) {
+    any? a = this.items[name];
+    if (!a.isnull()) return a;
+
+    SearchItem? _it = this.search[name];
+    if (!_it.isnull()) {
+      SearchItem it = _it.get();
+      Module mod = this.Module();
+      mod.kind = "import";
+      mod.name = it.mod;
+
+      Type t = this.Type(it.name, mod as any);
+      return (t as any) as any?;
+    }
+
+    return new any?();
+  }
+
   any getItem (Compiler this, any a) {
     if (a is Item) {
       Item item = a as Item;
-      any? _a = this.items[item.name];
+      any? _a = this._getItem(item.name);
       if (_a.isnull()) this.error(item.tp + " " + item.name + " not found", item.line);
       a = _a.get();
 
@@ -118,7 +152,7 @@ struct Compiler {
       this.error(item.name + " is a " + atp, item.line);
     }
     if (a is string) {
-      error("String item values give unhelpful error messages");
+      error("Pure strings give unhelpful error messages");
       /*string k = a as string;
       any? _a = this.items[k];
       if (_a.isnull()) this.error(k + " not found", 0-1);
@@ -128,7 +162,7 @@ struct Compiler {
   }
 
   Module Module (Compiler this) {
-    Module mod = new Module(this.modules.len(), "", "", false as any, new Pair[](), 0);
+    Module mod = new Module(this.modules.len() + 1, "", "", false as any, new Pair[](), 0);
     this.modules.push(mod);
     return mod;
   }
@@ -153,7 +187,7 @@ buffer compile (Node program, string filename) {
     filename, program,
     new Map(), new Writer(),
     new Module[](), new Type[](),
-    false as any
+    false as any, new Searcher()
   );
   Module exported = c.Module(); // First module is the exported module
   exported.kind = "define";
@@ -175,6 +209,10 @@ buffer compile (Node program, string filename) {
         mod.name = vnode.val;
       }
       else c.error(vnode.tp + " module expression", vnode.line);
+    }
+
+    else if (node.tp == "import") {
+      c.search.insert(node.val);
     }
 
     else if (node.tp == "module-def") {
@@ -219,11 +257,11 @@ buffer compile (Node program, string filename) {
   if (!(c.exported is bool)) {
     Module mod = c.getItem(c.exported) as Module;
     c.modules[0] = mod;
-    int i = mod.id;
+    int i = mod.id - 1;
     c.modules.remove(i);
     mod.id = 0;
     while (i < c.modules.len()) {
-      c.modules[i].id = i;
+      c.modules[i].id = i+1;
       i = i+1;
     }
   }
