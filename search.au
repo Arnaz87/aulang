@@ -1,0 +1,248 @@
+
+import auro.system {
+  void error (string);
+}
+
+import auro.int.bit {
+  int shl (int, int);
+  int and (int, int);
+  int or (int, int);
+}
+
+import auro.buffer {
+  type buffer;
+  int size (buffer) as bufsize;
+  buffer `new` (int size) as newbuf;
+  int get (buffer, int pos) as bufget;
+  void set (buffer, int pos, int val) as bufset;
+}
+
+import auro.string {
+  string `new` (buffer) as newstr;
+}
+
+export int as MyInt;
+
+import auro.io {
+  type file; 
+  type mode;
+  mode r ();
+  file open (string, mode);
+  buffer read (file, int);
+  bool eof (file);
+}
+
+import auro.utils.arraylist (string) {
+  type `` as `string[]` {
+    new ();
+    int len();
+    string get (int);
+    void push (string);
+  }
+}
+
+import auro.utils.arraylist (Type) {
+  type `` as `Type[]` {
+    new ();
+    int len();
+    Type get (int);
+    void push (Type);
+  }
+}
+
+private struct Reader {
+  file file;
+  buffer buffer;
+  int p;
+
+  bool eof (Reader this) {
+    return (this.p >= bufsize(this.buffer)) && eof(this.file);
+  }
+
+  int byte (Reader this) {
+    while (this.p >= bufsize(this.buffer) && !eof(this.file)) {
+      this.buffer = read(this.file, 512);
+      this.p = this.p - 512;
+    }
+    if (this.p < bufsize(this.buffer)) {
+      int b = bufget(this.buffer, this.p);
+      this.p = this.p + 1;
+      return b;
+    }
+    error("End of file");
+  }
+
+  int int (Reader this) {
+    int n = 0;
+    int b = this.byte();
+    while (and(b, 128) > 0) {
+      n = or(shl(n, 7), and(b, 127));
+      b = this.byte();
+    }
+    return or(shl(n, 7), and(b, 127));
+  }
+
+  string str (Reader this) {
+    int len = this.int();
+    buffer buf = newbuf(len);
+    int i = 0;
+    while (i < len) {
+      int b = this.byte();
+      bufset(buf, i, b);
+      i = i+1;
+    }
+    return newstr(buf);
+  }
+
+  void skip (Reader this, int n) { this.p = this.p + n; }
+}
+
+
+
+struct MapPair { string k; any v; }
+
+import auro.utils.stringmap (any) {
+  type `` as Map {
+    new ();
+    any? get (string);
+    void set (string, any);
+  }
+
+  type iterator {
+    MapPair? next ();
+  }
+  iterator `new\x1diterator` (Map) as newIter;
+}
+
+
+
+
+
+
+// =============================== //
+//             Compiler            //
+// =============================== //
+
+struct Type {
+  string mod;
+  string name;
+}
+
+private struct Module {
+  string name;
+  Map map;
+}
+
+private struct Item {
+  int kind;
+  int id;
+  string name;
+}
+
+void makeModule (Module m, Reader r) {
+  r.skip(9); // "Auro 0.6\n"
+
+  string[] mods = new string[]();
+  mods.push(""); // argument module
+
+  // Skip the first one (Will be parsed on it's own)
+  int modc = r.int() - 1;
+
+  // The export module is not define, abort
+  if (!(r.byte() == 2)) return;
+
+  Item[] items = new Item[]();
+
+  int itemc = r.int();
+  while (itemc > 0) {
+    itemc = itemc-1;
+    int k = r.int();
+    int id = r.int();
+    string name = r.str();
+    items.push(new Item(k, id, name));
+  }
+
+  while (modc > 0) {
+    modc = modc - 1;
+    string s = "";
+
+    int k = r.byte();
+
+    if (k == 1) {
+      // Import, the only useful
+      s = r.str();
+    } else if (k == 2) {
+      // Define, ignore all items
+      int x = r.int();
+      while (x > 0) {
+        x = x-1;
+        r.int(); // kind
+        r.int(); // id
+        r.str(); // name
+      }
+    } else if (k == 3) {
+      // Use module
+      r.int(); // base module
+      r.str(); // item name
+    } else if (k == 4) {
+      r.int(); // functor
+      r.int(); // argument
+    }
+
+    mods.push(s);
+  }
+
+  int typec = r.int();
+  int i = 0;
+  while (i < typec) {
+    string mod = mods[r.int() - 2];
+    string name = r.str();
+
+    int j = 0;
+    while (j < items.len()) {
+      Item item = items[j];
+      if ((item.kind == 1) && (item.id == i)) {
+        if (mod == "") {
+          mod = m.name;
+          name = item.name;
+        }
+        m.map[item.name] = new Type(mod, name) as any;
+      }
+      j = j+1;
+    }
+    i = i+1;
+  }
+}
+
+struct Searcher {
+  Module[] list;
+
+  void insert (Searcher this, string name) {
+    file f = open(name, r());
+    Reader reader = new Reader(f, read(f, 512), 0);
+    Module mod = new Module(name, new Map());
+    makeModule(mod, reader);
+    this.list.push(mod);
+  }
+}
+
+private Searcher _new () {
+  return new Searcher(new Module[]());
+}
+
+void main () {
+  Searcher search = _new();
+  search.insert("search");
+  Module mod = search.list[0];
+  println("module '" + mod.name + "'");
+
+  iterator iter = newIter(mod.map);
+  MapPair? next = iter.next();
+  while (!next.isnull()) {
+    MapPair pair = next.get();
+    string k = pair.k;
+    Type t = pair.v as Type;
+    println(k + " = " + t.mod + "." + t.name);
+    next = iter.next();
+  }
+}
