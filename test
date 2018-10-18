@@ -1,0 +1,3 @@
+#!/bin/env bash
+
+auro aulang src/$1.au $1 && auro $1 && ( if [ $1 == "compiler" ]; then aurodump out; fi; )
