@@ -108,7 +108,7 @@ private struct Reader {
 
 
 
-struct MapPair { string k; Item v; }
+private struct MapPair { string k; Item v; }
 
 import auro.utils.stringmap (Item) {
   type `` as Map {
@@ -379,3 +379,5 @@ void main () {
     next = iter.next();
   }
 }
+
+void test_function (int n) {}

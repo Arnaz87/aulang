@@ -661,7 +661,16 @@ Node parseTopLevel (Parser p) {
   } else {
     node = parseIdentItem(p);
     if (node.tp == "function") {
-      node.push(parseBlock(p));
+      if (p.maybe("=")) {
+        Node mod = new Node("module", p.getname());
+        check(p.next(), ".");
+        Node item = new Node("item", p.getname());
+        item.push(mod);
+        node.push(item);
+        check(p.next(), ";");
+      } else {
+        node.push(parseBlock(p));
+      }
     } else if (!(node.tp == "decl_assign")) {
       error("invalid top level statement", _tk);
     }

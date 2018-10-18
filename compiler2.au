@@ -86,6 +86,14 @@ struct Type {
   any mod;
 }
 
+struct Function {
+  int id;
+  string name;
+  any mod;
+  any[] ins;
+  any[] outs;
+}
+
 import auro.utils.arraylist (Module) {
   type `` as `Module[]` {
     new ();
@@ -106,6 +114,24 @@ import auro.utils.arraylist (Type) {
   }
 }
 
+import auro.utils.arraylist (Function) {
+  type `` as `Function[]` {
+    new ();
+    int len();
+    Function get (int);
+    void push (Function);
+  }
+}
+
+import auro.utils.arraylist (any) {
+  type `` as `any[]` {
+    new ();
+    int len();
+    any get (int);
+    void push (any);
+  }
+}
+
 struct Compiler {
   string filename;
   Node program;
@@ -114,6 +140,7 @@ struct Compiler {
 
   Module[] modules;
   Type[] types;
+  Function[] functions;
   any exported;
 
   Searcher search;
@@ -129,8 +156,10 @@ struct Compiler {
       mod.kind = "import";
       mod.name = it.mod;
 
-      Type t = this.Type(it.name, mod as any);
-      return (t as any) as any?;
+      if (it.kind == 1) {
+        Type t = this.Type(it.name, mod as any);
+        return (t as any) as any?;
+      }
     }
 
     return new any?();
@@ -148,6 +177,7 @@ struct Compiler {
       string atp = "unknown";
       if (a is Module) atp = "module";
       if (a is Type) atp = "type";
+      if (a is Function) atp = "function";
       if ((item.tp == atp) || (item.tp == "")) return a;
       this.error(item.name + " is a " + atp, item.line);
     }
@@ -173,6 +203,12 @@ struct Compiler {
     return t;
   }
 
+  Function Function (Compiler this) {
+    Function f = new Function(this.functions.len(), "", false as any, new any[](), new any[]());
+    this.functions.push(f);
+    return f;
+  }
+
   void error (Compiler this, string msg, int line) {
     error(msg + ", at " + this.filename + " at line " + itos(line));
   }
@@ -186,7 +222,7 @@ buffer compile (Node program, string filename) {
   Compiler c = new Compiler (
     filename, program,
     new Map(), new Writer(),
-    new Module[](), new Type[](),
+    new Module[](), new Type[](), new Function[](),
     false as any, new Searcher()
   );
   Module exported = c.Module(); // First module is the exported module
@@ -238,6 +274,32 @@ buffer compile (Node program, string filename) {
       string name = node.child(1).val;
       Type t = c.Type(name, new Item("module", mod, node.line) as any);
       c.items[node.val] = t as any;
+    }
+
+    else if (node.tp == "function") {
+      Function f = c.Function();
+
+      Node in_node = node.child(0);
+      int i = 0;
+      while (i < in_node.len()) {
+        f.ins.push(new Item("type", in_node.child(i).child(0).val, node.line) as any);
+        i = i+1;
+      }
+
+      Node out_node = node.child(2);
+      int i = 0;
+      while (i < out_node.len()) {
+        f.outs.push(new Item("type", out_node.child(i).child(0).val, node.line) as any);
+        i = i+1;
+      }
+
+      Node body = node.child(3);
+      if ((body.tp == "item") && (body.len() == 1)) {
+        f.name = body.val;
+        f.mod = new Item("module", body.child(0).val, node.line) as any;
+      } else c.error("Currently only imported functions are supported", node.line);
+
+      c.items[node.val] = f as any;
     }
 
     else if (node.tp == "export") {
@@ -298,9 +360,9 @@ void writeModules (Compiler c) {
           k = 0; id = (item as Module).id;
         } else if (item is Type) {
           k = 1; id = (item as Type).id;
-        } /*else if (p.v is Function) {
+        } else if (p.v is Function) {
           k = 2; id = (p.v as Function).id;
-        }*/ else error("???");
+        } else error("???");
         w.byte(k);
         w.num(id);
         w.str(p.k);
@@ -326,6 +388,38 @@ void writeTypes (Compiler c) {
   }
 }
 
+void writeFunctions (Compiler c) {
+  Writer w = c.writer;
+
+  w.num(c.functions.len());
+
+  int i = 0;
+  while (i < c.functions.len()) {
+    Function f = c.functions[i];
+    i = i+1;
+    Module mod = c.getItem(f.mod) as Module;
+    w.num(mod.id + 2);
+
+    int j = 0;
+    int inc = f.ins.len();
+    w.num(inc);
+    while (j < inc) {
+      w.num((c.getItem(f.ins[j]) as Type).id);
+      j = j+1;
+    }
+
+    int j = 0;
+    int outc = f.outs.len();
+    w.num(outc);
+    while (j < outc) {
+      w.num((c.getItem(f.outs[j]) as Type).id);
+      j = j+1;
+    }
+
+    w.str(f.name);
+  }
+}
+
 buffer getBuffer (Compiler c) {
   Writer w = c.writer;
 
@@ -334,7 +428,7 @@ buffer getBuffer (Compiler c) {
 
   writeModules(c);
   writeTypes(c);
-  w.num(0); // Functions
+  writeFunctions(c);
   w.num(0); // Constants
   w.num(0); // Metadata
 

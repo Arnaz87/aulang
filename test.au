@@ -3,6 +3,8 @@ module string_mod = import auro.string;
 
 type string = string_mod.string;
 
+void cat (string, string) = string_mod.concat;
+
 import search;
 
 module exported {
@@ -10,6 +12,8 @@ module exported {
   sys = system;
   str_m = string_mod;
   foo = Searcher;
+  cat = cat;
+  //bar = test_function;
 }
 
 
