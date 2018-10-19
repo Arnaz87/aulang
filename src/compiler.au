@@ -30,6 +30,10 @@ import search {
     int kind;
     string mod;
     string name;
+    int inlen();
+    int outlen();
+    SearchItem in (int);
+    SearchItem out (int);
   }
 
   type Searcher {
@@ -94,6 +98,11 @@ struct Function {
   any[] outs;
 }
 
+struct Import {
+  any mod;
+  Map items;
+}
+
 import auro.utils.arraylist (Module) {
   type `` as `Module[]` {
     new ();
@@ -141,26 +150,63 @@ struct Compiler {
   Module[] modules;
   Type[] types;
   Function[] functions;
+
+  Map imports;
   any exported;
 
   Searcher search;
+
+  any getSearchItem (Compiler this, SearchItem it) {
+    Import mod;
+    any? maybe = this.imports[it.mod];
+
+    if (maybe.isnull()) {
+      Module m = this.Module();
+      m.kind = "import";
+      m.name = it.mod;
+      mod = new Import(m as any, new Map());
+      this.imports[it.mod] = mod as any;
+    } else { mod = maybe.get() as Import; }
+
+    maybe = mod.items[it.name];
+    if (maybe.isnull()) {
+      any a;
+
+      if (it.kind == 1) {
+        a = this.Type(it.name, mod.mod) as any;
+      }
+
+      if (it.kind == 2) {
+        Function f = this.Function();
+        f.name = it.name;
+        f.mod = mod.mod;
+
+        int i = 0;
+        while (i < it.inlen()) {
+          f.ins.push(this.getSearchItem(it.in(i)));
+          i = i+1;
+        }
+
+        int i = 0;
+        while (i < it.outlen()) {
+          f.outs.push(this.getSearchItem(it.out(i)));
+          i = i+1;
+        }
+
+        a = f as any;
+      }
+
+      mod.items[it.name] = a;
+      return a;
+    } else { return maybe.get(); }
+  }
 
   any? _getItem (Compiler this, string name) {
     any? a = this.items[name];
     if (!a.isnull()) return a;
 
-    SearchItem? _it = this.search[name];
-    if (!_it.isnull()) {
-      SearchItem it = _it.get();
-      Module mod = this.Module();
-      mod.kind = "import";
-      mod.name = it.mod;
-
-      if (it.kind == 1) {
-        Type t = this.Type(it.name, mod as any);
-        return (t as any) as any?;
-      }
-    }
+    SearchItem? it = this.search[name];
+    if (!it.isnull()) return this.getSearchItem(it.get()) as any?;
 
     return new any?();
   }
@@ -223,7 +269,7 @@ buffer compile (Node program, string filename) {
     filename, program,
     new Map(), new Writer(),
     new Module[](), new Type[](), new Function[](),
-    false as any, new Searcher()
+    new Map(), false as any, new Searcher()
   );
   Module exported = c.Module(); // First module is the exported module
   exported.kind = "define";

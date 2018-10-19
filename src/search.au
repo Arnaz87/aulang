@@ -333,10 +333,18 @@ string _mod (_Item _) { return (_ as Item).mod; }
 export _mod as `mod\x1dget\x1dItem`;
 string _name (_Item _) { return (_ as Item).name; }
 export _name as `name\x1dget\x1dItem`;
-Item[] _ins (_Item _) { return (_ as Item).ins; }
-export _ins as `ins\x1dget\x1dItem`;
-Item[] _outs (_Item _) { return (_ as Item).outs; }
-export _outs as `outs\x1dget\x1dItem`;
+
+
+
+int _inl (_Item _) { return (_ as Item).ins.len(); }
+export _inl as `inlen\x1dItem`;
+int _outl (_Item _) { return (_ as Item).outs.len(); }
+export _outl as `outlen\x1dItem`;
+
+_Item _ini (_Item _, int i) { return (_ as Item).ins[i]; }
+export _ini as `in\x1dItem`;
+_Item _outi (_Item _, int i) { return (_ as Item).outs[i]; }
+export _outi as `out\x1dItem`;
 
 void main () {
   Searcher search = _new();

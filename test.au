@@ -13,7 +13,7 @@ module exported {
   str_m = string_mod;
   foo = Searcher;
   cat = cat;
-  //bar = test_function;
+  bar = test_function;
 }
 
 
