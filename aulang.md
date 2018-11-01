@@ -22,6 +22,9 @@ Note: the code snippets are marked as C to take advantage of markdown syntax hig
 # Basics
 
 ~~~c
+// This functionality, although mildly inonvinient, is enough to describe
+// every top level item.
+
 // Global modules
 module system = import auro.system;
 // Member modules of other modules
@@ -60,6 +63,26 @@ int arr$get
 // The compiler knows the contents of any visible source file or auro module
 import auro.system.int;
 import auro.system.*;
+
+// imported items can be used directly by their name or be preceded by
+// it's module name
+int a;
+auro.system.int c;
+~~~
+
+# Generics
+
+~~~c
+// Because the items of this module depend on the arguments and all of them
+// are types, this is automatically identified as a generic module, all usages
+// of items from this module have to have generic arguments
+import auro.utils.map;
+
+map$<string, any> arr = new map$<string, any>();
+
+// Manual generic modules
+module arr_base_mod = import auro.array;
+module array_mod$<`0`> = 
 ~~~
 
 

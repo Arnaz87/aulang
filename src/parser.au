@@ -608,7 +608,7 @@ Node parseTopLevel (Parser p) {
   token _tk = p.peek();
   if (p.maybe("import")) {
     //return parseImport(p).inline(_tk.line);
-    Node node = new Node("import", p.getname()).inline(_tk.line);
+    Node node = new Node("import", parseLongName(p)).inline(_tk.line);
     check(p.next(), ";");
     return node;
   }

@@ -289,6 +289,7 @@ buffer compile (Node program, string filename) {
       if (vnode.tp == "import") {
         mod.kind = "import";
         mod.name = vnode.val;
+        //c.imports[mod.name] = new Import(mod as any, new Map());
       }
       else c.error(vnode.tp + " module expression", vnode.line);
     }

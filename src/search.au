@@ -1,12 +1,20 @@
 
 import auro.system {
   void error (string);
+  int, string exec (string);
 }
 
 import auro.int.bit {
   int shl (int, int);
   int and (int, int);
   int or (int, int);
+}
+
+import auro.string {
+  int codeof (char);
+  char, int charat(string, int);
+  int length (string) as strlen;
+  string slice (string, int, int);
 }
 
 import auro.buffer {
@@ -298,11 +306,47 @@ void makeModule (Module m, Reader r) {
   }
 }
 
+string join (string[] parts, string sep) {
+  string r = "";
+  int i = 0;
+  while (i < parts.len()) {
+    if (i > 0)
+      r = r + sep;
+    r = r + parts[i];
+    i = i+1;
+  }
+  return r;
+}
+
+string get_filename (string modname) {
+  string[] parts = new string[]();
+  int _i = 0, i = 0; char ch;
+  while (i <= strlen(modname)) {
+    ch, i = charat(modname, i);
+    if (codeof(ch) == 31) { // \x1f, ascii unit separator
+      // currently, i is the character after US, we have to use the index of
+      // US to make slice ignore it
+      parts.push(slice(modname, _i, i-1));
+      _i = i;
+    }
+  }
+  parts.push(slice(modname, _i, i));
+
+  string filename = join(parts, ".");
+  // In unix, 0 means success, any other number is an error
+  if (exec("ls " + filename) == 0) {
+    return filename;
+  }
+
+  error("File for module " + join(parts, ".") + " not found");
+}
+
 struct Searcher {
   Module[] list;
 
   void insert (Searcher this, string name) {
-    file f = open(name, r());
+    string filename = get_filename(name);
+    file f = open(filename, r());
     Reader reader = new Reader(f, read(f, 512), 0);
     Module mod = new Module(name, new Map());
     makeModule(mod, reader);

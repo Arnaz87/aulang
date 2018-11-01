@@ -5,15 +5,14 @@ type string = string_mod.string;
 
 void cat (string, string) = string_mod.concat;
 
-import search;
+import test.extra;
 
 module exported {
   str = string;
   sys = system;
   str_m = string_mod;
-  foo = Searcher;
   cat = cat;
-  bar = test_function;
+  bar = extra_f;
 }
 
 
