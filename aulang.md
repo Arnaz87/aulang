@@ -73,16 +73,27 @@ auro.system.int c;
 # Generics
 
 ~~~c
-// Because the items of this module depend on the arguments and all of them
-// are types, this is automatically identified as a generic module, all usages
-// of items from this module have to have generic arguments
-import auro.utils.map;
+// A generic module is an unbuilt functor, all items of the module are generic
+// and require generic parameters, with which a module is built.
+// If a module has been used before with the same generic parameters, that
+// previous built module is used instead.
 
-map$<string, any> arr = new map$<string, any>();
+module map_mod $<> = import auro.utils.map;
+type map = map_mod.map;
+map$<T=string, K=int> myarr = new map$<T=string, K=int>();
 
-// Manual generic modules
-module arr_base_mod = import auro.array;
-module array_mod$<`0`> = 
+// Equivalent to
+module int_map_params { K = string, V = int; }
+module int_map_mod = map_mod(int_map_params);
+type int_map = int_map_mod.map;
+int_map myarr = new int_map();
+
+// Imported modules are generic when they use items of their argument modules.
+import auro.utils.arraylist;
+
+// When the arguments are not named, they are implied to be named like the
+// integers in base 10 starting from 0 that match their position
+arraylist$<any> arr = new arraylist$<`0` = any>();
 ~~~
 
 

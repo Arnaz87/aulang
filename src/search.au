@@ -392,7 +392,7 @@ export _outi as `out\x1dItem`;
 
 void main () {
   Searcher search = _new();
-  search.insert("search");
+  search.insert("dist/aulang.search");
   Module mod = search.list[0];
   println("module '" + mod.name + "'");
 
