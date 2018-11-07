@@ -69,6 +69,12 @@ struct Item {
   string tp;
   string name;
   int line;
+  Pair[] params; // generic
+  any value;
+
+  string to_str (Item this) {
+    return this.tp + " " + this.name;
+  }
 }
 
 struct Module {
@@ -78,6 +84,7 @@ struct Module {
   any argument;
   Pair[] items;
   int line;
+  bool generic;
 
   void set (Module this, string k, any v) {
     this.items.push(new Pair(k, v));
@@ -141,6 +148,15 @@ import auro.utils.arraylist (any) {
   }
 }
 
+import auro.utils.arraylist (Item) {
+  type `` as `Item[]` {
+    new ();
+    int len();
+    Item get (int);
+    void push (Item);
+  }
+}
+
 struct Compiler {
   string filename;
   Node program;
@@ -155,6 +171,8 @@ struct Compiler {
   any exported;
 
   Searcher search;
+
+  Item[] all_items;
 
   any getSearchItem (Compiler this, SearchItem it) {
     Import mod;
@@ -211,20 +229,34 @@ struct Compiler {
     return new any?();
   }
 
+  any getGeneric (Compiler this, any a, Item item) {
+    if (a is Type) {
+      Type t = a as Type;
+      if ((this.getItem(t.mod) as Module).generic) {
+        this.error(item.to_str() + " is generic", item.line);
+      } else {
+        return a;
+      }
+    }
+    return a;
+  }
+
   any getItem (Compiler this, any a) {
     if (a is Item) {
       Item item = a as Item;
+      if (!(item.value is bool)) return item.value;
+
       any? _a = this._getItem(item.name);
-      if (_a.isnull()) this.error(item.tp + " " + item.name + " not found", item.line);
+      if (_a.isnull()) this.error(item.to_str() + " not found", item.line);
       a = _a.get();
 
-      if (item.tp == "item") return a;
+      a = this.getGeneric(a, item);
 
       string atp = "unknown";
       if (a is Module) atp = "module";
       if (a is Type) atp = "type";
       if (a is Function) atp = "function";
-      if ((item.tp == atp) || (item.tp == "")) return a;
+      if ((item.tp == atp) || ((item.tp == "item") && !(atp == "unknown"))) return a;
       this.error(item.name + " is a " + atp, item.line);
     }
     if (a is string) {
@@ -238,7 +270,7 @@ struct Compiler {
   }
 
   Module Module (Compiler this) {
-    Module mod = new Module(this.modules.len() + 1, "", "", false as any, new Pair[](), 0);
+    Module mod = new Module(this.modules.len() + 1, "", "", false as any, new Pair[](), 0, false);
     this.modules.push(mod);
     return mod;
   }
@@ -255,6 +287,12 @@ struct Compiler {
     return f;
   }
 
+  Item Item (Compiler this, string tp, string name, int line) {
+    Item it = new Item(tp, name, line, new Pair[](), false as any);
+    this.all_items.push(it);
+    return it;
+  }
+
   void error (Compiler this, string msg, int line) {
     error(msg + ", at " + this.filename + " at line " + itos(line));
   }
@@ -264,12 +302,55 @@ struct Compiler {
 //             Compiler            //
 // =============================== //
 
+any _resolveItem (Compiler c, any a) { return resolveItem(c, a); }
+
+any resolveItem (Compiler c, any a) {
+  if (a is Item) {
+    Item item = a as Item;
+    if (!(item.value is bool)) return item.value;
+  }
+  any value = c.getItem(a);
+  if (value is Type) {
+    _resolveItem(c, (value as Type).mod);
+  } else if (value is Function) {
+    Function f = value as Function;
+    _resolveItem(c, f.mod);
+    int i = 0;
+    while (i < f.ins.len()) {
+      _resolveItem(c, f.ins[i]);
+      i = i+1;
+    }
+    int i = 0;
+    while (i < f.outs.len()) {
+      _resolveItem(c, f.outs[i]);
+      i = i+1;
+    }
+  } else if (value is Module) {
+    Module m = value as Module;
+    if (m.kind == "define") {
+      int i = 0;
+      while (i < m.items.len()) {
+        _resolveItem(c, m.items[i].v);
+        i = i+1;
+      }
+    }
+  }
+  if (a is Item) (a as Item).value = value;
+  return value;
+}
+
+any compileItem (Compiler c, Node node) {
+  if (node.tp == "item") {
+    return c.Item("item", node.val, node.line) as any;
+  } else c.error(node.tp + " items not supported", node.line);
+}
+
 buffer compile (Node program, string filename) {
   Compiler c = new Compiler (
     filename, program,
     new Map(), new Writer(),
     new Module[](), new Type[](), new Function[](),
-    new Map(), false as any, new Searcher()
+    new Map(), false as any, new Searcher(), new Item[]()
   );
   Module exported = c.Module(); // First module is the exported module
   exported.kind = "define";
@@ -292,6 +373,9 @@ buffer compile (Node program, string filename) {
         //c.imports[mod.name] = new Import(mod as any, new Map());
       }
       else c.error(vnode.tp + " module expression", vnode.line);
+
+      if ((node.len() > 1) && (node.child(1).tp == "generic"))
+        mod.generic = true;
     }
 
     else if (node.tp == "import") {
@@ -308,9 +392,8 @@ buffer compile (Node program, string filename) {
       while (j < node.len()) {
         Node inode = node.child(j);
         string alias = inode.val;
-        if (!(inode.child(0).tp == "item"))
-          c.error("Currently only items can be exported", inode.line);
-        any item = c.getItem(new Item("item", inode.child(0).val, inode.line) as any);
+        // TODO: Can't use future items in module definition items
+        any item = compileItem(c, inode.child(0));
         mod[alias] = item;
         j = j+1;
       }
@@ -319,7 +402,7 @@ buffer compile (Node program, string filename) {
     else if (node.tp == "type-assign") {
       string mod = node.child(0).val;
       string name = node.child(1).val;
-      Type t = c.Type(name, new Item("module", mod, node.line) as any);
+      Type t = c.Type(name, c.Item("module", mod, node.line) as any);
       c.items[node.val] = t as any;
     }
 
@@ -329,21 +412,21 @@ buffer compile (Node program, string filename) {
       Node in_node = node.child(0);
       int i = 0;
       while (i < in_node.len()) {
-        f.ins.push(new Item("type", in_node.child(i).child(0).val, node.line) as any);
+        f.ins.push(c.Item("type", in_node.child(i).child(0).val, node.line) as any);
         i = i+1;
       }
 
       Node out_node = node.child(2);
       int i = 0;
       while (i < out_node.len()) {
-        f.outs.push(new Item("type", out_node.child(i).child(0).val, node.line) as any);
+        f.outs.push(c.Item("type", out_node.child(i).child(0).val, node.line) as any);
         i = i+1;
       }
 
       Node body = node.child(3);
       if ((body.tp == "item") && (body.len() == 1)) {
         f.name = body.val;
-        f.mod = new Item("module", body.child(0).val, node.line) as any;
+        f.mod = c.Item("module", body.child(0).val, node.line) as any;
       } else c.error("Currently only imported functions are supported", node.line);
 
       c.items[node.val] = f as any;
@@ -357,7 +440,7 @@ buffer compile (Node program, string filename) {
         c.error("Export overrides previous export", node.line);
 
       if (child.tp == "item") {
-        c.exported = new Item("module", child.val, node.line) as any;
+        c.exported = c.Item("module", child.val, node.line) as any;
       } else c.error("Cannot export " + child.tp, node.line);
     }
   }
@@ -373,6 +456,12 @@ buffer compile (Node program, string filename) {
       c.modules[i].id = i+1;
       i = i+1;
     }
+  }
+
+  int i = 0;
+  while (i < c.all_items.len()) {
+    resolveItem(c, c.all_items[i] as any);
+    i = i+1;
   }
 
   return getBuffer(c);
@@ -407,8 +496,8 @@ void writeModules (Compiler c) {
           k = 0; id = (item as Module).id;
         } else if (item is Type) {
           k = 1; id = (item as Type).id;
-        } else if (p.v is Function) {
-          k = 2; id = (p.v as Function).id;
+        } else if (item is Function) {
+          k = 2; id = (item as Function).id;
         } else error("???");
         w.byte(k);
         w.num(id);

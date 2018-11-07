@@ -3,9 +3,11 @@ module string_mod = import auro.string;
 
 type string = string_mod.string;
 
-void cat (string, string) = string_mod.concat;
 
 import test.extra;
+
+module array_mod $<> = import auro.array;
+type array = array_mod.array;
 
 module exported {
   str = string;
@@ -13,7 +15,9 @@ module exported {
   str_m = string_mod;
   cat = cat;
   bar = extra_f;
+  //arr = array$<T=int>;
 }
 
+void cat (string, string) = string_mod.concat;
 
 export exported;

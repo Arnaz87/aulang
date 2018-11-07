@@ -227,6 +227,19 @@ TkArr tokens (string input) {
       }
     }
 
+    else if (codeof(ch) == 36) { // $
+      string op = "$";
+      if (pos < len) {
+        ch, pos = charat(input, pos);
+        if (codeof(ch) == 60) { // <
+          op = "$<";
+          if (pos < len)
+            ch, pos = charat(input, pos);
+        }
+      }
+      tk = new token(op, "", line);
+    }
+
     else if (isDigit(ch)) {
       string val = "";
       while (isDigit(ch)) {
@@ -346,7 +359,7 @@ TkArr tokens (string input) {
 
 void main () {
   //string src = " 756 3 void _a if ifn {.}() =<=<+ `x` \"\\\"\" }";
-  string src = readall("test.cu");
+  string src = readall("test.au");
   TkArr tks = tokens(src);
   int len = tks.len();
   println(itos(len) + " tokens:");
