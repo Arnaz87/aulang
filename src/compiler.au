@@ -8,6 +8,8 @@ import aulang.node {
 
     int len ();
     Node child (int);
+
+    string to_string ();
   }
 }
 
@@ -65,15 +67,18 @@ import auro.utils.arraylist (Pair) {
   }
 }
 
+struct Imported {
+  Module mod;
+  string name;
+}
+
 struct Item {
   string tp;
-  string name;
-  int line;
-  Pair[] params; // generic
+  Node node;
   any value;
 
   string to_str (Item this) {
-    return this.tp + " " + this.name;
+    return this.tp + " " + this.node.to_string();
   }
 }
 
@@ -219,21 +224,31 @@ struct Compiler {
     } else { return maybe.get(); }
   }
 
-  any? _getItem (Compiler this, string name) {
-    any? a = this.items[name];
-    if (!a.isnull()) return a;
+  any? _getItem (Compiler this, Node node) {
+    if (node.tp == "field") {
+      Item modItem = new Item("module", node.child(0), false as any);
+      Module mod = this.getItem(modItem as any) as Module;
+      Imported imp = new Imported(mod, node.val);
 
-    SearchItem? it = this.search[name];
-    if (!it.isnull()) return this.getSearchItem(it.get()) as any?;
+      return (imp as any) as any?;
+    } else if (node.tp == "item") {
+      any? a = this.items[node.val];
+      if (!a.isnull()) return a;
 
-    return new any?();
+      SearchItem? it = this.search[node.val];
+      if (!it.isnull()) return this.getSearchItem(it.get()) as any?;
+
+      return new any?();
+    } else {
+      this.error("Unsupported item " + node.tp, node.line);
+    }
   }
 
   any getGeneric (Compiler this, any a, Item item) {
     if (a is Type) {
       Type t = a as Type;
       if ((this.getItem(t.mod) as Module).generic) {
-        this.error(item.to_str() + " is generic", item.line);
+        this.error(item.to_str() + " is generic", item.node.line);
       } else {
         return a;
       }
@@ -244,11 +259,23 @@ struct Compiler {
   any getItem (Compiler this, any a) {
     if (a is Item) {
       Item item = a as Item;
+
       if (!(item.value is bool)) return item.value;
 
-      any? _a = this._getItem(item.name);
-      if (_a.isnull()) this.error(item.to_str() + " not found", item.line);
+      any? _a = this._getItem(item.node);
+      if (_a.isnull()) this.error(item.to_str() + " not found", item.node.line);
       a = _a.get();
+
+      if ((item.node.tp == "item") && (item.node.val == "string")) {
+        Type m = a as Type;
+      }
+
+      if (a is Imported) {
+        Imported imp = a as Imported;
+        if (item.tp == "type") a = this.Type(imp.name, imp.mod as any) as any;
+        else this.error("Cannot import " + item.to_str(), item.node.line);
+      }
+
 
       a = this.getGeneric(a, item);
 
@@ -257,14 +284,7 @@ struct Compiler {
       if (a is Type) atp = "type";
       if (a is Function) atp = "function";
       if ((item.tp == atp) || ((item.tp == "item") && !(atp == "unknown"))) return a;
-      this.error(item.name + " is a " + atp, item.line);
-    }
-    if (a is string) {
-      error("Pure strings give unhelpful error messages");
-      /*string k = a as string;
-      any? _a = this.items[k];
-      if (_a.isnull()) this.error(k + " not found", 0-1);
-      a = _a.get();*/
+      this.error(item.node.to_string() + " is a " + atp, item.node.line);
     }
     return a;
   }
@@ -287,8 +307,8 @@ struct Compiler {
     return f;
   }
 
-  Item Item (Compiler this, string tp, string name, int line) {
-    Item it = new Item(tp, name, line, new Pair[](), false as any);
+  Item Item (Compiler this, string tp, Node node) {
+    Item it = new Item(tp, node, false as any);
     this.all_items.push(it);
     return it;
   }
@@ -339,12 +359,6 @@ any resolveItem (Compiler c, any a) {
   return value;
 }
 
-any compileItem (Compiler c, Node node) {
-  if (node.tp == "item") {
-    return c.Item("item", node.val, node.line) as any;
-  } else c.error(node.tp + " items not supported", node.line);
-}
-
 buffer compile (Node program, string filename) {
   Compiler c = new Compiler (
     filename, program,
@@ -393,16 +407,19 @@ buffer compile (Node program, string filename) {
         Node inode = node.child(j);
         string alias = inode.val;
         // TODO: Can't use future items in module definition items
-        any item = compileItem(c, inode.child(0));
+        any item = c.Item("item", inode.child(0)) as any;
         mod[alias] = item;
         j = j+1;
       }
     }
 
     else if (node.tp == "type-assign") {
-      string mod = node.child(0).val;
-      string name = node.child(1).val;
-      Type t = c.Type(name, c.Item("module", mod, node.line) as any);
+      Node def = node.child(0);
+
+      if (!(def.tp == "field"))
+        c.error("Invalid type definition: " + def.to_string(), node.line);
+
+      Type t = c.Type(def.val, c.Item("module", def.child(0)) as any);
       c.items[node.val] = t as any;
     }
 
@@ -412,22 +429,24 @@ buffer compile (Node program, string filename) {
       Node in_node = node.child(0);
       int i = 0;
       while (i < in_node.len()) {
-        f.ins.push(c.Item("type", in_node.child(i).child(0).val, node.line) as any);
+        f.ins.push(c.Item("type", in_node.child(i).child(0)) as any);
         i = i+1;
       }
 
       Node out_node = node.child(2);
       int i = 0;
       while (i < out_node.len()) {
-        f.outs.push(c.Item("type", out_node.child(i).child(0).val, node.line) as any);
+        f.outs.push(c.Item("type", out_node.child(i).child(0)) as any);
         i = i+1;
       }
 
       Node body = node.child(3);
-      if ((body.tp == "item") && (body.len() == 1)) {
+      if (body.tp == "field") {
         f.name = body.val;
-        f.mod = c.Item("module", body.child(0).val, node.line) as any;
-      } else c.error("Currently only imported functions are supported", node.line);
+        f.mod = c.Item("module", body.child(0)) as any;
+      } else {
+        c.error("Currently only imported functions are supported", node.line);
+      }
 
       c.items[node.val] = f as any;
     }
@@ -439,9 +458,7 @@ buffer compile (Node program, string filename) {
       if (!(c.exported is bool))
         c.error("Export overrides previous export", node.line);
 
-      if (child.tp == "item") {
-        c.exported = c.Item("module", child.val, node.line) as any;
-      } else c.error("Cannot export " + child.tp, node.line);
+      c.exported = c.Item("module", child) as any;
     }
   }
 

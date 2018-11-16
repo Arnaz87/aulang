@@ -293,6 +293,7 @@ Node parseNameList (Parser p, string tp, string sep) {
   return node;
 }
 
+// Items that start with an identifier
 Node parseIdentItem (Parser p) {
   token _tk = p.peek();
   int line = p.line();
@@ -309,13 +310,11 @@ Node parseIdentItem (Parser p) {
     Node ins = new Node("ins", "");
     if (p.peek().tp == ")") goto endin;
     nextin:
-      Node inNode = new Node("arg", "");
-      inNode.push(parseType(p));
-      string argname = "";
+      Node argNode = new Node("arg", "");
+      argNode.push(parseTopLevelItem(p));
       if (p.peek().tp == "name")
-        argname = p.getname();
-      inNode.push(new Node("name", argname));
-      ins.push(inNode);
+        argNode.val = p.getname();
+      ins.push(argNode);
       if (p.peek().tp == ",") {
         p.next();
         goto nextin;
@@ -652,12 +651,13 @@ Node parseTopLevel (Parser p) {
     error("extern statements not yet supported", _tk);
   }
   if (p.maybe("export")) {
-    string item = p.getname();
-    string alias = item;
-    if (p.maybe("as")) alias = p.getname();
+    Node node = new Node("export", "");
+    node.push(parseTopLevelItem(p));
+    if (p.maybe("as")) {
+      node.tp = "export-alias";
+      node.val = p.getname();
+    }
     check(p.next(), ";");
-    Node node = new Node("export", alias);
-    node.push(new Node("item", item));
     return node.inline(_tk.line);
   }
 
@@ -686,9 +686,7 @@ Node parseTopLevel (Parser p) {
       check(p.next(), ";");
     } else if (p.maybe("=")) {
       typenode.tp = "type-assign";
-      typenode.push(new Node("name", p.getname()));
-      check(p.next(), ".");
-      typenode.push(new Node("name", p.getname()));
+      typenode.push(parseTopLevelItem(p));
       check(p.next(), ";");
     }
     node = typenode.inline(_tk.line);
@@ -698,11 +696,7 @@ Node parseTopLevel (Parser p) {
     node = parseIdentItem(p);
     if (node.tp == "function") {
       if (p.maybe("=")) {
-        Node mod = new Node("module", p.getname());
-        check(p.next(), ".");
-        Node item = new Node("item", p.getname());
-        item.push(mod);
-        node.push(item);
+        node.push(parseTopLevelItem(p));
         check(p.next(), ";");
       } else {
         node.push(parseBlock(p));

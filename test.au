@@ -3,20 +3,19 @@ module string_mod = import auro.string;
 
 type string = string_mod.string;
 
-
 import test.extra;
 
-module array_mod $<> = import auro.array;
-type array = array_mod.array;
+//module array_mod $<> = import auro.array;
+//type array = array_mod.array;
 
 module exported {
-  str = string;
   sys = system;
+  str = string;
   str_m = string_mod;
   cat = cat;
   bar = extra_f;
   //arr = array$<T=int>;
-  arr = system$<T=int>;
+  //arr = system$<T=int>;
 }
 
 void cat (string, string) = string_mod.concat;

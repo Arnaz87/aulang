@@ -41,18 +41,20 @@ struct Node {
     }
   }
 
-  string to_string (Nod this) {
+  string to_string (Node this) {
+    it (this.tp == "item") return this.val;
+
     string s = this.tp;
     if (!(this.val == "")) {
       s = s + ":" + this.val;
     }
-    s = s + "(";
+    s = s + "[";
     int i = 0;
     while (i < this.len()) {
       if (i > 0) s = s + ", ";
       s = this.child(i).to_string();
     }
-    s = s + ")";
+    s = s + "]";
     return s;
   }
 
