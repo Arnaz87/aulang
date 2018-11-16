@@ -16,6 +16,7 @@ module exported {
   cat = cat;
   bar = extra_f;
   //arr = array$<T=int>;
+  arr = system$<T=int>;
 }
 
 void cat (string, string) = string_mod.concat;

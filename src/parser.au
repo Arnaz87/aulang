@@ -585,6 +585,7 @@ Node parseTopLevelItem (Parser p) {
       check(p.next(), "=");
       Node item = parseTopLevelItem(p);
       decl.push(item);
+      node.push(decl);
       if (p.maybe(",")) goto loop;
     check(p.next(), ">");
   }

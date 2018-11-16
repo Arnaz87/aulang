@@ -41,6 +41,21 @@ struct Node {
     }
   }
 
+  string to_string (Nod this) {
+    string s = this.tp;
+    if (!(this.val == "")) {
+      s = s + ":" + this.val;
+    }
+    s = s + "(";
+    int i = 0;
+    while (i < this.len()) {
+      if (i > 0) s = s + ", ";
+      s = this.child(i).to_string();
+    }
+    s = s + ")";
+    return s;
+  }
+
   Node inline (Node this, int line) {
     this.line = line;
     return this;
