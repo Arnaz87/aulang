@@ -5,8 +5,8 @@ type string = string_mod.string;
 
 import test.extra;
 
-//module array_mod $<> = import auro.array;
-//type array = array_mod.array;
+module array_mod $<> = import auro.array;
+type array = array_mod.array;
 
 module exported {
   sys = system;
@@ -14,7 +14,8 @@ module exported {
   str_m = string_mod;
   cat = cat;
   bar = extra_f;
-  //arr = array$<T=int>;
+  //arr = string$<T=int>;
+  arr = array$<T=string>;
   //arr = system$<T=int>;
 }
 

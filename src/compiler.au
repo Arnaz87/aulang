@@ -86,6 +86,7 @@ struct Module {
   int id;
   string kind;
   string name;
+  any base;
   any argument;
   Pair[] items;
   int line;
@@ -132,6 +133,7 @@ import auro.utils.arraylist (Type) {
     int len();
     Type get (int);
     void push (Type);
+    void remove (int);
   }
 }
 
@@ -239,6 +241,42 @@ struct Compiler {
       if (!it.isnull()) return this.getSearchItem(it.get()) as any?;
 
       return new any?();
+    } else if (node.tp == "generic") {
+
+      Item base_item = new Item("type", node.child(0), false as any);
+      Type base = this.getItem(base_item as any) as Type;
+
+      
+      //Item base_mod_item = new Item("module", base.mod, false as any);
+
+      Module base_mod = this.getItem(base.mod) as Module;
+      if (!base_mod.generic)
+        this.error(base_item.to_str() + " is not from a generic module", node.line);
+
+
+      // TODO: Make some way of sharing argument modules between generic instatiations
+      Module arg_mod = this.Module();
+      arg_mod.kind = "define";
+      arg_mod.line = node.line;
+
+      int j = 1;
+      while (j < node.len()) {
+        Node inode = node.child(j);
+        string alias = inode.val;
+
+        any item = this.Item("item", inode.child(0)) as any;
+        arg_mod[alias] = item;
+        j = j+1;
+      }
+
+
+      Module mod = this.Module();
+      mod.kind = "build";
+      mod.base = base_mod as any;
+      mod.argument = arg_mod as any;
+
+      Type t = this.Type(node.val, mod as any);
+      return t as any as any?;
     } else {
       this.error("Unsupported item " + node.tp, node.line);
     }
@@ -277,7 +315,9 @@ struct Compiler {
       }
 
 
-      a = this.getGeneric(a, item);
+      //a = this.getGeneric(a, item);
+
+      item.value = a;
 
       string atp = "unknown";
       if (a is Module) atp = "module";
@@ -290,7 +330,7 @@ struct Compiler {
   }
 
   Module Module (Compiler this) {
-    Module mod = new Module(this.modules.len() + 1, "", "", false as any, new Pair[](), 0, false);
+    Module mod = new Module(this.modules.len() + 1, "", "", false as any, false as any, new Pair[](), 0, false);
     this.modules.push(mod);
     return mod;
   }
@@ -321,43 +361,6 @@ struct Compiler {
 // =============================== //
 //             Compiler            //
 // =============================== //
-
-any _resolveItem (Compiler c, any a) { return resolveItem(c, a); }
-
-any resolveItem (Compiler c, any a) {
-  if (a is Item) {
-    Item item = a as Item;
-    if (!(item.value is bool)) return item.value;
-  }
-  any value = c.getItem(a);
-  if (value is Type) {
-    _resolveItem(c, (value as Type).mod);
-  } else if (value is Function) {
-    Function f = value as Function;
-    _resolveItem(c, f.mod);
-    int i = 0;
-    while (i < f.ins.len()) {
-      _resolveItem(c, f.ins[i]);
-      i = i+1;
-    }
-    int i = 0;
-    while (i < f.outs.len()) {
-      _resolveItem(c, f.outs[i]);
-      i = i+1;
-    }
-  } else if (value is Module) {
-    Module m = value as Module;
-    if (m.kind == "define") {
-      int i = 0;
-      while (i < m.items.len()) {
-        _resolveItem(c, m.items[i].v);
-        i = i+1;
-      }
-    }
-  }
-  if (a is Item) (a as Item).value = value;
-  return value;
-}
 
 buffer compile (Node program, string filename) {
   Compiler c = new Compiler (
@@ -406,7 +409,7 @@ buffer compile (Node program, string filename) {
       while (j < node.len()) {
         Node inode = node.child(j);
         string alias = inode.val;
-        // TODO: Can't use future items in module definition items
+
         any item = c.Item("item", inode.child(0)) as any;
         mod[alias] = item;
         j = j+1;
@@ -475,11 +478,21 @@ buffer compile (Node program, string filename) {
     }
   }
 
+  // Force all items resolutions
   int i = 0;
   while (i < c.all_items.len()) {
-    resolveItem(c, c.all_items[i] as any);
+    c.getItem(c.all_items[i] as any);
     i = i+1;
   }
+
+  // Remove generic types
+  /*int i = 0;
+  while (i < c.types.len()) {
+    Type t = c.types[i];
+    Module m = c.getItem(t.mod) as Module;
+    if (m.generic) c.types.remove(i);
+    else i = i+1;
+  }*/
 
   return getBuffer(c);
 }
@@ -521,6 +534,12 @@ void writeModules (Compiler c) {
         w.str(p.k);
         j = j+1;
       }
+    } else if (mod.kind == "build") {
+      w.byte(4);
+      Module base = c.getItem(mod.base) as Module;
+      Module arg = c.getItem(mod.argument) as Module;
+      w.num(base.id);
+      w.num(arg.id);
     }
     else error("What am i doing?");
   }

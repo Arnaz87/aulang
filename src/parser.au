@@ -576,7 +576,7 @@ Node parseTopLevelItem (Parser p) {
 
   if (p.maybe("$<")) {
     Node _generic = new Node("generic", "");
-    _generic.push(node);
+    _generic.push(node.inline(line));
     node = _generic;
 
     loop:

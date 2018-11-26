@@ -42,7 +42,7 @@ struct Node {
   }
 
   string to_string (Node this) {
-    it (this.tp == "item") return this.val;
+    if (this.tp == "item") return this.val;
 
     string s = this.tp;
     if (!(this.val == "")) {
@@ -52,7 +52,8 @@ struct Node {
     int i = 0;
     while (i < this.len()) {
       if (i > 0) s = s + ", ";
-      s = this.child(i).to_string();
+      s = s + this.child(i).to_string();
+      i = i+1;
     }
     s = s + "]";
     return s;
