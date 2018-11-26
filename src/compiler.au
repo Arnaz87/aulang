@@ -143,6 +143,7 @@ import auro.utils.arraylist (Function) {
     int len();
     Function get (int);
     void push (Function);
+    void remove (int);
   }
 }
 
@@ -226,7 +227,7 @@ struct Compiler {
     } else { return maybe.get(); }
   }
 
-  any? _getItem (Compiler this, Node node) {
+  any? getFromNode (Compiler this, Node node) {
     if (node.tp == "field") {
       Item modItem = new Item("module", node.child(0), false as any);
       Module mod = this.getItem(modItem as any) as Module;
@@ -242,65 +243,20 @@ struct Compiler {
 
       return new any?();
     } else if (node.tp == "generic") {
-
-      Item base_item = new Item("type", node.child(0), false as any);
-      Type base = this.getItem(base_item as any) as Type;
-
-      
-      //Item base_mod_item = new Item("module", base.mod, false as any);
-
-      Module base_mod = this.getItem(base.mod) as Module;
-      if (!base_mod.generic)
-        this.error(base_item.to_str() + " is not from a generic module", node.line);
-
-
-      // TODO: Make some way of sharing argument modules between generic instatiations
-      Module arg_mod = this.Module();
-      arg_mod.kind = "define";
-      arg_mod.line = node.line;
-
-      int j = 1;
-      while (j < node.len()) {
-        Node inode = node.child(j);
-        string alias = inode.val;
-
-        any item = this.Item("item", inode.child(0)) as any;
-        arg_mod[alias] = item;
-        j = j+1;
-      }
-
-
-      Module mod = this.Module();
-      mod.kind = "build";
-      mod.base = base_mod as any;
-      mod.argument = arg_mod as any;
-
-      Type t = this.Type(node.val, mod as any);
-      return t as any as any?;
+      return get_generic_node(this, node) as any?;
     } else {
       this.error("Unsupported item " + node.tp, node.line);
     }
   }
 
-  any getGeneric (Compiler this, any a, Item item) {
-    if (a is Type) {
-      Type t = a as Type;
-      if ((this.getItem(t.mod) as Module).generic) {
-        this.error(item.to_str() + " is generic", item.node.line);
-      } else {
-        return a;
-      }
-    }
-    return a;
-  }
-
-  any getItem (Compiler this, any a) {
+  // get items including generic
+  any _getItem (Compiler this, any a) {
     if (a is Item) {
       Item item = a as Item;
 
       if (!(item.value is bool)) return item.value;
 
-      any? _a = this._getItem(item.node);
+      any? _a = this.getFromNode(item.node);
       if (_a.isnull()) this.error(item.to_str() + " not found", item.node.line);
       a = _a.get();
 
@@ -314,9 +270,6 @@ struct Compiler {
         else this.error("Cannot import " + item.to_str(), item.node.line);
       }
 
-
-      //a = this.getGeneric(a, item);
-
       item.value = a;
 
       string atp = "unknown";
@@ -326,6 +279,23 @@ struct Compiler {
       if ((item.tp == atp) || ((item.tp == "item") && !(atp == "unknown"))) return a;
       this.error(item.node.to_string() + " is a " + atp, item.node.line);
     }
+    return a;
+  }
+
+  // get items filtering generic
+  any getItem (Compiler this, any _a) {
+    any a = this._getItem(_a);
+
+    if (a is Type && (this.getItem((a as Type).mod) as Module).generic) {
+      Item it = _a as Item;
+      this.error(it.to_str() + " is generic", it.node.line);
+    }
+
+    if (a is Function && (this.getItem((a as Function).mod) as Module).generic) {
+      Item it = _a as Item;
+      this.error(it.to_str() + " is generic", it.node.line);
+    }
+
     return a;
   }
 
@@ -357,6 +327,73 @@ struct Compiler {
     error(msg + ", at " + this.filename + " at line " + itos(line));
   }
 }
+
+
+
+// =============================== //
+//             Generics            //
+// =============================== //
+
+any get_generic_node (Compiler this, Node node) {
+  Item base_item = new Item("item", node.child(0), false as any);
+  any base_any = this._getItem(base_item as any);
+
+  if (base_any is Type) {
+    Type base = base_any as Type;
+
+    Module base_mod = this.getItem(base.mod) as Module;
+    Module mod = get_generic_module(this, base_mod, node);
+
+    Type t = this.Type(node.val, mod as any);
+    return t as any;
+  } else if (base_any is Function) {
+
+    Function base = base_any as Function;
+
+    Module base_mod = this.getItem(base.mod) as Module;
+    Module mod = get_generic_module(this, base_mod, node);
+
+    Function f = this.Function();
+    f.name = base.name;
+    f.mod = mod as any;
+
+    error("TODO: get types in signature as generics in the same scope as the function");
+  } else this.error("???", node.line);
+}
+
+any get_item_as_generic (Compiler this, any a, Node node) {
+  return false as any;
+}
+
+Module get_generic_module (Compiler this, Module base, Node node) {
+  if (!base.generic)
+    this.error(node.to_string() + " is not generic", node.line);
+
+  // TODO: Make some way of sharing argument modules between generic instatiations
+  Module arg_mod = this.Module();
+  arg_mod.kind = "define";
+  arg_mod.line = node.line;
+
+  int j = 1;
+  while (j < node.len()) {
+    Node inode = node.child(j);
+    string alias = inode.val;
+
+    any item = this.Item("item", inode.child(0)) as any;
+    arg_mod[alias] = item;
+    j = j+1;
+  }
+
+
+  Module mod = this.Module();
+  mod.kind = "build";
+  mod.base = base as any;
+  mod.argument = arg_mod as any;
+
+  return mod;
+}
+
+
 
 // =============================== //
 //             Compiler            //
@@ -444,6 +481,7 @@ buffer compile (Node program, string filename) {
       }
 
       Node body = node.child(3);
+
       if (body.tp == "field") {
         f.name = body.val;
         f.mod = c.Item("module", body.child(0)) as any;
@@ -492,6 +530,16 @@ buffer compile (Node program, string filename) {
     t.id = i;
     Module m = c.getItem(t.mod) as Module;
     if (m.generic) c.types.remove(i);
+    else i = i+1;
+  }
+
+  // Remove generic functions
+  int i = 0;
+  while (i < c.functions.len()) {
+    Function f = c.functions[i];
+    f.id = i;
+    Module m = c.getItem(f.mod) as Module;
+    if (m.generic) c.functions.remove(i);
     else i = i+1;
   }
 

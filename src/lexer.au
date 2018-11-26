@@ -231,8 +231,11 @@ TkArr tokens (string input) {
       string op = "$";
       if (pos < len) {
         ch, pos = charat(input, pos);
-        if (codeof(ch) == 60) { // <
-          op = "$<";
+
+        if ( (codeof(ch) == 60) // <
+          || (codeof(ch) == 46) // .
+        ) { 
+          op = addch(op, ch);
           if (pos < len)
             ch, pos = charat(input, pos);
         }
