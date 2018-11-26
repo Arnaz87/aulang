@@ -486,13 +486,14 @@ buffer compile (Node program, string filename) {
   }
 
   // Remove generic types
-  /*int i = 0;
+  int i = 0;
   while (i < c.types.len()) {
     Type t = c.types[i];
+    t.id = i;
     Module m = c.getItem(t.mod) as Module;
     if (m.generic) c.types.remove(i);
     else i = i+1;
-  }*/
+  }
 
   return getBuffer(c);
 }
