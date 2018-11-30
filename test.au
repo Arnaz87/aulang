@@ -7,7 +7,7 @@ import test.extra;
 
 module array_mod $<> = import auro.array;
 type array = array_mod.array;
-void insert (string) = array_mod.insert;
+void insert ($.T) = array_mod.insert;
 
 module exported {
   sys = system;
@@ -21,7 +21,8 @@ module exported {
   //arr = system$<T=int>;
   arr = array$<T=string>;
   
-  //ins = insert$<T=string>;
+  ins = insert$<T=string>;
+  //ins = insert;
 }
 
 void cat (string, string) = string_mod.concat;

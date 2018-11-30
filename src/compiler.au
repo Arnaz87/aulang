@@ -116,6 +116,8 @@ struct Import {
   Map items;
 }
 
+struct GenericArg { string name; }
+
 import auro.utils.arraylist (Module) {
   type `` as `Module[]` {
     new ();
@@ -357,12 +359,40 @@ any get_generic_node (Compiler this, Node node) {
     f.name = base.name;
     f.mod = mod as any;
 
-    error("TODO: get types in signature as generics in the same scope as the function");
+    int i = 0;
+    while (i < base.ins.len()) {
+      f.ins.push(get_item_as_generic(this, base.ins[i], node));
+      i = i+1;
+    }
+
+    int i = 0;
+    while (i < base.outs.len()) {
+      f.outs.push(get_item_as_generic(this, base.outs[i], node));
+      i = i+1;
+    }
+
+    //error("TODO: get types in signature as generics in the same scope as the function");
+    return f as any;
   } else this.error("???", node.line);
 }
 
 any get_item_as_generic (Compiler this, any a, Node node) {
-  return false as any;
+  if (!(a is GenericArg)) return this.getItem(a);
+
+  string name = (a as GenericArg).name;
+
+  int j = 1;
+  while (j < node.len()) {
+    Node inode = node.child(j);
+    string alias = inode.val;
+
+    if (alias == name) {
+      return this.Item("item", inode.child(0)) as any;
+    }
+    j = j+1;
+  }
+
+  this.error("Generic argument " + name + " not found", node.line);
 }
 
 Module get_generic_module (Compiler this, Module base, Node node) {
@@ -469,14 +499,28 @@ buffer compile (Node program, string filename) {
       Node in_node = node.child(0);
       int i = 0;
       while (i < in_node.len()) {
-        f.ins.push(c.Item("type", in_node.child(i).child(0)) as any);
+        Node t_node = in_node.child(i).child(0);
+
+        any t_any;
+        if (t_node.tp == "generic_arg")
+          t_any = new GenericArg(t_node.val) as any;
+        else t_any = c.Item("type", t_node) as any;
+
+        f.ins.push(t_any);
         i = i+1;
       }
 
       Node out_node = node.child(2);
       int i = 0;
       while (i < out_node.len()) {
-        f.outs.push(c.Item("type", out_node.child(i).child(0)) as any);
+        Node t_node = in_node.child(i).child(0);
+
+        any t_any;
+        if (t_node.tp == "generic_arg")
+          t_any = new GenericArg(t_node.val) as any;
+        else t_any = c.Item("type", t_node) as any;
+
+        f.ins.push(t_any);
         i = i+1;
       }
 
