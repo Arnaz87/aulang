@@ -7,7 +7,7 @@ import test.extra;
 
 module array_mod $<> = import auro.array;
 type array = array_mod.array;
-void insert ($.T) = array_mod.insert;
+$.T insert ($.T) = array_mod.insert;
 
 module exported {
   sys = system;
@@ -25,6 +25,6 @@ module exported {
   //ins = insert;
 }
 
-void cat (string, string) = string_mod.concat;
+string cat (string, string) = string_mod.concat;
 
 export exported;

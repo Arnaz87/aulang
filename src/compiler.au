@@ -246,6 +246,8 @@ struct Compiler {
       return new any?();
     } else if (node.tp == "generic") {
       return get_generic_node(this, node) as any?;
+    } else if (node.tp == "generic_arg") {
+      this.error("Generic argument out of context", node.line);
     } else {
       this.error("Unsupported item " + node.tp, node.line);
     }
@@ -392,7 +394,7 @@ any get_item_as_generic (Compiler this, any a, Node node) {
     j = j+1;
   }
 
-  this.error("Generic argument " + name + " not found", node.line);
+  this.error("No generic argument: " + name, node.line);
 }
 
 Module get_generic_module (Compiler this, Module base, Node node) {
@@ -510,17 +512,17 @@ buffer compile (Node program, string filename) {
         i = i+1;
       }
 
-      Node out_node = node.child(2);
+      Node out_node = node.child(1);
       int i = 0;
       while (i < out_node.len()) {
-        Node t_node = in_node.child(i).child(0);
+        Node t_node = out_node.child(i);
 
         any t_any;
         if (t_node.tp == "generic_arg")
           t_any = new GenericArg(t_node.val) as any;
         else t_any = c.Item("type", t_node) as any;
 
-        f.ins.push(t_any);
+        f.outs.push(t_any);
         i = i+1;
       }
 

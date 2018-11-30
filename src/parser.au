@@ -300,7 +300,7 @@ Node parseIdentItem (Parser p) {
   Node outs = new Node("outs", "");
   if (!p.maybe("void")) {
     nextout:
-    outs.push(parseType(p));
+    outs.push(parseTopLevelItem(p));
     if (p.maybe(",")) goto nextout;
   }
 
@@ -312,10 +312,7 @@ Node parseIdentItem (Parser p) {
     nextin:
       Node argNode = new Node("arg", "");
 
-      if (p.maybe("$."))
-        argNode.push(new Node("generic_arg", p.getname()).inline(line));
-      else
-        argNode.push(parseTopLevelItem(p));
+      argNode.push(parseTopLevelItem(p));
 
       if (p.peek().tp == "name")
         argNode.val = p.getname();
@@ -572,6 +569,9 @@ Node parseBlock (Parser p) {
 
 Node parseTopLevelItem (Parser p) {
   int line = p.line();
+
+  if (p.maybe("$."))
+    return new Node("generic_arg", p.getname()).inline(line);
 
   Node node = new Node("item", p.getname());
   while (p.maybe(".")) {
