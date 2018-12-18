@@ -1,0 +1,41 @@
+
+
+import aulang.node {
+  type Node as Node {
+    string tp;
+    string val;
+    int line;
+
+    int len ();
+    Node child (int);
+
+    string to_string ();
+  }
+}
+
+import aulang.item {
+  type Item {
+    new (string tp, Node node);
+    string tp;
+    Node node;
+    any value;
+    string to_str();
+  }
+}
+
+struct Inst {
+  string inst;
+  int a;
+  int b;
+  string lbl;
+  int[] args;
+}
+
+
+Inst newInst (string inst) {
+  return new Inst(inst, 0, 0, "", new int[]());
+}
+
+Inst[] compile_function (Node root) {
+  return new Inst[]();
+}

@@ -55,6 +55,11 @@ import aulang.item {
   }
 }
 
+import aulang.codegen {
+  type Inst;
+  Inst[] compile_function (Node root);
+}
+
 // =============================== //
 //               Types             //
 // =============================== //
@@ -109,6 +114,7 @@ struct Function {
   any mod;
   any[] ins;
   any[] outs;
+  Inst[]? code;
 }
 
 struct Import {
@@ -295,9 +301,12 @@ struct Compiler {
       this.error(it.to_str() + " is generic", it.node.line);
     }
 
-    if (a is Function && (this.getItem((a as Function).mod) as Module).generic) {
-      Item it = _a as Item;
-      this.error(it.to_str() + " is generic", it.node.line);
+    if (a is Function) {
+      Function f = a as Function;
+      if (f.code.isnull() && (this.getItem(f.mod) as Module).generic) {
+        Item it = _a as Item;
+        this.error(it.to_str() + " is generic", it.node.line);
+      }
     }
 
     return a;
@@ -316,7 +325,7 @@ struct Compiler {
   }
 
   Function Function (Compiler this) {
-    Function f = new Function(this.functions.len(), "", false as any, new any[](), new any[]());
+    Function f = new Function(this.functions.len(), "", false as any, new any[](), new any[](), new Inst[]?());
     this.functions.push(f);
     return f;
   }
@@ -531,6 +540,8 @@ buffer compile (Node program, string filename) {
       if (body.tp == "field") {
         f.name = body.val;
         f.mod = c.Item("module", body.child(0)) as any;
+      } else if (body.tp == "block") {
+        f.code = compile_function(body) as Inst[]?;
       } else {
         c.error("Currently only imported functions are supported", node.line);
       }
@@ -584,9 +595,11 @@ buffer compile (Node program, string filename) {
   while (i < c.functions.len()) {
     Function f = c.functions[i];
     f.id = i;
-    Module m = c.getItem(f.mod) as Module;
-    if (m.generic) c.functions.remove(i);
-    else i = i+1;
+    if (f.code.isnull()) {
+      Module m = c.getItem(f.mod) as Module;
+      if (m.generic) c.functions.remove(i);
+      else i = i+1;
+    } else i = i+1;
   }
 
   return getBuffer(c);
@@ -660,12 +673,18 @@ void writeFunctions (Compiler c) {
 
   w.num(c.functions.len());
 
+  int codes = 0;
+
   int i = 0;
   while (i < c.functions.len()) {
     Function f = c.functions[i];
     i = i+1;
-    Module mod = c.getItem(f.mod) as Module;
-    w.num(mod.id + 2);
+    if (f.code.isnull()) {
+      Module mod = c.getItem(f.mod) as Module;
+      w.num(mod.id + 2);
+    } else {
+      w.byte(1);
+    }
 
     int j = 0;
     int inc = f.ins.len();
@@ -683,7 +702,18 @@ void writeFunctions (Compiler c) {
       j = j+1;
     }
 
-    w.str(f.name);
+    if (f.code.isnull()) {
+      w.str(f.name);
+    } else {
+      codes = codes + 1;
+    }
+  }
+
+  int i = 0;
+  while (i < codes) {
+    // TODO: Write function bodies
+    w.byte(0);
+    i = i+1;
   }
 }
 

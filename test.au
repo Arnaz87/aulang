@@ -23,8 +23,12 @@ module exported {
   
   ins = insert$<T=string>;
   //ins = insert;
+
+  main = main;
 }
 
 string cat (string, string) = string_mod.concat;
+
+void main () {}
 
 export exported;
