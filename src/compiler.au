@@ -45,6 +45,16 @@ import aulang.search {
   }
 }
 
+import aulang.item {
+  type Item {
+    new (string tp, Node node);
+    string tp;
+    Node node;
+    any value;
+    string to_str();
+  }
+}
+
 // =============================== //
 //               Types             //
 // =============================== //
@@ -70,16 +80,6 @@ import auro.utils.arraylist (Pair) {
 struct Imported {
   Module mod;
   string name;
-}
-
-struct Item {
-  string tp;
-  Node node;
-  any value;
-
-  string to_str (Item this) {
-    return this.tp + " " + this.node.to_string();
-  }
 }
 
 struct Module {
@@ -231,7 +231,7 @@ struct Compiler {
 
   any? getFromNode (Compiler this, Node node) {
     if (node.tp == "field") {
-      Item modItem = new Item("module", node.child(0), false as any);
+      Item modItem = new Item("module", node.child(0));
       Module mod = this.getItem(modItem as any) as Module;
       Imported imp = new Imported(mod, node.val);
 
@@ -322,7 +322,7 @@ struct Compiler {
   }
 
   Item Item (Compiler this, string tp, Node node) {
-    Item it = new Item(tp, node, false as any);
+    Item it = new Item(tp, node);
     this.all_items.push(it);
     return it;
   }
@@ -339,7 +339,7 @@ struct Compiler {
 // =============================== //
 
 any get_generic_node (Compiler this, Node node) {
-  Item base_item = new Item("item", node.child(0), false as any);
+  Item base_item = new Item("item", node.child(0));
   any base_any = this._getItem(base_item as any);
 
   if (base_any is Type) {
