@@ -56,8 +56,16 @@ import aulang.item {
 }
 
 import aulang.codegen {
-  type Inst;
-  Inst[] compile_function (Node root);
+  string inst_name (any);
+  any[] compile_function (Node root);
+
+  type CallInst {
+    any fn;
+    int ins_len ();
+    int outs_len ();
+    int in (int i);
+    int out (int i);
+  }
 }
 
 // =============================== //
@@ -114,7 +122,7 @@ struct Function {
   any mod;
   any[] ins;
   any[] outs;
-  Inst[]? code;
+  any[]? code;
 }
 
 struct Import {
@@ -242,7 +250,7 @@ struct Compiler {
       Imported imp = new Imported(mod, node.val);
 
       return (imp as any) as any?;
-    } else if (node.tp == "item") {
+    } else if ((node.tp == "item") || (node.tp == "var")) {
       any? a = this.items[node.val];
       if (!a.isnull()) return a;
 
@@ -325,7 +333,7 @@ struct Compiler {
   }
 
   Function Function (Compiler this) {
-    Function f = new Function(this.functions.len(), "", false as any, new any[](), new any[](), new Inst[]?());
+    Function f = new Function(this.functions.len(), "", false as any, new any[](), new any[](), new any[]?());
     this.functions.push(f);
     return f;
   }
@@ -340,7 +348,6 @@ struct Compiler {
     error(msg + ", at " + this.filename + " at line " + itos(line));
   }
 }
-
 
 
 // =============================== //
@@ -439,6 +446,35 @@ Module get_generic_module (Compiler this, Module base, Node node) {
 // =============================== //
 //             Compiler            //
 // =============================== //
+
+void transform_instructions (Compiler this, Function f) {
+  any[] code = f.code.get();
+
+  int j = 0;
+  while (j < code.len()) {
+    any inst = code[j];
+
+    if (inst is CallInst) {
+      CallInst call = inst as CallInst;
+
+      Item it = call.fn as Item;
+      Function fn = this.getItem(it as any) as Function;
+
+      call.fn = fn as any;
+      
+      if (!(call.ins_len() == fn.ins.len())) {
+        this.error(
+          it.to_str() + " expects " +
+          itos(fn.ins.len()) + " arguments, but " +
+          itos(call.ins_len()) + " were given",
+          it.node.line
+        );
+      }
+    }
+
+    j = j+1;
+  }
+}
 
 buffer compile (Node program, string filename) {
   Compiler c = new Compiler (
@@ -541,7 +577,7 @@ buffer compile (Node program, string filename) {
         f.name = body.val;
         f.mod = c.Item("module", body.child(0)) as any;
       } else if (body.tp == "block") {
-        f.code = compile_function(body) as Inst[]?;
+        f.code = compile_function(body) as any[]?;
       } else {
         c.error("Currently only imported functions are supported", node.line);
       }
@@ -571,6 +607,15 @@ buffer compile (Node program, string filename) {
       c.modules[i].id = i+1;
       i = i+1;
     }
+  }
+
+  // Transform function instructions
+  int i = 0;
+  while (i < c.functions.len()) {
+    Function f = c.functions[i];
+    if (!f.code.isnull())
+      transform_instructions(c, f);
+    i = i+1;
   }
 
   // Force all items resolutions
@@ -675,6 +720,8 @@ void writeFunctions (Compiler c) {
 
   int codes = 0;
 
+  Function[] code_functions = new Function[]();
+
   int i = 0;
   while (i < c.functions.len()) {
     Function f = c.functions[i];
@@ -705,14 +752,46 @@ void writeFunctions (Compiler c) {
     if (f.code.isnull()) {
       w.str(f.name);
     } else {
-      codes = codes + 1;
+      code_functions.push(f);
     }
   }
+}
 
+void writeCode (Compiler c) {
+  Writer w = c.writer;
+  
   int i = 0;
-  while (i < codes) {
-    // TODO: Write function bodies
-    w.byte(0);
+  while (i < c.functions.len()) {
+    Function f = c.functions[i];
+    if (f.code.isnull()) goto skip;
+
+    any[] code = f.code.get();
+
+    w.num(code.len());
+
+    int j = 0;
+    while (j < code.len()) {
+      any inst = code[j];
+
+      if (inst is CallInst) {
+
+        CallInst call = inst as CallInst;
+        Function fn = call.fn as Function;
+
+        w.num(fn.id + 16);
+
+        int k = 0;
+        while (k < call.ins_len()) {
+          w.num(call.in(k));
+          k = k+1;
+        }
+
+      } else error("Unsupported instruction: " + inst_name(inst));
+
+      j = j+1;
+    }
+
+    skip:
     i = i+1;
   }
 }
@@ -727,6 +806,7 @@ buffer getBuffer (Compiler c) {
   writeTypes(c);
   writeFunctions(c);
   w.num(0); // Constants
+  writeCode(c);
   w.num(0); // Metadata
 
   return w.tobuffer();

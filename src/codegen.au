@@ -1,4 +1,6 @@
 
+// TODO: Use compiler error message
+import auro.system { void error(string); }
 
 import aulang.node {
   type Node as Node {
@@ -23,19 +25,99 @@ import aulang.item {
   }
 }
 
-struct Inst {
-  string inst;
-  int a;
-  int b;
-  string lbl;
-  int[] args;
+struct CallInst {
+  any fn;
+  int[] ins;
+  int[] outs;
+
+  int ins_len (CallInst this) { return this.ins.len(); }
+  int outs_len (CallInst this) { return this.outs.len(); }
+  int in (CallInst this, int i) { return this.ins[i]; }
+  int out (CallInst this, int i) { return this.outs[i]; }
 }
 
+string inst_name (any x) {
+  if (x is CallInst) return "CallInst";
 
-Inst newInst (string inst) {
-  return new Inst(inst, 0, 0, "", new int[]());
+  bool b = x as bool; // Trigger implementation specific error message
+  error("Unknown instruction type");
 }
 
-Inst[] compile_function (Node root) {
-  return new Inst[]();
+import auro.utils.arraylist (any) {
+  type `` as AnyList {
+    new ();
+    int len();
+    any get (int);
+    void push (any);
+  }
+}
+
+struct Scope {
+  AnyList code;
+  ScopeBox? parent;
+}
+type ScopeBox (Scope);
+
+int compile_expr (Scope s, Node node) {
+  error("Expressions not yet supported");
+}
+
+int[] compile_expr_list (Scope s, Node node) {
+  int[] result = new int[]();
+  int i = 0;
+  while (i < node.len()) {
+    result.push(compile_expr(s, node.child(i)));
+    i = i+1;
+  }
+  return result;
+}
+
+void compile_call (Scope s, Node node, int[] outs) {
+  Item fn = new Item("function", node.child(0));
+  int[] ins = compile_expr_list(s, node.child(1));
+  CallInst inst = new CallInst(fn as any, ins, outs);
+  s.code.push(inst as any);
+}
+
+void compile_stmt (Scope s, Node node) {
+
+  if (node.tp == "block") {
+
+    Scope inner = new Scope(s.code, s as ScopeBox as ScopeBox?);
+
+    int i = 0;
+    while (i < node.len()) {
+      compile_stmt(inner, node.child(i));
+      i = i+1;
+    }
+    return;
+  }
+
+  if (node.tp == "call") {
+    compile_call(s, node, new int[]());
+    return;
+  }
+
+  error("Unknown statement: " + node.tp);
+}
+
+AnyList compile_function (Node root) {
+  AnyList code = new AnyList();
+
+  Scope scope = new Scope(code, new ScopeBox?());
+  compile_stmt(scope, root);
+
+  return code;
+  /*
+  // Replace eventually with fixed length arrays
+  any[] result = new any[]();
+
+  int i = 0;
+  while (i < code.len()) {
+    result.push(code[i]);
+    i = i+1;
+  }
+
+  return result;
+  */
 }

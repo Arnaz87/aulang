@@ -29,6 +29,14 @@ module exported {
 
 string cat (string, string) = string_mod.concat;
 
-void main () {}
+void println (string) = system.println;
+
+void f () {}
+
+void main () {
+  f();
+  //println(msg());
+}
+
 
 export exported;
