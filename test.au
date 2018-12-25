@@ -34,9 +34,10 @@ void println (string) = system.println;
 void f () { return; }
 
 void main () {
-  return;
   //println(f());
-  //println(msg());
+  println(msg());
+  //return msg();
+  return;
 }
 
 

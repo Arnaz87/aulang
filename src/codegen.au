@@ -25,24 +25,30 @@ import aulang.item {
   }
 }
 
+struct Register {
+  int id;
+  string name;
+}
+Register newReg (string name) { return new Register(0-1, name); }
+
 struct CallInst {
   any fn;
-  int[] ins;
-  int[] outs;
+  Register[] ins;
+  Register[] outs;
   Node node;
 
   int ins_len (CallInst this) { return this.ins.len(); }
   int outs_len (CallInst this) { return this.outs.len(); }
-  int in (CallInst this, int i) { return this.ins[i]; }
-  int out (CallInst this, int i) { return this.outs[i]; }
+  Register in (CallInst this, int i) { return this.ins[i]; }
+  Register out (CallInst this, int i) { return this.outs[i]; }
 }
 
 struct RetInst {
-  int[] vals;
+  Register[] vals;
   Node node;
 
   int vals_len (RetInst this) { return this.vals.len(); }
-  int val (RetInst this, int i) { return this.vals[i]; }
+  Register val (RetInst this, int i) { return this.vals[i]; }
 }
 
 string inst_name (any x) {
@@ -68,12 +74,19 @@ struct Scope {
 }
 type ScopeBox (Scope);
 
-int compile_expr (Scope s, Node node) {
+Register compile_expr (Scope s, Node node) {
+  if (node.tp == "call") {
+    Register out = newReg("");
+    Register outs = new Register[]();
+    outs.push(out);
+    compile_call(s, node, outs);
+    return out;
+  }
   error("Expressions not yet supported");
 }
 
-int[] compile_expr_list (Scope s, Node node) {
-  int[] result = new int[]();
+Register[] compile_expr_list (Scope s, Node node) {
+  Register[] result = new Register[]();
   int i = 0;
   while (i < node.len()) {
     result.push(compile_expr(s, node.child(i)));
@@ -82,9 +95,9 @@ int[] compile_expr_list (Scope s, Node node) {
   return result;
 }
 
-void compile_call (Scope s, Node node, int[] outs) {
+void compile_call (Scope s, Node node, Register[] outs) {
   Item fn = new Item("function", node.child(0));
-  int[] ins = compile_expr_list(s, node.child(1));
+  Register[] ins = compile_expr_list(s, node.child(1));
   CallInst inst = new CallInst(fn as any, ins, outs, node);
   s.code.push(inst as any);
 }
@@ -104,7 +117,7 @@ void compile_stmt (Scope s, Node node) {
   }
 
   if (node.tp == "call") {
-    compile_call(s, node, new int[]());
+    compile_call(s, node, new Register[]());
     return;
   }
 

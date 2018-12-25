@@ -59,18 +59,23 @@ import aulang.codegen {
   string inst_name (any);
   any[] compile_function (Node root);
 
+  type Register {
+    int id;
+    string name;
+  }
+
   type CallInst {
     any fn;
     int ins_len ();
     int outs_len ();
-    int in (int i);
-    int out (int i);
+    Register in (int i);
+    Register out (int i);
     Node node;
   }
 
   type RetInst {
     int vals_len ();
-    int val (int i);
+    Register val (int i);
     Node node;
   }
 }
@@ -456,6 +461,7 @@ Module get_generic_module (Compiler this, Module base, Node node) {
 
 void transform_instructions (Compiler this, Function f) {
   any[] code = f.code.get();
+  int reg_count = 0;
 
   int j = 0;
   while (j < code.len()) {
@@ -477,6 +483,22 @@ void transform_instructions (Compiler this, Function f) {
           call.node.line
         );
       }
+
+      if (call.outs_len() > fn.outs.len()) {
+        this.error(
+          it.to_str() + " returns " +
+          itos(fn.outs.len()) + " arguments, but " +
+          itos(call.outs_len()) + " were expected",
+          call.node.line
+        );
+      }
+
+      int k = 0;
+      while (k < call.outs_len()) {
+        call.out(k).id = reg_count + k;
+        k = k+1;
+      }
+      reg_count = reg_count + k;
     }
 
     if (inst is RetInst) {
@@ -796,7 +818,7 @@ void writeCode (Compiler c) {
 
         int k = 0;
         while (k < call.ins_len()) {
-          w.num(call.in(k));
+          w.num(call.in(k).id);
           k = k+1;
         }
 
@@ -806,7 +828,7 @@ void writeCode (Compiler c) {
         w.byte(0);
         int k = 0;
         while (k < ret.vals_len()) {
-          w.num(ret.val(k));
+          w.num(ret.val(k).id);
           k = k+1;
         }
       } else error("Unsupported instruction: " + inst_name(inst));
