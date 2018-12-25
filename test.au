@@ -31,10 +31,11 @@ string cat (string, string) = string_mod.concat;
 
 void println (string) = system.println;
 
-void f () {}
+void f () { return; }
 
 void main () {
-  f();
+  return;
+  //println(f());
   //println(msg());
 }
 

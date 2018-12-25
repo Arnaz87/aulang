@@ -29,6 +29,7 @@ struct CallInst {
   any fn;
   int[] ins;
   int[] outs;
+  Node node;
 
   int ins_len (CallInst this) { return this.ins.len(); }
   int outs_len (CallInst this) { return this.outs.len(); }
@@ -36,8 +37,17 @@ struct CallInst {
   int out (CallInst this, int i) { return this.outs[i]; }
 }
 
+struct RetInst {
+  int[] vals;
+  Node node;
+
+  int vals_len (RetInst this) { return this.vals.len(); }
+  int val (RetInst this, int i) { return this.vals[i]; }
+}
+
 string inst_name (any x) {
   if (x is CallInst) return "CallInst";
+  if (x is RetInst) return "RetInst";
 
   bool b = x as bool; // Trigger implementation specific error message
   error("Unknown instruction type");
@@ -75,7 +85,7 @@ int[] compile_expr_list (Scope s, Node node) {
 void compile_call (Scope s, Node node, int[] outs) {
   Item fn = new Item("function", node.child(0));
   int[] ins = compile_expr_list(s, node.child(1));
-  CallInst inst = new CallInst(fn as any, ins, outs);
+  CallInst inst = new CallInst(fn as any, ins, outs, node);
   s.code.push(inst as any);
 }
 
@@ -95,6 +105,11 @@ void compile_stmt (Scope s, Node node) {
 
   if (node.tp == "call") {
     compile_call(s, node, new int[]());
+    return;
+  }
+
+  if (node.tp == "return") {
+    s.code.push(new RetInst(compile_expr_list(s, node.child(0)), node) as any);
     return;
   }
 

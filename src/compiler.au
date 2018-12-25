@@ -65,6 +65,13 @@ import aulang.codegen {
     int outs_len ();
     int in (int i);
     int out (int i);
+    Node node;
+  }
+
+  type RetInst {
+    int vals_len ();
+    int val (int i);
+    Node node;
   }
 }
 
@@ -467,8 +474,15 @@ void transform_instructions (Compiler this, Function f) {
           it.to_str() + " expects " +
           itos(fn.ins.len()) + " arguments, but " +
           itos(call.ins_len()) + " were given",
-          it.node.line
+          call.node.line
         );
+      }
+    }
+
+    if (inst is RetInst) {
+      RetInst ret = inst as RetInst;
+      if (!(f.outs.len() == ret.vals_len())) {
+        this.error("Function returns " + itos(f.outs.len()) + " values", ret.node.line);
       }
     }
 
@@ -786,6 +800,15 @@ void writeCode (Compiler c) {
           k = k+1;
         }
 
+      } else if (inst is RetInst) {
+        RetInst ret = inst as RetInst;
+
+        w.byte(0);
+        int k = 0;
+        while (k < ret.vals_len()) {
+          w.num(ret.val(k));
+          k = k+1;
+        }
       } else error("Unsupported instruction: " + inst_name(inst));
 
       j = j+1;
