@@ -29,7 +29,16 @@ struct Register {
   int id;
   string name;
 }
+
 Register newReg (string name) { return new Register(0-1, name); }
+
+import auro.utils.stringmap (Register) {
+  type `` as RegMap {
+    new ();
+    Register? get (string);
+    void set (string, Register);
+  }
+}
 
 struct CallInst {
   any fn;
@@ -51,9 +60,20 @@ struct RetInst {
   Register val (RetInst this, int i) { return this.vals[i]; }
 }
 
+struct DupInst {
+  Register in;
+  Register out;
+}
+
+struct VarInst {
+  Register reg;
+}
+
+
 string inst_name (any x) {
   if (x is CallInst) return "CallInst";
   if (x is RetInst) return "RetInst";
+  if (x is DupInst) return "DupInst";
 
   bool b = x as bool; // Trigger implementation specific error message
   error("Unknown instruction type");
@@ -69,12 +89,31 @@ import auro.utils.arraylist (any) {
 }
 
 struct Scope {
+  RegMap vars;
   AnyList code;
   ScopeBox? parent;
+
+  void inst (Scope this, any inst) {
+    this.code.push(inst);
+  }
+
+  Register get_var (Scope this, string name, Node node) {
+    Register? here = this.vars[name];
+    if (here.isnull()) {
+      if (this.parent.isnull()) {
+        error("Variable " + name + " not found");
+      }
+      return (this.parent.get() as Scope).get_var(name, node);
+    }
+    return here.get();
+  }
 }
 type ScopeBox (Scope);
 
 Register compile_expr (Scope s, Node node) {
+  if (node.tp == "var") {
+    return s.get_var(node.val, node);
+  }
   if (node.tp == "call") {
     Register out = newReg("");
     Register outs = new Register[]();
@@ -98,19 +137,36 @@ Register[] compile_expr_list (Scope s, Node node) {
 void compile_call (Scope s, Node node, Register[] outs) {
   Item fn = new Item("function", node.child(0));
   Register[] ins = compile_expr_list(s, node.child(1));
-  CallInst inst = new CallInst(fn as any, ins, outs, node);
-  s.code.push(inst as any);
+  s.inst(new CallInst(fn as any, ins, outs, node) as any);
 }
 
 void compile_stmt (Scope s, Node node) {
 
   if (node.tp == "block") {
 
-    Scope inner = new Scope(s.code, s as ScopeBox as ScopeBox?);
+    Scope inner = new Scope(new RegMap(), s.code, s as ScopeBox as ScopeBox?);
 
     int i = 0;
     while (i < node.len()) {
       compile_stmt(inner, node.child(i));
+      i = i+1;
+    }
+    return;
+  }
+
+  if (node.tp == "decl") {
+    int i = 1;
+    while (i < node.len()) {
+      Node part = node.child(i);
+      string name = part.val;
+      Register reg = newReg(name);
+      if (part.len() > 0) {
+        Register in = compile_expr(s, part.child(0));
+        s.inst(new DupInst(in, reg) as any);
+      } else {
+        s.inst(new VarInst(reg) as any);
+      }
+      s.vars[name] = reg;
       i = i+1;
     }
     return;
@@ -122,7 +178,7 @@ void compile_stmt (Scope s, Node node) {
   }
 
   if (node.tp == "return") {
-    s.code.push(new RetInst(compile_expr_list(s, node.child(0)), node) as any);
+    s.inst(new RetInst(compile_expr_list(s, node.child(0)), node) as any);
     return;
   }
 
@@ -132,20 +188,8 @@ void compile_stmt (Scope s, Node node) {
 AnyList compile_function (Node root) {
   AnyList code = new AnyList();
 
-  Scope scope = new Scope(code, new ScopeBox?());
+  Scope scope = new Scope(new RegMap(), code, new ScopeBox?());
   compile_stmt(scope, root);
 
   return code;
-  /*
-  // Replace eventually with fixed length arrays
-  any[] result = new any[]();
-
-  int i = 0;
-  while (i < code.len()) {
-    result.push(code[i]);
-    i = i+1;
-  }
-
-  return result;
-  */
 }

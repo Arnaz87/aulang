@@ -78,6 +78,15 @@ import aulang.codegen {
     Register val (int i);
     Node node;
   }
+
+  type DupInst {
+    Register in;
+    Register out;
+  }
+
+  type VarInst {
+    Register reg;
+  }
 }
 
 // =============================== //
@@ -508,6 +517,16 @@ void transform_instructions (Compiler this, Function f) {
       }
     }
 
+    if (inst is VarInst) {
+      (inst as VarInst).reg.id = reg_count;
+      reg_count = reg_count + 1;
+    }
+
+    if (inst is DupInst) {
+      (inst as DupInst).out.id = reg_count;
+      reg_count = reg_count + 1;
+    }
+
     j = j+1;
   }
 }
@@ -831,6 +850,11 @@ void writeCode (Compiler c) {
           w.num(ret.val(k).id);
           k = k+1;
         }
+      } else if (inst is VarInst) {
+        w.byte(2);
+      } else if (inst is DupInst) {
+        w.byte(3);
+        w.num((inst as DupInst).in.id);
       } else error("Unsupported instruction: " + inst_name(inst));
 
       j = j+1;

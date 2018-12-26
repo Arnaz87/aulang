@@ -34,11 +34,13 @@ void println (string) = system.println;
 void f () { return; }
 
 void main () {
-  //println(f());
-  println(msg());
-  //return msg();
+  int x = msg();
+  {
+    int x = msg();
+    println(x);
+  }
+  println(x);
   return;
 }
-
 
 export exported;
