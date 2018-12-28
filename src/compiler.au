@@ -84,6 +84,11 @@ import aulang.codegen {
     Register out;
   }
 
+  type SetInst {
+    Register src;
+    Register dst;
+  }
+
   type VarInst {
     Register reg;
   }
@@ -855,6 +860,11 @@ void writeCode (Compiler c) {
       } else if (inst is DupInst) {
         w.byte(3);
         w.num((inst as DupInst).in.id);
+      } else if (inst is SetInst) {
+        SetInst set = inst as SetInst;
+        w.byte(4);
+        w.num(set.dst.id);
+        w.num(set.src.id);
       } else error("Unsupported instruction: " + inst_name(inst));
 
       j = j+1;

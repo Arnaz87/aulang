@@ -34,12 +34,15 @@ void println (string) = system.println;
 void f () { return; }
 
 void main () {
-  int x = msg();
+  int x = msg(), y;
   {
     int x = msg();
     println(x);
   }
   println(x);
+
+  y = msg();
+  println(y);
   return;
 }
 

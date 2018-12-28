@@ -65,6 +65,15 @@ struct DupInst {
   Register out;
 }
 
+struct SetInst {
+  Register src;
+  Register dst;
+
+  // Necessary because this struct has the same structure as Dup,
+  // and aulang doesn't yet support full types
+  bool dummy;
+}
+
 struct VarInst {
   Register reg;
 }
@@ -74,6 +83,8 @@ string inst_name (any x) {
   if (x is CallInst) return "CallInst";
   if (x is RetInst) return "RetInst";
   if (x is DupInst) return "DupInst";
+  if (x is SetInst) return "SetInst";
+  if (x is VarInst) return "VarInst";
 
   bool b = x as bool; // Trigger implementation specific error message
   error("Unknown instruction type");
@@ -169,6 +180,21 @@ void compile_stmt (Scope s, Node node) {
       s.vars[name] = reg;
       i = i+1;
     }
+    return;
+  }
+
+  if (node.tp == "assignment") {
+    Node left = node.child(0);
+    Node right = node.child(1);
+
+    if (left.len() > 1) {
+      error("Multiple assignments not yet supported");
+    } else {
+      Register src = compile_expr(s, right);
+      Register dst = s.get_var(left.child(0).val, left);
+      s.inst(new SetInst(src, dst, false) as any);
+    }
+
     return;
   }
 
