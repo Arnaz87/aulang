@@ -92,6 +92,16 @@ import aulang.codegen {
   type VarInst {
     Register reg;
   }
+
+  type LblInst {
+    string name;
+  }
+
+  type JmpInst {
+    string name;
+    int index;
+    int line;
+  }
 }
 
 // =============================== //
@@ -195,6 +205,7 @@ import auro.utils.arraylist (any) {
     int len();
     any get (int);
     void push (any);
+    void remove (int);
   }
 }
 
@@ -477,9 +488,11 @@ void transform_instructions (Compiler this, Function f) {
   any[] code = f.code.get();
   int reg_count = 0;
 
-  int j = 0;
-  while (j < code.len()) {
-    any inst = code[j];
+  Map label_map = new Map();
+
+  int i = 0;
+  while (i < code.len()) {
+    any inst = code[i];
 
     if (inst is CallInst) {
       CallInst call = inst as CallInst;
@@ -532,7 +545,27 @@ void transform_instructions (Compiler this, Function f) {
       reg_count = reg_count + 1;
     }
 
-    j = j+1;
+    if (inst is LblInst) {
+      label_map[(inst as LblInst).name] = i as any;
+      code.remove(i);
+      i = i-1;
+    }
+
+    i = i+1;
+  }
+
+  int i = 0;
+  while (i < code.len()) {
+    any inst = code[i];
+    
+    if (inst is JmpInst) {
+      JmpInst _inst = inst as JmpInst;
+      string name = _inst.name;
+      any? a = label_map[name];
+      if (a.isnull()) this.error("Unknown label " + name, _inst.line);
+      _inst.index = a.get() as int;
+    }
+    i = i+1;
   }
 }
 
@@ -865,6 +898,9 @@ void writeCode (Compiler c) {
         w.byte(4);
         w.num(set.dst.id);
         w.num(set.src.id);
+      } else if (inst is JmpInst) {
+        w.byte(5);
+        w.num((inst as JmpInst).index);
       } else error("Unsupported instruction: " + inst_name(inst));
 
       j = j+1;

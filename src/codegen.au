@@ -78,6 +78,16 @@ struct VarInst {
   Register reg;
 }
 
+struct LblInst {
+  string name;
+}
+
+struct JmpInst {
+  string name;
+  int index;
+  int line;
+}
+
 
 string inst_name (any x) {
   if (x is CallInst) return "CallInst";
@@ -85,6 +95,8 @@ string inst_name (any x) {
   if (x is DupInst) return "DupInst";
   if (x is SetInst) return "SetInst";
   if (x is VarInst) return "VarInst";
+  if (x is JmpInst) return "JmpInst";
+  if (x is LblInst) return "LblInst";
 
   bool b = x as bool; // Trigger implementation specific error message
   error("Unknown instruction type");
@@ -205,6 +217,16 @@ void compile_stmt (Scope s, Node node) {
 
   if (node.tp == "return") {
     s.inst(new RetInst(compile_expr_list(s, node.child(0)), node) as any);
+    return;
+  }
+
+  if (node.tp == "goto") {
+    s.inst(new JmpInst(node.val, 0, node.line) as any);
+    return;
+  }
+
+  if (node.tp == "label") {
+    s.inst(new LblInst(node.val) as any);
     return;
   }
 

@@ -35,12 +35,14 @@ void f () { return; }
 
 void main () {
   int x = msg(), y;
+  goto label;
   {
     int x = msg();
     println(x);
   }
   println(x);
 
+  label:
   y = msg();
   println(y);
   return;
