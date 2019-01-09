@@ -102,6 +102,11 @@ import aulang.codegen {
     int index;
     int line;
   }
+
+  type ConstInst {
+    Register reg;
+    any value;
+  }
 }
 
 // =============================== //
@@ -161,6 +166,12 @@ struct Function {
   any[]? code;
 }
 
+struct Const {
+  int id;
+  string kind;
+  any value;
+}
+
 struct Import {
   any mod;
   Map items;
@@ -199,6 +210,15 @@ import auro.utils.arraylist (Function) {
   }
 }
 
+import auro.utils.arraylist (Const) {
+  type `` as `Const[]` {
+    new ();
+    int len();
+    Const get (int);
+    void push (Const);
+  }
+}
+
 import auro.utils.arraylist (any) {
   type `` as `any[]` {
     new ();
@@ -227,6 +247,7 @@ struct Compiler {
   Module[] modules;
   Type[] types;
   Function[] functions;
+  Const[] consts;
 
   Map imports;
   any exported;
@@ -375,6 +396,12 @@ struct Compiler {
     return f;
   }
 
+  Const Const (Compiler this, string kind, any value) {
+    Const c = new Const(this.consts.len(), kind, value);
+    this.consts.push(c);
+    return c;
+  }
+
   Item Item (Compiler this, string tp, Node node) {
     Item it = new Item(tp, node);
     this.all_items.push(it);
@@ -385,7 +412,6 @@ struct Compiler {
     error(msg + ", at " + this.filename + " at line " + itos(line));
   }
 }
-
 
 // =============================== //
 //             Generics            //
@@ -545,6 +571,19 @@ void transform_instructions (Compiler this, Function f) {
       reg_count = reg_count + 1;
     }
 
+    if (inst is ConstInst) {
+      ConstInst _inst = inst as ConstInst;
+      if (_inst.value is int) {
+        Const const = this.Const("int", _inst.value);
+        _inst.value = const as any;
+      } else {
+        this.error("Unknown constant value type", 0-1);
+      }
+
+      _inst.reg.id = reg_count;
+      reg_count = reg_count + 1;
+    }
+
     if (inst is LblInst) {
       label_map[(inst as LblInst).name] = i as any;
       code.remove(i);
@@ -573,7 +612,7 @@ buffer compile (Node program, string filename) {
   Compiler c = new Compiler (
     filename, program,
     new Map(), new Writer(),
-    new Module[](), new Type[](), new Function[](),
+    new Module[](), new Type[](), new Function[](), new Const[](),
     new Map(), false as any, new Searcher(), new Item[]()
   );
   Module exported = c.Module(); // First module is the exported module
@@ -850,6 +889,25 @@ void writeFunctions (Compiler c) {
   }
 }
 
+void writeConstants (Compiler c) {
+  Writer w = c.writer;
+
+  w.num(c.consts.len());
+
+  int i = 0;
+  while (i < c.consts.len()) {
+    Const cns = c.consts[i];
+    i = i+1;
+    
+    if (cns.kind == "int") {
+      w.byte(1);
+      w.num(cns.value as int);
+    } else {
+      c.error("Unknown Constant kind " + cns.kind, 0-1);
+    }
+  }
+}
+
 void writeCode (Compiler c) {
   Writer w = c.writer;
   
@@ -878,6 +936,11 @@ void writeCode (Compiler c) {
           w.num(call.in(k).id);
           k = k+1;
         }
+
+      } else if (inst is ConstInst) {
+
+        Const cns = (inst as ConstInst).value as Const;
+        w.num(cns.id + c.functions.len() + 16);
 
       } else if (inst is RetInst) {
         RetInst ret = inst as RetInst;
@@ -920,7 +983,7 @@ buffer getBuffer (Compiler c) {
   writeModules(c);
   writeTypes(c);
   writeFunctions(c);
-  w.num(0); // Constants
+  writeConstants(c);
   writeCode(c);
   w.num(0); // Metadata
 

@@ -45,6 +45,8 @@ void main () {
   label:
   y = msg();
   println(y);
+
+  int n = 4;
   return;
 }
 

@@ -1,6 +1,13 @@
 
 // TODO: Use compiler error message
 import auro.system { void error(string); }
+import auro.string {
+  string itos(int);
+  int length (string) as strlen;
+
+  int codeof (char);
+  char, int charat(string, int);
+}
 
 import aulang.node {
   type Node as Node {
@@ -88,6 +95,11 @@ struct JmpInst {
   int line;
 }
 
+struct ConstInst {
+  Register reg;
+  any value;
+}
+
 
 string inst_name (any x) {
   if (x is CallInst) return "CallInst";
@@ -97,6 +109,7 @@ string inst_name (any x) {
   if (x is VarInst) return "VarInst";
   if (x is JmpInst) return "JmpInst";
   if (x is LblInst) return "LblInst";
+  if (x is ConstInst) return "ConstInst";
 
   bool b = x as bool; // Trigger implementation specific error message
   error("Unknown instruction type");
@@ -133,6 +146,18 @@ struct Scope {
 }
 type ScopeBox (Scope);
 
+int atoi (string str) {
+  int value = 0;
+  int pos = 0;
+  while (pos < strlen(str)) {
+    char ch;
+    ch, pos = charat(str, pos);
+    int code = codeof(ch);
+    value = (value*10) + (code-48);
+  }
+  return value;
+}
+
 Register compile_expr (Scope s, Node node) {
   if (node.tp == "var") {
     return s.get_var(node.val, node);
@@ -143,6 +168,12 @@ Register compile_expr (Scope s, Node node) {
     outs.push(out);
     compile_call(s, node, outs);
     return out;
+  }
+  if (node.tp == "num") {
+    Register reg = newReg("");
+    int value = atoi(node.val);
+    s.inst(new ConstInst(reg, value as any) as any);
+    return reg;
   }
   error("Expressions not yet supported");
 }
