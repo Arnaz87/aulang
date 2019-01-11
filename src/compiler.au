@@ -1,5 +1,9 @@
 import auro.system { void error(string); }
 
+import auro.string {
+  int length (string) as strlen;
+}
+
 import aulang.node {
   type Node as Node {
     string tp;
@@ -443,6 +447,15 @@ any builtin_type (Compiler this, string name, string modnm, string typenm) {
   return t as any;
 }
 
+Function builtin_function (Compiler this, string name, string modnm, string fnm) {
+  Module mod = get_builtin(this, modnm) as Module;
+  Function f = this.Function();
+  f.mod = mod as any;
+  f.name = fnm;
+  this.builtins[name] = f as any;
+  return f;
+}
+
 any get_builtin (Compiler this, string name) {
   any? maybe = this.builtins[name];
   if (!maybe.isnull()) return maybe.get();
@@ -451,11 +464,22 @@ any get_builtin (Compiler this, string name) {
     return builtin_module(this, name, "auro\x1fstring");
   if (name == "int_module")
     return builtin_module(this, name, "auro\x1fint");
+  if (name == "buffer_module")
+    return builtin_module(this, name, "auro\x1fbuffer");
 
   if (name == "string")
     return builtin_type(this, name, "string_module", "string");
   if (name == "int")
     return builtin_type(this, name, "int_module", "int");
+  if (name == "buffer")
+    return builtin_type(this, name, "buffer_module", "buffer");
+
+  if (name == "new_string") {
+    Function f = builtin_function(this, name, "string_module", "new");
+    f.ins.push(get_builtin(this, "buffer"));
+    f.outs.push(get_builtin(this, "string"));
+    return f as any;
+  }
 
   error(name + " is not a builtin item");
 }
@@ -622,6 +646,15 @@ void transform_instructions (Compiler this, Function f) {
       ConstInst _inst = inst as ConstInst;
       if (_inst.value is int) {
         Const const = this.Const("int", _inst.value);
+        _inst.value = const as any;
+      } else if (_inst.value is string) {
+        Const bin = this.Const("bin", _inst.value);
+
+        any[] call = new any[]();
+        call.push(get_builtin(this, "new_string"));
+        call.push(bin as any);
+
+        Const const = this.Const("call", call as any);
         _inst.value = const as any;
       } else {
         this.error("Unknown constant value type", 0-1);
@@ -949,6 +982,27 @@ void writeConstants (Compiler c) {
     if (cns.kind == "int") {
       w.byte(1);
       w.num(cns.value as int);
+    } else if (cns.kind == "bin") {
+      string str = cns.value as string;
+      w.byte(2);
+      // TODO: manually write utf8, rather than assume it
+      w.num(strlen(str));
+      w.rawstr(str);
+    } else if (cns.kind == "call") {
+      any[] xs = cns.value as any[];
+      Function f = c.getItem(xs[0]) as Function;
+      w.byte(f.id + 16);
+
+
+      if (!(xs.len()-1 == f.ins.len()))
+        error("Argument mismatch");
+        
+      int j = 1;
+      while (j < xs.len()) {
+        // Functions can also exist. Use items instead
+        w.num((xs[j] as Const).id + c.functions.len());
+        j = j+1;
+      }
     } else {
       c.error("Unknown Constant kind " + cns.kind, 0-1);
     }

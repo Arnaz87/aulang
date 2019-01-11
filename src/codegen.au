@@ -180,7 +180,7 @@ Register compile_expr (Scope s, Node node) {
     s.inst(new ConstInst(reg, node.val as any) as any);
     return reg;
   }
-  error("Expressions not yet supported");
+  error(node.tp + " expressions not yet supported");
 }
 
 Register[] compile_expr_list (Scope s, Node node) {

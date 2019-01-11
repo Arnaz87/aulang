@@ -35,6 +35,8 @@ void f () { return; }
 
 int g () { return 42; }
 
+string hello () { return "Hello World!"; }
+
 void main () {
   int x = msg(), y;
   goto label;
