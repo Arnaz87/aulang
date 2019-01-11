@@ -238,6 +238,8 @@ import auro.utils.arraylist (Item) {
   }
 }
 
+// When changing the fields of the Compiler object, change also the only
+// constructor, in the function compile, in the section Compiler
 struct Compiler {
   string filename;
   Node program;
@@ -249,6 +251,7 @@ struct Compiler {
   Function[] functions;
   Const[] consts;
 
+  Map builtins;
   Map imports;
   any exported;
 
@@ -314,6 +317,10 @@ struct Compiler {
 
       SearchItem? it = this.search[node.val];
       if (!it.isnull()) return this.getSearchItem(it.get()) as any?;
+
+      if (is_builtin_name(node.val)) {
+        return get_builtin(this, node.val) as any?;
+      }
 
       return new any?();
     } else if (node.tp == "generic") {
@@ -411,6 +418,46 @@ struct Compiler {
   void error (Compiler this, string msg, int line) {
     error(msg + ", at " + this.filename + " at line " + itos(line));
   }
+}
+
+// =============================== //
+//             Builtins            //
+// =============================== //
+
+bool is_builtin_name (string s) {
+  return (s == "string") || (s == "int");
+}
+
+any builtin_module (Compiler this, string name, string modname) {
+  Module mod = this.Module();
+  mod.kind = "import";
+  mod.name = modname;
+  this.builtins[name] = mod as any;
+  return mod as any;
+}
+
+any builtin_type (Compiler this, string name, string modnm, string typenm) {
+  Module mod = get_builtin(this, modnm) as Module;
+  Type t = this.Type(typenm, mod as any);
+  this.builtins[name] = t as any;
+  return t as any;
+}
+
+any get_builtin (Compiler this, string name) {
+  any? maybe = this.builtins[name];
+  if (!maybe.isnull()) return maybe.get();
+
+  if (name == "string_module")
+    return builtin_module(this, name, "auro\x1fstring");
+  if (name == "int_module")
+    return builtin_module(this, name, "auro\x1fint");
+
+  if (name == "string")
+    return builtin_type(this, name, "string_module", "string");
+  if (name == "int")
+    return builtin_type(this, name, "int_module", "int");
+
+  error(name + " is not a builtin item");
 }
 
 // =============================== //
@@ -613,7 +660,7 @@ buffer compile (Node program, string filename) {
     filename, program,
     new Map(), new Writer(),
     new Module[](), new Type[](), new Function[](), new Const[](),
-    new Map(), false as any, new Searcher(), new Item[]()
+    new Map(), new Map(), false as any, new Searcher(), new Item[]()
   );
   Module exported = c.Module(); // First module is the exported module
   exported.kind = "define";

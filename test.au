@@ -1,7 +1,7 @@
 module system = import auro.system;
-module string_mod = import auro.string;
+//module string_mod = import auro.string;
 
-type string = string_mod.string;
+//type string = string_mod.string;
 
 import test.extra;
 
@@ -12,8 +12,8 @@ $.T insert ($.T) = array_mod.insert;
 module exported {
   sys = system;
   str = string;
-  str_m = string_mod;
-  cat = cat;
+  //str_m = string_mod;
+  //cat = cat;
   bar = extra_f;
 
   //arr = array;
@@ -27,11 +27,13 @@ module exported {
   main = main;
 }
 
-string cat (string, string) = string_mod.concat;
+//string cat (string, string) = string_mod.concat;
 
 void println (string) = system.println;
 
 void f () { return; }
+
+int g () { return 42; }
 
 void main () {
   int x = msg(), y;

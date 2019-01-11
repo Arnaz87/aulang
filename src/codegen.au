@@ -175,6 +175,11 @@ Register compile_expr (Scope s, Node node) {
     s.inst(new ConstInst(reg, value as any) as any);
     return reg;
   }
+  if (node.tp == "str") {
+    Register reg = newReg("");
+    s.inst(new ConstInst(reg, node.val as any) as any);
+    return reg;
+  }
   error("Expressions not yet supported");
 }
 
