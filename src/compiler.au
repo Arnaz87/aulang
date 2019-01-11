@@ -1095,6 +1095,10 @@ buffer getBuffer (Compiler c) {
 //             Interface           //
 // =============================== //
 
+buffer compile_src (string src, string filename) {
+  return compile(parse(src), filename);
+}
+
 import auro.io {
   type file;
   type mode as filemode;
@@ -1106,8 +1110,7 @@ import auro.io {
 import aulang.util { string readall (string); }
 
 void main () {
-  string src = readall("test.au");
-  buffer buf = compile(parse(src), "test.au");
+  buffer buf = compile_src(readall("test.au"), "test.au");
   file f = open("out", w());
   write(f, buf);
 }

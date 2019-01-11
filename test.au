@@ -47,7 +47,7 @@ void main () {
   println(x);
 
   label:
-  y = msg();
+  n = msg();
   println(y);
 
   int n = 4;

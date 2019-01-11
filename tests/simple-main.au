@@ -1,0 +1,7 @@
+void main () { return; }
+
+module exp {
+  main = main;
+}
+
+export exp;

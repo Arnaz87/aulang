@@ -1,5 +1,42 @@
 #!/bin/env bash
 
+if [ -z $1 ]; then
+
+  function fail () {
+    rm -f tests/out
+    exit 1
+  }
+
+  for FILE in tests/*.au; do
+    OUT=`auro --dir dist aulang "$FILE" tests/out`
+    if [ $? != "0" ]; then
+      echo "$FILE failed compiling:"
+      echo $OUT
+      fail
+    fi
+
+    OUT=`auro tests/out`
+    if [ $? != "0" ]; then
+      echo "$FILE failed running:"
+      echo $OUT
+      aurodump tests/out
+      fail
+    fi
+
+  done
+
+  for FILE in tests/fail/*.au; do
+    auro --dir dist aulang "$FILE" tests/out >> /dev/null
+    if [ $? != "1" ]; then
+      echo "$FILE incorrectly succedded compiling"
+      fail
+    fi
+  done
+
+  rm -f tests/out
+  exit
+fi
+
 auro aulang src/$1.au dist/aulang.$1 &&
 auro --dir dist aulang.$1 &&
 ( if [ $1 == "compiler" ]

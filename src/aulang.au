@@ -21,7 +21,9 @@ import auro.io {
   bool eof (file);
 }
 
-import aulang.compiler { buffer compile (string src); }
+import aulang.compiler {
+  buffer compile_src (string src, string filename);
+}
 
 string readall (file f) {
   string str = "";
@@ -44,7 +46,7 @@ void main () {
   string src = readall(in_file);
   close(in_file);
 
-  buffer buf = compile(src);
+  buffer buf = compile_src(src, argv(1));
   file out_file = open(argv(2), w());
   write(out_file, buf);
   close(out_file);
