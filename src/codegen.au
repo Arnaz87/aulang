@@ -180,7 +180,7 @@ struct Scope {
   }
 
   LoopInfo getLoopInfo (Scope this, string name, int line) {
-    if (!this.loop.isnull() || (this.loop.get().name == name)) {
+    if (!this.loop.isnull()) {
       LoopInfo loop = this.loop.get();
       if (name == "" || (loop.name == name))
         return loop;
@@ -303,6 +303,12 @@ void compile_stmt (Scope s, Node node) {
       s.inst(new SetInst(src, dst, false) as any);
     }
 
+    return;
+  }
+
+  if (node.tp == "break") {
+    LoopInfo loop = s.getLoopInfo("", node.line);
+    s.inst(new JmpInst(loop.end, 0, node.line) as any);
     return;
   }
 

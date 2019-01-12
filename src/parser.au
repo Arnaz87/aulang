@@ -516,6 +516,13 @@ Node parseStmt (Parser p) {
     node.push(parseExprList(p, ";"));
     return node.inline(line);
   }
+  if (p.maybe("break")) {
+    Node node = new Node("break", "");
+    if (p.peek().tp == "name")
+      node.val = p.getname();
+    check(p.next(), ";");
+    return node.inline(line);
+  }
   if (p.maybe("if")) {
     Node node = new Node("if", "");
     check(p.next(), "(");
