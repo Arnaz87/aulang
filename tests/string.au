@@ -1,0 +1,7 @@
+module system = import auro.system;
+// Implicit string type
+void println (string) = system.println;
+// String literal expression
+void main () { println("Hello World!"); return; }
+module exports { main = main; }
+export exports;

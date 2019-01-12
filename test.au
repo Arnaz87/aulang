@@ -1,57 +1,9 @@
 module system = import auro.system;
-//module string_mod = import auro.string;
-
-//type string = string_mod.string;
-
-import test.extra;
-
-module array_mod $<> = import auro.array;
-type array = array_mod.array;
-$.T insert ($.T) = array_mod.insert;
-
-module exported {
-  sys = system;
-  str = string;
-  //str_m = string_mod;
-  //cat = cat;
-  bar = extra_f;
-
-  //arr = array;
-  //arr = string$<T=int>;
-  //arr = system$<T=int>;
-  arr = array$<T=string>;
-  
-  ins = insert$<T=string>;
-  //ins = insert;
-
-  main = main;
-}
-
-//string cat (string, string) = string_mod.concat;
-
 void println (string) = system.println;
 
-void f () { return; }
-
-int g () { return 42; }
-
-string hello () { return "Hello World!"; }
-
 void main () {
-  int x = msg(), y;
-  goto label;
-  {
-    int x = msg();
-    println(x);
-  }
-  println(x);
-
-  label:
-  n = msg();
-  println(y);
-
-  int n = 4;
   return;
 }
 
+module exported { main = main; }
 export exported;
