@@ -2,14 +2,10 @@ module system = import auro.system;
 void println (string) = system.println;
 
 void main () {
-  bool b = true;
-  if (b) println("true");
-  else println("false");
-
-  b = false;
-  if (b) println("true");
-  else println("false");
-  
+  if (true) goto end;
+  println(":(");
+  end:
+  println("end");
   return;
 }
 

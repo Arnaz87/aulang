@@ -281,6 +281,14 @@ void compile_stmt (Scope s, Node node) {
   }
 
   if (node.tp == "if") {
+    if (node.child(1).tp == "goto") {
+      Register cond = compile_expr(s, node.child(0));
+      Node gt = node.child(1);
+      // May fail, would need line
+      s.inst(new JifInst(gt.val, cond, 0, false) as any);
+      return;
+    }
+
     string els = s.label();
     Register cond = compile_expr(s, node.child(0));
     s.inst(new JifInst(els, cond, 0, true) as any);
