@@ -2,16 +2,13 @@ module system = import auro.system;
 void println (string) = system.println;
 
 void main () {
-  string msg = "Outside";
   bool a = true;
   bool b = true;
   while (a) {
-    string msg = "Inside";
-    println(msg);
+    println("Iter");
     a = b;
     b = false;
   }
-  println(msg);
   return;
 }
 
