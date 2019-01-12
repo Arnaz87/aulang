@@ -140,11 +140,22 @@ import auro.utils.arraylist (any) {
   }
 }
 
+struct LoopInfo {
+  string name;
+  string start;
+  string end;
+}
+
+LoopInfo newLoopInfo (Scope s, string name) {
+  return new LoopInfo(name, s.label(), s.label());
+}
+
 struct Scope {
   RegMap vars;
   AnyList code;
   ScopeBox? parent;
   int temp_labels;
+  LoopInfo? loop;
 
   void inst (Scope this, any inst) {
     this.code.push(inst);
@@ -167,6 +178,22 @@ struct Scope {
       return ".label_" + itos(this.temp_labels);
     } else return (this.parent.get() as Scope).label();
   }
+
+  LoopInfo getLoopInfo (Scope this, string name, int line) {
+    if (!this.loop.isnull() || (this.loop.get().name == name)) {
+      LoopInfo loop = this.loop.get();
+      if (name == "" || (loop.name == name))
+        return loop;
+    }
+    if (this.parent.isnull()) {
+      if (name == "")
+        error("Not in loop " + name + ", at line " + itos(line));
+      else
+        error("Not in a loop, at line " + itos(line));
+    }
+    return (this.parent.get() as Scope).getLoopInfo(name, line);
+  }
+
 }
 type ScopeBox (Scope);
 
@@ -236,8 +263,7 @@ void compile_call (Scope s, Node node, Register[] outs) {
 void compile_stmt (Scope s, Node node) {
 
   if (node.tp == "block") {
-
-    Scope inner = new Scope(new RegMap(), s.code, s as ScopeBox as ScopeBox?, 0);
+    Scope inner = new Scope(new RegMap(), s.code, s as ScopeBox as ScopeBox?, 0, new LoopInfo?());
 
     int i = 0;
     while (i < node.len()) {
@@ -277,6 +303,19 @@ void compile_stmt (Scope s, Node node) {
       s.inst(new SetInst(src, dst, false) as any);
     }
 
+    return;
+  }
+
+  if (node.tp == "while") {
+    LoopInfo loop = newLoopInfo(s, node.val);
+    Scope inner = new Scope(new RegMap(), s.code, s as ScopeBox as ScopeBox?, 0, loop as LoopInfo?);
+
+    s.inst(new LblInst(loop.start) as any);
+    Register cond = compile_expr(inner, node.child(0));
+    s.inst(new JifInst(loop.end, cond, 0, true) as any);
+    compile_stmt(inner, node.child(1));
+    s.inst(new JmpInst(loop.start, 0, 0) as any);
+    s.inst(new LblInst(loop.end) as any);
     return;
   }
 
@@ -331,7 +370,7 @@ void compile_stmt (Scope s, Node node) {
 AnyList compile_function (Node root) {
   AnyList code = new AnyList();
 
-  Scope scope = new Scope(new RegMap(), code, new ScopeBox?(), 0);
+  Scope scope = new Scope(new RegMap(), code, new ScopeBox?(), 0, new LoopInfo?());
   compile_stmt(scope, root);
 
   return code;
