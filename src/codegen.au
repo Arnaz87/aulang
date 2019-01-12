@@ -95,6 +95,13 @@ struct JmpInst {
   int line;
 }
 
+struct JifInst {
+  string label;
+  Register cond;
+  int index;
+  bool is_nif;
+}
+
 struct ConstInst {
   Register reg;
   any value;
@@ -108,6 +115,7 @@ string inst_name (any x) {
   if (x is SetInst) return "SetInst";
   if (x is VarInst) return "VarInst";
   if (x is JmpInst) return "JmpInst";
+  if (x is JifInst) return "JifInst";
   if (x is LblInst) return "LblInst";
   if (x is ConstInst) return "ConstInst";
 
@@ -128,6 +136,7 @@ struct Scope {
   RegMap vars;
   AnyList code;
   ScopeBox? parent;
+  int temp_labels;
 
   void inst (Scope this, any inst) {
     this.code.push(inst);
@@ -142,6 +151,13 @@ struct Scope {
       return (this.parent.get() as Scope).get_var(name, node);
     }
     return here.get();
+  }
+
+  string label (Scope this) {
+    if (this.parent.isnull()) {
+      this.temp_labels = this.temp_labels + 1;
+      return ".label_" + itos(this.temp_labels);
+    } else return (this.parent.get() as Scope).label();
   }
 }
 type ScopeBox (Scope);
@@ -203,7 +219,7 @@ void compile_stmt (Scope s, Node node) {
 
   if (node.tp == "block") {
 
-    Scope inner = new Scope(new RegMap(), s.code, s as ScopeBox as ScopeBox?);
+    Scope inner = new Scope(new RegMap(), s.code, s as ScopeBox as ScopeBox?, 0);
 
     int i = 0;
     while (i < node.len()) {
@@ -246,6 +262,15 @@ void compile_stmt (Scope s, Node node) {
     return;
   }
 
+  if (node.tp == "if") {
+    string end = s.label();
+    Register cond = compile_expr(s, node.child(0));
+    s.inst(new JifInst(end, cond, 0, true) as any);
+    compile_stmt(s, node.child(1));
+    s.inst(new LblInst(end) as any);
+    return;
+  }
+
   if (node.tp == "call") {
     compile_call(s, node, new Register[]());
     return;
@@ -272,7 +297,7 @@ void compile_stmt (Scope s, Node node) {
 AnyList compile_function (Node root) {
   AnyList code = new AnyList();
 
-  Scope scope = new Scope(new RegMap(), code, new ScopeBox?());
+  Scope scope = new Scope(new RegMap(), code, new ScopeBox?(), 0);
   compile_stmt(scope, root);
 
   return code;

@@ -107,6 +107,13 @@ import aulang.codegen {
     int line;
   }
 
+  type JifInst {
+    string label;
+    Register cond;
+    int index;
+    bool is_nif;
+  }
+
   type ConstInst {
     Register reg;
     any value;
@@ -684,6 +691,12 @@ void transform_instructions (Compiler this, Function f) {
       if (a.isnull()) this.error("Unknown label " + name, _inst.line);
       _inst.index = a.get() as int;
     }
+
+    if (inst is JifInst) {
+      JifInst _inst = inst as JifInst;
+      _inst.index = label_map[_inst.label].get() as int;
+    }
+
     i = i+1;
   }
 }
@@ -1065,6 +1078,12 @@ void writeCode (Compiler c) {
       } else if (inst is JmpInst) {
         w.byte(5);
         w.num((inst as JmpInst).index);
+      } else if (inst is JifInst) {
+        JifInst jif = inst as JifInst;
+        if (jif.is_nif) w.byte(7);
+        else w.byte(6);
+        w.num(jif.index);
+        w.num(jif.cond.id);
       } else error("Unsupported instruction: " + inst_name(inst));
 
       j = j+1;
