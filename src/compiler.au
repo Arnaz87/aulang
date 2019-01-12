@@ -70,11 +70,14 @@ import aulang.codegen {
 
   type CallInst {
     any fn;
+    Node node;
     int ins_len ();
     int outs_len ();
     Register in (int i);
     Register out (int i);
-    Node node;
+    void ins_push (Register);
+    void outs_push (Register);
+    new (any fn, Node node);
   }
 
   type RetInst {
@@ -235,6 +238,7 @@ import auro.utils.arraylist (any) {
     new ();
     int len();
     any get (int);
+    void set (int, any);
     void push (any);
     void remove (int);
   }
@@ -436,7 +440,7 @@ struct Compiler {
 // =============================== //
 
 bool is_builtin_name (string s) {
-  return (s == "string") || (s == "int");
+  return (s == "string") || (s == "int") || (s == "bool");
 }
 
 any builtin_module (Compiler this, string name, string modname) {
@@ -471,6 +475,8 @@ any get_builtin (Compiler this, string name) {
     return builtin_module(this, name, "auro\x1fstring");
   if (name == "int_module")
     return builtin_module(this, name, "auro\x1fint");
+  if (name == "bool_module")
+    return builtin_module(this, name, "auro\x1fbool");
   if (name == "buffer_module")
     return builtin_module(this, name, "auro\x1fbuffer");
 
@@ -478,6 +484,8 @@ any get_builtin (Compiler this, string name) {
     return builtin_type(this, name, "string_module", "string");
   if (name == "int")
     return builtin_type(this, name, "int_module", "int");
+  if (name == "bool")
+    return builtin_type(this, name, "bool_module", "bool");
   if (name == "buffer")
     return builtin_type(this, name, "buffer_module", "buffer");
 
@@ -485,6 +493,18 @@ any get_builtin (Compiler this, string name) {
     Function f = builtin_function(this, name, "string_module", "new");
     f.ins.push(get_builtin(this, "buffer"));
     f.outs.push(get_builtin(this, "string"));
+    return f as any;
+  }
+
+  if (name == "true") {
+    Function f = builtin_function(this, name, "bool_module", "true");
+    f.outs.push(get_builtin(this, "bool"));
+    return f as any;
+  }
+
+  if (name == "false") {
+    Function f = builtin_function(this, name, "bool_module", "false");
+    f.outs.push(get_builtin(this, "bool"));
     return f as any;
   }
 
@@ -663,6 +683,16 @@ void transform_instructions (Compiler this, Function f) {
 
         Const const = this.Const("call", call as any);
         _inst.value = const as any;
+      } else if (_inst.value is bool) {
+        Function f;
+        if (_inst.value as bool) 
+          f = get_builtin(this, "true") as Function;
+        else
+          f = get_builtin(this, "false") as Function;
+
+        CallInst call = new CallInst(f as any, this.program);
+        call.outs_push(_inst.reg);
+        code[i] = call as any;
       } else {
         this.error("Unknown constant value type", 0-1);
       }

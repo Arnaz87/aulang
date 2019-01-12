@@ -57,6 +57,8 @@ struct CallInst {
   int outs_len (CallInst this) { return this.outs.len(); }
   Register in (CallInst this, int i) { return this.ins[i]; }
   Register out (CallInst this, int i) { return this.outs[i]; }
+  void ins_push (CallInst this, Register r) { this.ins.push(r); }
+  void outs_push (CallInst this, Register r) { this.outs.push(r); }
 }
 
 struct RetInst {
@@ -106,6 +108,12 @@ struct ConstInst {
   Register reg;
   any value;
 }
+
+private CallInst _new_call (any fn, Node node) {
+  return new CallInst(fn, new Register[](), new Register[](), node);
+}
+export _new_call as `new\x1dCallInst`;
+
 
 
 string inst_name (any x) {
@@ -194,6 +202,16 @@ Register compile_expr (Scope s, Node node) {
   if (node.tp == "str") {
     Register reg = newReg("");
     s.inst(new ConstInst(reg, node.val as any) as any);
+    return reg;
+  }
+  if (node.tp == "true") {
+    Register reg = newReg("");
+    s.inst(new ConstInst(reg, true as any) as any);
+    return reg;
+  }
+  if (node.tp == "false") {
+    Register reg = newReg("");
+    s.inst(new ConstInst(reg, false as any) as any);
     return reg;
   }
   error(node.tp + " expressions not yet supported");
