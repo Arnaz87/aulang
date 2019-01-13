@@ -752,6 +752,12 @@ buffer compile (Node program, string filename) {
     Node node = c.program.child(i);
     i = i+1;
 
+    bool public = true;
+    if (node.tp == "private") {
+      public = false;
+      node = node.child(0);
+    }
+
     if (node.tp == "module-assign") {
       Module mod = c.Module();
       mod.line = node.line;
@@ -844,12 +850,13 @@ buffer compile (Node program, string filename) {
       }
 
       c.items[node.val] = f as any;
+      if (public) {
+        exported[node.val] = f as any;
+      }
     }
 
     else if (node.tp == "export") {
       node child = node.child(0);
-      if (exported.items.len() > 0)
-        c.error("Export overrides public items", node.line);
       if (!(c.exported is bool))
         c.error("Export overrides previous export", node.line);
 

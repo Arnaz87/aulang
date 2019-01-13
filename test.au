@@ -1,4 +1,2 @@
+private void f () {}
 void main () {}
-  
-module exported { main = main; }
-export exported;
