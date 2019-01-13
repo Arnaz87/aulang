@@ -281,11 +281,19 @@ void compile_stmt (Scope s, Node node) {
   }
 
   if (node.tp == "if") {
-    string end = s.label();
+    string els = s.label();
     Register cond = compile_expr(s, node.child(0));
-    s.inst(new JifInst(end, cond, 0, true) as any);
+    s.inst(new JifInst(els, cond, 0, true) as any);
     compile_stmt(s, node.child(1));
-    s.inst(new LblInst(end) as any);
+    if (node.len() == 3) {
+      string end = s.label();
+      s.inst(new JmpInst(end, 0, 0) as any);
+      s.inst(new LblInst(els) as any);
+      compile_stmt(s, node.child(2));
+      s.inst(new LblInst(end) as any);
+    } else {
+      s.inst(new LblInst(els) as any);
+    }
     return;
   }
 
