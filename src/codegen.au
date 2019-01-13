@@ -241,6 +241,27 @@ Register compile_expr (Scope s, Node node) {
     s.inst(new ConstInst(reg, false as any) as any);
     return reg;
   }
+  if (node.tp == "logic") {
+    string end = s.label();
+
+    Register reg = newReg("");
+    s.inst(new VarInst(reg) as any);
+
+    Register left = compile_expr(s, node.child(0));
+    s.inst(new SetInst(left, reg, false) as any);
+
+    bool is_nif;
+    if (node.val == "||") is_nif = false;
+    else if (node.val == "&&") is_nif = true;
+    else error(node.val + " operator not yet supported, at line " + itos(node.line));
+    s.inst(new JifInst(end, reg, 0, is_nif) as any);
+
+    Register right = compile_expr(s, node.child(1));
+    s.inst(new SetInst(right, reg, false) as any);
+
+    s.inst(new LblInst(end) as any);
+    return reg;
+  }
   error(node.tp + " expressions not yet supported");
 }
 
