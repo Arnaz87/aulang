@@ -545,7 +545,13 @@ Node parseStmt (Parser p) {
     string ty = p.peekat(1).tp;
     if (ty == ":") {
       string name = p.getname(); p.next();
-      return new Node("label", name).inline(line);
+      if (p.peek().tp == "while") {
+        Node loop = parseStmt(p);
+        loop.val = name;
+        return loop;
+      } else {
+        return new Node("label", name).inline(line);
+      }
     }
     if (ty == "[")
       if (p.peekat(2).tp == "]")

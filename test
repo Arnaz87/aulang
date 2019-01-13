@@ -34,6 +34,7 @@ if [ -z $1 ]; then
   done
 
   rm -f tests/out
+  echo "All tests passed"
   exit
 fi
 

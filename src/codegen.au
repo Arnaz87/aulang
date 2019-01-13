@@ -307,7 +307,7 @@ void compile_stmt (Scope s, Node node) {
   }
 
   if (node.tp == "break") {
-    LoopInfo loop = s.getLoopInfo("", node.line);
+    LoopInfo loop = s.getLoopInfo(node.val, node.line);
     s.inst(new JmpInst(loop.end, 0, node.line) as any);
     return;
   }
