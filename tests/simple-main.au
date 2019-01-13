@@ -1,7 +1,3 @@
-void main () { return; }
-
-module exp {
-  main = main;
-}
-
+void main () {}
+module exp { main = main; }
 export exp;

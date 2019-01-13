@@ -1,26 +1,4 @@
-module system = import auro.system;
-void println (string) = system.println;
-
-bool t () {
-  println("t");
-  return true;
-}
-
-bool f () {
-  println("f");
-  return false;
-}
-
-void main () {
-  if (t() && t()) println("1 & 1");
-  if (t() && f()) println("1 & 0");
-  if (f() && t()) println("0 & 1");
-
-  if (t() || t()) println("1 | 1");
-  if (f() || t()) println("0 | 1");
-  if (f() || f()) println("0 | 1");
-  return;
-}
-
+void main () {}
+  
 module exported { main = main; }
 export exported;

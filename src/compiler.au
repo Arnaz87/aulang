@@ -121,6 +121,8 @@ import aulang.codegen {
     Register reg;
     any value;
   }
+
+  RetInst voidRetInst (Node);
 }
 
 // =============================== //
@@ -613,6 +615,10 @@ void transform_instructions (Compiler this, Function f) {
   int reg_count = 0;
 
   Map label_map = new Map();
+
+  if (f.outs.len() == 0 && (code.len() == 0 || !(code[code.len() - 1] is RetInst))) {
+    code.push(voidRetInst(this.program) as any);
+  }
 
   int i = 0;
   while (i < code.len()) {

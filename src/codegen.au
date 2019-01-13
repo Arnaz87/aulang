@@ -114,6 +114,9 @@ private CallInst _new_call (any fn, Node node) {
 }
 export _new_call as `new\x1dCallInst`;
 
+RetInst voidRetInst (Node node) {
+  return new RetInst(new Register[](), node);
+}
 
 
 string inst_name (any x) {
