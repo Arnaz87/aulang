@@ -35,9 +35,10 @@ import aulang.item {
 struct Register {
   int id;
   string name;
+  any tp;
 }
 
-Register newReg (string name) { return new Register(0-1, name); }
+Register newReg (string name) { return new Register(0-1, name, false as any); }
 
 import auro.utils.stringmap (Register) {
   type `` as RegMap {
@@ -87,6 +88,11 @@ struct VarInst {
   Register reg;
 }
 
+struct DeclInst {
+  Register reg;
+  Node tp;
+}
+
 struct LblInst {
   string name;
 }
@@ -109,6 +115,21 @@ struct ConstInst {
   any value;
 }
 
+struct UnopInst {
+  string op;
+  Register in;
+  Register out;
+  Node node;
+}
+
+struct BinopInst {
+  string op;
+  Register left;
+  Register right;
+  Register out;
+  Node node;
+}
+
 private CallInst _new_call (any fn, Node node) {
   return new CallInst(fn, new Register[](), new Register[](), node);
 }
@@ -125,10 +146,13 @@ string inst_name (any x) {
   if (x is DupInst) return "DupInst";
   if (x is SetInst) return "SetInst";
   if (x is VarInst) return "VarInst";
+  if (x is VarInst) return "DeclInst";
   if (x is JmpInst) return "JmpInst";
   if (x is JifInst) return "JifInst";
   if (x is LblInst) return "LblInst";
   if (x is ConstInst) return "ConstInst";
+  if (x is UnopInst) return "UnopInst";
+  if (x is BinopInst) return "BinopInst";
 
   bool b = x as bool; // Trigger implementation specific error message
   error("Unknown instruction type");
@@ -244,6 +268,19 @@ Register compile_expr (Scope s, Node node) {
     s.inst(new ConstInst(reg, false as any) as any);
     return reg;
   }
+  if (node.tp == "unop") {
+    Register reg = newReg("");
+    s.inst(new UnopInst(node.val, compile_expr(s, node.child(0)), reg, node) as any);
+    return reg;
+  }
+  if (node.tp == "binop") {
+    Register reg = newReg("");
+    Register l = compile_expr(s, node.child(0));
+    Register r = compile_expr(s, node.child(1));
+    s.inst(new BinopInst(node.val, l, r, reg, node) as any);
+    return reg;
+  }
+
   if (node.tp == "logic") {
     string end = s.label();
 
@@ -307,7 +344,7 @@ void compile_stmt (Scope s, Node node) {
         Register in = compile_expr(s, part.child(0));
         s.inst(new DupInst(in, reg) as any);
       } else {
-        s.inst(new VarInst(reg) as any);
+        s.inst(new DeclInst(reg, node.child(0)) as any);
       }
       s.vars[name] = reg;
       i = i+1;

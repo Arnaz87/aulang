@@ -66,6 +66,7 @@ import aulang.codegen {
   type Register {
     int id;
     string name;
+    any tp;
   }
 
   type CallInst {
@@ -99,6 +100,10 @@ import aulang.codegen {
   type VarInst {
     Register reg;
   }
+  type DeclInst {
+    Register reg;
+    Node tp;
+  }
 
   type LblInst {
     string name;
@@ -120,6 +125,21 @@ import aulang.codegen {
   type ConstInst {
     Register reg;
     any value;
+  }
+
+  type UnopInst {
+    string op;
+    Register out;
+    Register in;
+    Node node;
+  }
+
+  type BinopInst {
+    string op;
+    Register out;
+    Register left;
+    Register right;
+    Node node;
   }
 
   RetInst voidRetInst (Node);
@@ -171,6 +191,7 @@ struct Type {
   int id;
   string name;
   any mod;
+  string builtin;
 }
 
 struct Function {
@@ -409,7 +430,7 @@ struct Compiler {
   }
 
   Type Type (Compiler this, string name, any mod) {
-    Type t = new Type(this.types.len(), name, mod);
+    Type t = new Type(this.types.len(), name, mod, "");
     this.types.push(t);
     return t;
   }
@@ -456,6 +477,7 @@ any builtin_module (Compiler this, string name, string modname) {
 any builtin_type (Compiler this, string name, string modnm, string typenm) {
   Module mod = get_builtin(this, modnm) as Module;
   Type t = this.Type(typenm, mod as any);
+  t.builtin = name;
   this.builtins[name] = t as any;
   return t as any;
 }
@@ -507,6 +529,15 @@ any get_builtin (Compiler this, string name) {
   if (name == "false") {
     Function f = builtin_function(this, name, "bool_module", "false");
     f.outs.push(get_builtin(this, "bool"));
+    return f as any;
+  }
+
+  if (name == "iadd") {
+    Function f = builtin_function(this, name, "int_module", "add");
+    any t = get_builtin(this, "int");
+    f.ins.push(t);
+    f.ins.push(t);
+    f.outs.push(t);
     return f as any;
   }
 
@@ -650,9 +681,17 @@ void transform_instructions (Compiler this, Function f) {
         );
       }
 
+      // TODO: Arguments typecheck (what to error?)
+      /*int k = 0;
+      while (k < call.ins_len()) {
+        call.in(k).tp = this.getItem(fn.ins[k]);
+        k = k+1;
+      }*/
+
       int k = 0;
       while (k < call.outs_len()) {
         call.out(k).id = reg_count + k;
+        call.out(k).tp = this.getItem(fn.outs[k]);
         k = k+1;
       }
       reg_count = reg_count + k;
@@ -663,6 +702,21 @@ void transform_instructions (Compiler this, Function f) {
       if (!(f.outs.len() == ret.vals_len())) {
         this.error("Function returns " + itos(f.outs.len()) + " values", ret.node.line);
       }
+
+      // TODO: Return typecheck (what to error?)
+      /*int k = 0;
+      while (k < call.outs_len()) {
+        call.out(k).id = reg_count + k;
+        call.out(k).tp = this.getItem(fn.outs[k]);
+        k = k+1;
+      }*/
+    }
+
+    if (inst is DeclInst) {
+      DeclInst decl = inst as DeclInst;
+      decl.reg.id = reg_count;
+      decl.reg.tp = this.getItem(new Item("type", decl.tp) as any);
+      reg_count = reg_count + 1;
     }
 
     if (inst is VarInst) {
@@ -671,15 +725,28 @@ void transform_instructions (Compiler this, Function f) {
     }
 
     if (inst is DupInst) {
-      (inst as DupInst).out.id = reg_count;
+      DupInst dup = inst as DupInst;
+      dup.out.id = reg_count;
+      dup.out.tp = dup.in.tp;
       reg_count = reg_count + 1;
+    }
+
+    if (inst is SetInst) {
+      SetInst set = inst as SetInst;
+      if (set.dst.tp is bool) {
+        set.dst.tp = set.src.tp;
+      } else {
+        // Typecheck
+      }
     }
 
     if (inst is ConstInst) {
       ConstInst _inst = inst as ConstInst;
+      any tp;
       if (_inst.value is int) {
         Const const = this.Const("int", _inst.value);
         _inst.value = const as any;
+        tp = get_builtin(this, "int");
       } else if (_inst.value is string) {
         Const bin = this.Const("bin", _inst.value);
 
@@ -689,6 +756,7 @@ void transform_instructions (Compiler this, Function f) {
 
         Const const = this.Const("call", call as any);
         _inst.value = const as any;
+        tp = get_builtin(this, "string");
       } else if (_inst.value is bool) {
         Function f;
         if (_inst.value as bool) 
@@ -699,12 +767,41 @@ void transform_instructions (Compiler this, Function f) {
         CallInst call = new CallInst(f as any, this.program);
         call.outs_push(_inst.reg);
         code[i] = call as any;
+        tp = get_builtin(this, "bool");
       } else {
         this.error("Unknown constant value type", 0-1);
       }
 
       _inst.reg.id = reg_count;
+      _inst.reg.tp = tp;
       reg_count = reg_count + 1;
+    }
+
+    if (inst is BinopInst) {
+      BinopInst binop = inst as BinopInst;
+      Type lt = this.getItem(binop.left.tp) as Type;
+      Type rt = this.getItem(binop.right.tp) as Type;
+      if (lt.builtin == "int" && (rt.builtin == "int")) {
+        Function fn;
+        if (binop.op == "+")
+          fn = get_builtin(this, "iadd") as Function;
+        else // TODO: Better error message
+          this.error("Unsupported int operator " + binop.op, 0-1);
+
+        CallInst call = new CallInst(fn as any, this.program);
+        call.ins_push(binop.left);
+        call.ins_push(binop.right);
+        call.outs_push(binop.out);
+
+        binop.out.id = reg_count;
+        binop.out.tp = lt as any;
+        
+        code[i] = call as any;
+        reg_count = reg_count + 1;
+      } else {
+        // TODO: Awful error message
+        this.error("Cannot operate these types", 0-1);
+      }
     }
 
     if (inst is LblInst) {
@@ -1108,7 +1205,7 @@ void writeCode (Compiler c) {
           w.num(ret.val(k).id);
           k = k+1;
         }
-      } else if (inst is VarInst) {
+      } else if (inst is VarInst || (inst is DeclInst)) {
         w.byte(2);
       } else if (inst is DupInst) {
         w.byte(3);

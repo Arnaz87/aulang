@@ -117,6 +117,7 @@ void check (token tk, string tp) {
 
 
 Node parseType (Parser p) {
+  return parseTopLevelItem(p);
   int line = p.line();
   Node node = new Node("type", p.getname()).inline(line);
   repeat:
