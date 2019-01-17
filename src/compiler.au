@@ -563,6 +563,15 @@ any get_builtin (Compiler this, string name) {
     return f as any;
   }
 
+  if (name == "concat") {
+    Function f = builtin_function(this, name, "string_module", "concat");
+    any t = get_builtin(this, "string");
+    f.ins.push(t);
+    f.ins.push(t);
+    f.outs.push(t);
+    return f as any;
+  }
+
   error(name + " is not a builtin item");
 }
 
@@ -803,30 +812,35 @@ void transform_instructions (Compiler this, Function f) {
       BinopInst binop = inst as BinopInst;
       Type lt = this.getItem(binop.left.tp) as Type;
       Type rt = this.getItem(binop.right.tp) as Type;
-      if (lt.builtin == "int" && (rt.builtin == "int")) {
-        string fname;
+
+      string fname;
+      if (lt.builtin == "string" && (rt.builtin == "string")) {
+        if (binop.op == "+") fname = "concat";
+        else // TODO: Better error message
+          this.error("Unsupported int operator " + binop.op, 0-1);
+      } else if (lt.builtin == "int" && (rt.builtin == "int")) {
         if (binop.op == "+") fname = "iadd";
         else if (binop.op == "-") fname = "isub";
         else if (binop.op == "*") fname = "imul";
         else if (binop.op == "/") fname = "idiv";
         else // TODO: Better error message
           this.error("Unsupported int operator " + binop.op, 0-1);
-        Function fn = get_builtin(this, fname) as Function;
-
-        CallInst call = new CallInst(fn as any, this.program);
-        call.ins_push(binop.left);
-        call.ins_push(binop.right);
-        call.outs_push(binop.out);
-
-        binop.out.id = reg_count;
-        binop.out.tp = lt as any;
-        
-        code[i] = call as any;
-        reg_count = reg_count + 1;
       } else {
         // TODO: Awful error message
         this.error("Cannot operate these types", 0-1);
       }
+      Function fn = get_builtin(this, fname) as Function;
+
+      CallInst call = new CallInst(fn as any, this.program);
+      call.ins_push(binop.left);
+      call.ins_push(binop.right);
+      call.outs_push(binop.out);
+
+      binop.out.id = reg_count;
+      binop.out.tp = lt as any;
+      
+      code[i] = call as any;
+      reg_count = reg_count + 1;
     }
 
     if (inst is LblInst) {

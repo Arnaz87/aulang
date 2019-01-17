@@ -293,7 +293,7 @@ Register compile_expr (Scope s, Node node) {
     bool is_nif;
     if (node.val == "||") is_nif = false;
     else if (node.val == "&&") is_nif = true;
-    else error(node.val + " operator not yet supported, at line " + itos(node.line));
+    else error("logic operator " + node.val + " not supported, at line " + itos(node.line));
     s.inst(new JifInst(end, reg, 0, is_nif) as any);
 
     Register right = compile_expr(s, node.child(1));
