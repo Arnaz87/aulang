@@ -463,7 +463,8 @@ struct Compiler {
 // =============================== //
 
 bool is_builtin_name (string s) {
-  return (s == "string") || (s == "int") || (s == "bool");
+  return (s == "string") || (s == "int") || (s == "bool") ||
+    (s == "itos") || (s == "println");
 }
 
 any builtin_module (Compiler this, string name, string modname) {
@@ -495,6 +496,8 @@ any get_builtin (Compiler this, string name) {
   any? maybe = this.builtins[name];
   if (!maybe.isnull()) return maybe.get();
 
+  if (name == "system_module")
+    return builtin_module(this, name, "auro\x1fsystem");
   if (name == "string_module")
     return builtin_module(this, name, "auro\x1fstring");
   if (name == "int_module")
@@ -532,12 +535,31 @@ any get_builtin (Compiler this, string name) {
     return f as any;
   }
 
-  if (name == "iadd") {
-    Function f = builtin_function(this, name, "int_module", "add");
+  if (name == "iadd" || (name == "isub") || (name == "imul") || (name == "idiv")) {
+    string fname;
+    if (name == "iadd") fname = "add";
+    if (name == "isub") fname = "sub";
+    if (name == "imul") fname = "mul";
+    if (name == "idiv") fname = "div";
+
+    Function f = builtin_function(this, name, "int_module", fname);
     any t = get_builtin(this, "int");
     f.ins.push(t);
     f.ins.push(t);
     f.outs.push(t);
+    return f as any;
+  }
+
+  if (name == "println") {
+    Function f = builtin_function(this, name, "system_module", "println");
+    f.ins.push(get_builtin(this, "string"));
+    return f as any;
+  }
+
+  if (name == "itos") {
+    Function f = builtin_function(this, name, "string_module", "itos");
+    f.ins.push(get_builtin(this, "int"));
+    f.outs.push(get_builtin(this, "string"));
     return f as any;
   }
 
@@ -782,11 +804,14 @@ void transform_instructions (Compiler this, Function f) {
       Type lt = this.getItem(binop.left.tp) as Type;
       Type rt = this.getItem(binop.right.tp) as Type;
       if (lt.builtin == "int" && (rt.builtin == "int")) {
-        Function fn;
-        if (binop.op == "+")
-          fn = get_builtin(this, "iadd") as Function;
+        string fname;
+        if (binop.op == "+") fname = "iadd";
+        else if (binop.op == "-") fname = "isub";
+        else if (binop.op == "*") fname = "imul";
+        else if (binop.op == "/") fname = "idiv";
         else // TODO: Better error message
           this.error("Unsupported int operator " + binop.op, 0-1);
+        Function fn = get_builtin(this, fname) as Function;
 
         CallInst call = new CallInst(fn as any, this.program);
         call.ins_push(binop.left);
