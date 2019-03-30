@@ -162,7 +162,6 @@ struct Module {
   any argument;
   Pair[] items;
   int line;
-  bool generic;
 
   void set (Module this, string k, any v) {
     this.items.push(new Pair(k, v));
@@ -195,8 +194,6 @@ struct Import {
   any mod;
   Map items;
 }
-
-struct GenericArg { string name; }
 
 import auro.utils.arraylist (Module) {
   type `` as `Module[]` {
@@ -293,17 +290,12 @@ struct Compiler {
       }
 
       return new any?();
-    } else if (node.tp == "generic") {
-      return get_generic_node(this, node) as any?;
-    } else if (node.tp == "generic_arg") {
-      this.error("Generic argument out of context", node.line);
     } else {
       this.error("Unsupported item " + node.tp, node.line);
     }
   }
 
-  // get items including generic
-  any _getItem (Compiler this, any a) {
+  any getItem (Compiler this, any a) {
     if (a is Item) {
       Item item = a as Item;
 
@@ -335,28 +327,8 @@ struct Compiler {
     return a;
   }
 
-  // get items filtering generic
-  any getItem (Compiler this, any _a) {
-    any a = this._getItem(_a);
-
-    if (a is Type && (this.getItem((a as Type).mod) as Module).generic) {
-      Item it = _a as Item;
-      this.error(it.to_str() + " is generic", it.node.line);
-    }
-
-    if (a is Function) {
-      Function f = a as Function;
-      if (f.code.isnull() && (this.getItem(f.mod) as Module).generic) {
-        Item it = _a as Item;
-        this.error(it.to_str() + " is generic", it.node.line);
-      }
-    }
-
-    return a;
-  }
-
   Module Module (Compiler this) {
-    Module mod = new Module(this.modules.len() + 1, "", "", false as any, false as any, new Pair[](), 0, false);
+    Module mod = new Module(this.modules.len() + 1, "", "", false as any, false as any, new Pair[](), 0);
     this.modules.push(mod);
     return mod;
   }
@@ -506,98 +478,6 @@ any get_builtin (Compiler this, string name) {
 
   error(name + " is not a builtin item");
 }
-
-// =============================== //
-//             Generics            //
-// =============================== //
-
-any get_generic_node (Compiler this, Node node) {
-  Item base_item = new Item("item", node.child(0));
-  any base_any = this._getItem(base_item as any);
-
-  if (base_any is Type) {
-    Type base = base_any as Type;
-
-    Module base_mod = this.getItem(base.mod) as Module;
-    Module mod = get_generic_module(this, base_mod, node);
-
-    Type t = this.Type(node.val, mod as any);
-    return t as any;
-  } else if (base_any is Function) {
-
-    Function base = base_any as Function;
-
-    Module base_mod = this.getItem(base.mod) as Module;
-    Module mod = get_generic_module(this, base_mod, node);
-
-    Function f = this.Function();
-    f.name = base.name;
-    f.mod = mod as any;
-
-    int i = 0;
-    while (i < base.ins.len()) {
-      f.ins.push(get_item_as_generic(this, base.ins[i], node));
-      i = i+1;
-    }
-
-    int i = 0;
-    while (i < base.outs.len()) {
-      f.outs.push(get_item_as_generic(this, base.outs[i], node));
-      i = i+1;
-    }
-
-    //error("TODO: get types in signature as generics in the same scope as the function");
-    return f as any;
-  } else this.error("???", node.line);
-}
-
-any get_item_as_generic (Compiler this, any a, Node node) {
-  if (!(a is GenericArg)) return this.getItem(a);
-
-  string name = (a as GenericArg).name;
-
-  int j = 1;
-  while (j < node.len()) {
-    Node inode = node.child(j);
-    string alias = inode.val;
-
-    if (alias == name) {
-      return this.Item("item", inode.child(0)) as any;
-    }
-    j = j+1;
-  }
-
-  this.error("No generic argument: " + name, node.line);
-}
-
-Module get_generic_module (Compiler this, Module base, Node node) {
-  if (!base.generic)
-    this.error(node.to_string() + " is not generic", node.line);
-
-  // TODO: Make some way of sharing argument modules between generic instatiations
-  Module arg_mod = this.Module();
-  arg_mod.kind = "define";
-  arg_mod.line = node.line;
-
-  int j = 1;
-  while (j < node.len()) {
-    Node inode = node.child(j);
-    string alias = inode.val;
-
-    any item = this.Item("item", inode.child(0)) as any;
-    arg_mod[alias] = item;
-    j = j+1;
-  }
-
-
-  Module mod = this.Module();
-  mod.kind = "build";
-  mod.base = base as any;
-  mod.argument = arg_mod as any;
-
-  return mod;
-}
-
 
 
 // =============================== //
@@ -837,11 +717,7 @@ buffer compile (Node program, string filename) {
         mod.kind = "import";
         mod.name = vnode.val;
         //c.imports[mod.name] = new Import(mod as any, new Map());
-      }
-      else c.error(vnode.tp + " module expression", vnode.line);
-
-      if ((node.len() > 1) && (node.child(1).tp == "generic"))
-        mod.generic = true;
+      } else c.error(vnode.tp + " module expression", vnode.line);
     }
 
     else if (node.tp == "module-def") {
@@ -879,10 +755,7 @@ buffer compile (Node program, string filename) {
       while (i < in_node.len()) {
         Node t_node = in_node.child(i).child(0);
 
-        any t_any;
-        if (t_node.tp == "generic_arg")
-          t_any = new GenericArg(t_node.val) as any;
-        else t_any = c.Item("type", t_node) as any;
+        any t_any = c.Item("type", t_node) as any;
 
         f.ins.push(t_any);
         i = i+1;
@@ -893,10 +766,7 @@ buffer compile (Node program, string filename) {
       while (i < out_node.len()) {
         Node t_node = out_node.child(i);
 
-        any t_any;
-        if (t_node.tp == "generic_arg")
-          t_any = new GenericArg(t_node.val) as any;
-        else t_any = c.Item("type", t_node) as any;
+        any t_any = c.Item("type", t_node) as any;
 
         f.outs.push(t_any);
         i = i+1;
@@ -955,28 +825,6 @@ buffer compile (Node program, string filename) {
   while (i < c.all_items.len()) {
     c.getItem(c.all_items[i] as any);
     i = i+1;
-  }
-
-  // Remove generic types
-  int i = 0;
-  while (i < c.types.len()) {
-    Type t = c.types[i];
-    t.id = i;
-    Module m = c.getItem(t.mod) as Module;
-    if (m.generic) c.types.remove(i);
-    else i = i+1;
-  }
-
-  // Remove generic functions
-  int i = 0;
-  while (i < c.functions.len()) {
-    Function f = c.functions[i];
-    f.id = i;
-    if (f.code.isnull()) {
-      Module m = c.getItem(f.mod) as Module;
-      if (m.generic) c.functions.remove(i);
-      else i = i+1;
-    } else i = i+1;
   }
 
   return getBuffer(c);
