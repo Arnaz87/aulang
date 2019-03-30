@@ -39,14 +39,18 @@ if [ "$1" == "uninstall" ]; then
 fi
 
 if [ "$1" != "install" ]; then
-  compile () { echo compiling $1; auro aulang $1.au dist/aulang.$1; }
+  rm dist/*
+  compile () { echo compiling $1; auro aulang src/$1.au dist/aulang.$1; }
   compile util &&
+  compile node &&
+  compile item &&
   compile lexer &&
+  compile codegen &&
   compile parser &&
   compile writer &&
   compile compiler &&
   echo compiling aulang &&
-  auro aulang aulang.au dist/aulang ||
+  auro aulang src/aulang.au dist/aulang ||
   (echo "Could not compile files"; exit)
 fi
 

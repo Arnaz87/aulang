@@ -31,24 +31,6 @@ import aulang.writer {
   }
 }
 
-import aulang.search {
-  type Item as SearchItem {
-    int kind;
-    string mod;
-    string name;
-    int inlen();
-    int outlen();
-    SearchItem in (int);
-    SearchItem out (int);
-  }
-
-  type Searcher {
-    new ();
-    void insert (string module_name);
-    SearchItem? get (string);
-  }
-}
-
 import aulang.item {
   type Item {
     new (string tp, Node node);
@@ -293,54 +275,7 @@ struct Compiler {
   Map imports;
   any exported;
 
-  Searcher search;
-
   Item[] all_items;
-
-  any getSearchItem (Compiler this, SearchItem it) {
-    Import mod;
-    any? maybe = this.imports[it.mod];
-
-    if (maybe.isnull()) {
-      Module m = this.Module();
-      m.kind = "import";
-      m.name = it.mod;
-      mod = new Import(m as any, new Map());
-      this.imports[it.mod] = mod as any;
-    } else { mod = maybe.get() as Import; }
-
-    maybe = mod.items[it.name];
-    if (maybe.isnull()) {
-      any a;
-
-      if (it.kind == 1) {
-        a = this.Type(it.name, mod.mod) as any;
-      }
-
-      if (it.kind == 2) {
-        Function f = this.Function();
-        f.name = it.name;
-        f.mod = mod.mod;
-
-        int i = 0;
-        while (i < it.inlen()) {
-          f.ins.push(this.getSearchItem(it.in(i)));
-          i = i+1;
-        }
-
-        int i = 0;
-        while (i < it.outlen()) {
-          f.outs.push(this.getSearchItem(it.out(i)));
-          i = i+1;
-        }
-
-        a = f as any;
-      }
-
-      mod.items[it.name] = a;
-      return a;
-    } else { return maybe.get(); }
-  }
 
   any? getFromNode (Compiler this, Node node) {
     if (node.tp == "field") {
@@ -352,9 +287,6 @@ struct Compiler {
     } else if ((node.tp == "item") || (node.tp == "var")) {
       any? a = this.items[node.val];
       if (!a.isnull()) return a;
-
-      SearchItem? it = this.search[node.val];
-      if (!it.isnull()) return this.getSearchItem(it.get()) as any?;
 
       if (is_builtin_name(node.val)) {
         return get_builtin(this, node.val) as any?;
@@ -878,7 +810,7 @@ buffer compile (Node program, string filename) {
     filename, program,
     new Map(), new Writer(),
     new Module[](), new Type[](), new Function[](), new Const[](),
-    new Map(), new Map(), false as any, new Searcher(), new Item[]()
+    new Map(), new Map(), false as any, new Item[]()
   );
   Module exported = c.Module(); // First module is the exported module
   exported.kind = "define";
@@ -910,10 +842,6 @@ buffer compile (Node program, string filename) {
 
       if ((node.len() > 1) && (node.child(1).tp == "generic"))
         mod.generic = true;
-    }
-
-    else if (node.tp == "import") {
-      c.search.insert(node.val);
     }
 
     else if (node.tp == "module-def") {
