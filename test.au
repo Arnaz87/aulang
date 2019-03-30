@@ -1,7 +1,4 @@
+import test.extra;
 void main () {
-  println(itos(6+2)); // 8
-  println(itos(6-2)); // 4
-  println(itos(6*2)); // 12
-  println(itos(6/2)); // 3
-  println("a" + "b");
+  println(msg() + "!");
 }
