@@ -1,3 +1,399 @@
+
+
+module system = import auro.system;
+module util = import aulang.util;
+module string_mod = import auro.string;
+module array_mod = import auro.array;
+
+void exit (int) = system.exit;
+
+type char = string_mod.char;
+
+int codeof (char) = string_mod.codeof;
+char newchar (int) = string_mod.newchar;
+char, int charat (string, int) = string_mod.charat;
+int strlen (string) = string_mod.length;
+string addch (string, char) = string_mod.add;
+
 void main () {
-  println("Hola Mundo!");
+  int n = 0, n2; char ch;
+  ch, n2 = charat("ABC", 0);
+  println("Character at " + itos(n) + addch(": ", ch));
 }
+
+
+/*
+import auro.system {
+  void println (string);
+  void exit (int);
+}
+import aulang.util { string readall (string filename); }
+
+import auro.string {
+  int codeof (char);
+  char newchar (int);
+  char, int charat(string, int);
+  int length (string) as strlen;
+  string add (string, char) as addch;
+  string itos(int);
+}
+
+void error (string str, int line) {
+  println("Lexer error: " + str + ", at line " + itos(line));
+  exit(1);
+}
+
+import auro.array(token) {
+  type `` as TkArr {
+    //new (token, int);
+    token get (int);
+    void set (int, token);
+    int len ();
+    void push (token);
+  }
+  TkArr `new` (token, int) as newTkArr;
+}
+
+struct token {
+  string tp;
+  string val;
+  int line;
+
+  void println (token this) {
+    println(itos(this.line) + ":   " + this.tp + " " + this.val);
+  }
+}
+
+// TODO: Remove these functions
+string getType (token tk) { return tk.tp; }
+string getVal (token tk) { return tk.val; }
+
+bool isDigit (char ch) {
+  int code = codeof(ch);
+  if (code >= 48) { // 0
+    if (code <= 57) { // 9
+      return true;
+    }
+  }
+  return false;
+}
+
+bool isHex (char ch) {
+  if (isDigit(ch)) return true;
+  int code = codeof(ch);
+  if (code >= 97)
+    if (code <= 102)
+      return true;
+  return false;
+}
+
+int hexVal (char ch) {
+  int code = codeof(ch);
+  if (isDigit(ch)) return code-48;
+  return 10 + code-97;
+}
+
+bool isAlpha (char ch) {
+  int code = codeof(ch);
+
+  if (code == 95) // _
+    return true;
+
+  if (code >= 65) // A
+    if (code <= 90) // Z
+      return true;
+
+  if (code >= 97) // a
+    if (code <= 122) // z
+      return true;
+
+  return false;
+}
+
+bool isKw (string s) {
+  if (s == "true") return true;
+  if (s == "false") return true;
+  if (s == "null") return true;
+  if (s == "void") return true;
+
+  if (s == "if") return true;
+  if (s == "else") return true;
+  if (s == "while") return true;
+  if (s == "return") return true;
+  if (s == "continue") return true;
+  if (s == "break") return true;
+  if (s == "goto") return true;
+
+  if (s == "as") return true;
+  if (s == "is") return true;
+  if (s == "new") return true;
+  if (s == "type") return true;
+  if (s == "struct") return true;
+  if (s == "import") return true;
+  if (s == "module") return true;
+  if (s == "extern") return true;
+  if (s == "export") return true;
+  if (s == "private") return true;
+  
+  return false;
+}
+
+bool isOp (char ch) {
+  int code = codeof(ch);
+  if (code == 40) return true; // (
+  if (code == 41) return true; // )
+  if (code == 42) return true; // *
+  if (code == 43) return true; // +
+  if (code == 44) return true; // ,
+  if (code == 45) return true; // -
+  if (code == 46) return true; // .
+  if (code == 58) return true; // :
+  if (code == 59) return true; // ;
+  if (code == 63) return true; // ?
+  if (code == 91) return true; // [
+  if (code == 93) return true; // ]
+  if (code == 123) return true; // {
+  if (code == 125) return true; // }
+  return false;
+}
+
+bool maybeEq (char ch) {
+  int code = codeof(ch);
+  if (code == 33) return true; // !
+  if (code == 60) return true; // <
+  if (code == 61) return true; // =
+  if (code == 62) return true; // >
+  return false;
+}
+
+bool maybeDouble (char ch) {
+  int code = codeof(ch);
+  if (code == 38) return true; // &
+  if (code == 124) return true; // |
+  return false;
+}
+
+bool isSpace (char ch) {
+  int code = codeof(ch);
+  if (code == 9)  return true; // \t
+  if (code == 10) return true; // \n
+  if (code == 32) return true; // ' '
+  return false;
+}
+
+bool isQuote (char ch) {
+  int code = codeof(ch);
+  if (code == 34) return true; // "
+  if (code == 39) return true; // '
+  if (code == 96) return true; // `
+  return false;
+}
+
+TkArr tokens (string input) {
+
+  // Fix nasty bug where the last character is omited
+  input = input + " ";
+
+  TkArr arr = newTkArr(new token("", "", 0), 0);
+
+  int len = strlen(input);
+  int pos = 0;
+  char ch;
+
+  int line = 1;
+
+  ch, pos = charat(input, pos);
+  while (pos < len) {
+  skipspace:
+    while (isSpace(ch)) {
+      // Count the line
+      if (codeof(ch) == 10) { line = line+1; }
+      if (pos >= len) { goto end; }
+      ch, pos = charat(input, pos);
+    }
+
+    int code = codeof(ch);
+    token tk;
+
+    if (codeof(ch) == 47) { // '/'
+      if (pos < len)
+        ch, pos = charat(input, pos);
+      if (codeof(ch) == 47) { // Start line comment
+        linecom:
+          if (codeof(ch) == 10) // \n
+            goto endlinecom;
+          if (pos >= len) goto end;
+          ch, pos = charat(input, pos);
+          goto linecom;
+        endlinecom:
+        // A line comment can only terminate with a newline, count it
+        line = line+1;
+        if (pos < len) ch, pos = charat(input, pos); // skip it
+        goto skipspace;
+      } else if (codeof(ch) == 42) { // '*' start multiline comment
+        multicom:
+          // Count lines in long comments
+          if (codeof(ch) == 10) { line = line+1; }
+          if (codeof(ch) == 42) { // '*'
+            if (pos >= len) goto end;
+            ch, pos = charat(input, pos);
+            if (codeof(ch) == 47) // '/'
+              goto endmulticom;
+          }
+          if (pos >= len) goto end;
+          ch, pos = charat(input, pos);
+          goto multicom;
+        endmulticom:
+        if (pos < len) ch, pos = charat(input, pos); // skip newline
+        goto skipspace;
+      } else {
+        tk = new token("/", "", line);
+      }
+    }
+
+    else if (codeof(ch) == 36) { // $
+      string op = "$";
+      if (pos < len) {
+        ch, pos = charat(input, pos);
+
+        if ( (codeof(ch) == 60) // <
+          || (codeof(ch) == 46) // .
+        ) { 
+          op = addch(op, ch);
+          if (pos < len)
+            ch, pos = charat(input, pos);
+        }
+      }
+      tk = new token(op, "", line);
+    }
+
+    else if (isDigit(ch)) {
+      string val = "";
+      while (isDigit(ch)) {
+        val = addch(val, ch);
+        if (pos >= len) { goto enddigit; }
+        ch, pos = charat(input, pos);
+      }
+      enddigit:
+      tk = new token("num", val, line);
+    }
+
+    else if (isAlpha(ch)) {
+      string val = addch("", ch);
+      if (pos >= len) { goto endname; }
+      ch, pos = charat(input, pos);
+      while (isAlpha(ch) || isDigit(ch)) {
+        val = addch(val, ch);
+        if (pos >= len) { goto endname; }
+        ch, pos = charat(input, pos);
+      }
+      endname:
+      if (isKw(val)) tk = new token(val, "", line);
+      else tk = new token("name", val, line);
+    }
+
+    else if (maybeEq(ch)) {
+      string op = addch("", ch);
+      if (pos < len) {
+        ch, pos = charat(input, pos);
+        if (codeof(ch) == 61) {
+          op = op + "=";
+          if (pos < len)
+            ch, pos = charat(input, pos);
+        }
+      }
+      tk = new token(op, "", line);
+    }
+
+    else if (maybeDouble(ch)) {
+      char oldch = ch;
+      ch, pos = charat(input, pos);
+      if (codeof(oldch) == codeof(ch)) {
+        string op = addch(addch("", ch),ch);
+        tk = new token(op, "", line);
+        if (pos < len) ch, pos = charat(input, pos); // Skip second char
+      } else tk = new token(addch("", oldch), "", line);
+    }
+
+    else if (isOp(ch)) {
+      tk = new token(addch("", ch), "", line);
+      if (pos < len)
+        ch, pos = charat(input, pos);
+    }
+
+    else if (isQuote(ch)) {
+      int quoteCode = codeof(ch);
+      string val = "";
+      beginq:
+        if (pos >= len) error("Unfinished string", line);
+        ch, pos = charat(input, pos);
+
+        // Closing quote
+        if (codeof(ch) == quoteCode) goto endq;
+
+        if (codeof(ch) == 92) { // Escape
+          if (pos >= len) error("Unfinished string", line);
+          ch, pos = charat(input, pos);
+          bool copyit =
+            (codeof(ch) == 92) ||
+            (codeof(ch) == 34) ||
+            (codeof(ch) == 39);
+
+          if (copyit) {
+            val = addch(val, ch);
+          } else if (codeof(ch) == 110) { // n
+            val = addch(val, newchar(10)); // Line feed
+          } else if (codeof(ch) == 116) { // t
+            val = addch(val, newchar(9)); // Horizontal tab
+          } else if (codeof(ch) == 120) { // x
+            if (pos+2 >= len) error("Unfinished string", line);
+            ch, pos = charat(input, pos);
+            if (isHex(ch)) {
+              int n = hexVal(ch)*16;
+              ch, pos = charat(input, pos);
+              if (isHex(ch)) {
+                n = n+hexVal(ch);
+                val = addch(val, newchar(n));
+                goto beginq;
+              }
+            }
+            error("Invalid hexadecimal code", line);
+          } else {
+            val = addch(addch(val, newchar(92)), ch);
+          }
+          goto beginq;
+        }
+
+        val = addch(val, ch); // Anything else
+        goto beginq;
+      endq:
+      if (pos < len) ch, pos = charat(input, pos); // Skip closing quote
+      if (quoteCode == 34) tk = new token("str", val, line);   // "
+      if (quoteCode == 39) tk = new token("char", val, line);  // '
+      if (quoteCode == 96) tk = new token("name", val, line);  // `
+    }
+
+    else error(addch("Unexpected character ", ch), line);
+
+    // Push the token
+    arr.push(tk);
+  }
+  end:
+
+  arr.push(new token("eof", "", line+1));
+  return arr;
+}
+
+void main () {
+  //string src = " 756 3 void _a if ifn {.}() =<=<+ `x` \"\\\"\" }";
+  string src = readall("test.au");
+  TkArr tks = tokens(src);
+  int len = tks.len();
+  println(itos(len) + " tokens:");
+  int i = 0;
+  while (i < len) {
+    tks[i].println();
+    i = i+1;
+  }
+}
+*/

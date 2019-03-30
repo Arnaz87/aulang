@@ -357,7 +357,20 @@ void compile_stmt (Scope s, Node node) {
     Node right = node.child(1);
 
     if (left.len() > 1) {
-      error("Multiple assignments not yet supported");
+      if (!(right.tp == "call")) {
+        error("Expression does not have multiple values, at line " + itos(node.line));
+      }
+
+      Register[] regs = new Register[]();
+
+      int i = 0;
+      while (i < left.len()) {
+        Register reg = s.get_var(left.child(i).val, left);
+        regs.push(reg);
+        i = i+1;
+      }
+
+      compile_call(s, right, regs);
     } else {
       Register src = compile_expr(s, right);
       Register dst = s.get_var(left.child(0).val, left);

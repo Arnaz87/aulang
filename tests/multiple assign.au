@@ -1,0 +1,7 @@
+int, int f () { return 2, 3; }
+
+void main () {
+  int a, b;
+  a, b = f();
+}
+
