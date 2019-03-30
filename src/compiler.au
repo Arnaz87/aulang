@@ -445,6 +445,22 @@ any get_builtin (Compiler this, string name) {
     return f as any;
   }
 
+  if (name == "not") {
+    Function f = builtin_function(this, name, "bool_module", "not");
+    any t = get_builtin(this, "bool");
+    f.ins.push(t);
+    f.outs.push(t);
+    return f as any;
+  }
+
+  if (name == "ineg") {
+    Function f = builtin_function(this, name, "int_module", "neg");
+    any t = get_builtin(this, "int");
+    f.ins.push(t);
+    f.outs.push(t);
+    return f as any;
+  }
+
   if (name == "iadd" || (name == "isub") || (name == "imul") || (name == "idiv")) {
     string fname;
     if (name == "iadd") fname = "add";
@@ -662,6 +678,26 @@ void transform_instructions (Compiler this, Function f) {
       reg_count = reg_count + 1;
     }
 
+    if (inst is UnopInst) {
+      UnopInst unop = inst as UnopInst;
+      string fname;
+      if (unop.op == "-") fname = "ineg";
+      else if (unop.op == "!") fname = "not";
+      else // TODO: Better error message
+        this.error("Unsupported unary operator " + unop.op, 0-1);
+
+      Function fn = get_builtin(this, fname) as Function;
+      CallInst call = new CallInst(fn as any, this.program);
+      call.ins_push(unop.in);
+      call.outs_push(unop.out);
+
+      unop.out.id = reg_count;
+      unop.out.tp = fn.outs[0];
+      
+      code[i] = call as any;
+      reg_count = reg_count + 1;
+    }
+
     if (inst is BinopInst) {
       BinopInst binop = inst as BinopInst;
       Type lt = this.getItem(binop.left.tp) as Type;
@@ -700,7 +736,7 @@ void transform_instructions (Compiler this, Function f) {
       call.outs_push(binop.out);
 
       binop.out.id = reg_count;
-      binop.out.tp = lt as any;
+      binop.out.tp = fn.outs[0];
       
       code[i] = call as any;
       reg_count = reg_count + 1;

@@ -19,6 +19,8 @@ void main () {
   if (t() || t()) println("1 | 1");
   if (f() || t()) println("0 | 1");
   if (f() || f()) println("0 | 1");
+
+  if (!f()) println("! 0");
   return;
 }
 

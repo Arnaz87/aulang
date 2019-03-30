@@ -3,5 +3,6 @@ void main () {
   println(itos(6-2)); // 4
   println(itos(6*2)); // 12
   println(itos(6/2)); // 3
+  println(itos(-6)); // -6
   println("a" + "b");
 }
