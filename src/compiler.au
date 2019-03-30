@@ -43,7 +43,7 @@ import aulang.item {
 
 import aulang.codegen {
   string inst_name (any);
-  any[] compile_function (Node root);
+  any[] compile_function (Node body, Node fn);
 
   type Register {
     int id;
@@ -82,7 +82,13 @@ import aulang.codegen {
   type VarInst {
     Register reg;
   }
+
   type DeclInst {
+    Register reg;
+    Node tp;
+  }
+
+  type ArgInst {
     Register reg;
     Node tp;
   }
@@ -454,6 +460,23 @@ any get_builtin (Compiler this, string name) {
     return f as any;
   }
 
+  if (name == "ieq" || (name == "ine") || (name == "ilt") || (name == "igt") || (name == "ile") || (name == "ige")) {
+    string fname;
+    if (name == "ieq") fname = "eq";
+    if (name == "ine") fname = "ne";
+    if (name == "ilt") fname = "lt";
+    if (name == "igt") fname = "gt";
+    if (name == "ile") fname = "le";
+    if (name == "ige") fname = "ge";
+
+    Function f = builtin_function(this, name, "int_module", fname);
+    any t = get_builtin(this, "int");
+    f.ins.push(t);
+    f.ins.push(t);
+    f.outs.push(get_builtin(this, "bool"));
+    return f as any;
+  }
+
   if (name == "println") {
     Function f = builtin_function(this, name, "system_module", "println");
     f.ins.push(get_builtin(this, "string"));
@@ -473,6 +496,15 @@ any get_builtin (Compiler this, string name) {
     f.ins.push(t);
     f.ins.push(t);
     f.outs.push(t);
+    return f as any;
+  }
+
+  if (name == "streq") {
+    Function f = builtin_function(this, name, "string_module", "eq");
+    any t = get_builtin(this, "string");
+    f.ins.push(t);
+    f.ins.push(t);
+    f.outs.push(get_builtin(this, "bool"));
     return f as any;
   }
 
@@ -562,6 +594,16 @@ void transform_instructions (Compiler this, Function f) {
       reg_count = reg_count + 1;
     }
 
+    if (inst is ArgInst) {
+      ArgInst arg = inst as ArgInst;
+      arg.reg.id = reg_count;
+      arg.reg.tp = this.getItem(new Item("type", arg.tp) as any);
+      reg_count = reg_count + 1;
+
+      code.remove(i);
+      i = i-1;
+    }
+
     if (inst is VarInst) {
       (inst as VarInst).reg.id = reg_count;
       reg_count = reg_count + 1;
@@ -628,13 +670,22 @@ void transform_instructions (Compiler this, Function f) {
       string fname;
       if (lt.builtin == "string" && (rt.builtin == "string")) {
         if (binop.op == "+") fname = "concat";
+        else if (binop.op == "==") fname = "streq";
         else // TODO: Better error message
-          this.error("Unsupported int operator " + binop.op, 0-1);
+          this.error("Unsupported string operator " + binop.op, 0-1);
       } else if (lt.builtin == "int" && (rt.builtin == "int")) {
         if (binop.op == "+") fname = "iadd";
         else if (binop.op == "-") fname = "isub";
         else if (binop.op == "*") fname = "imul";
         else if (binop.op == "/") fname = "idiv";
+
+        else if (binop.op == "<") fname = "ilt";
+        else if (binop.op == ">") fname = "igt";
+        else if (binop.op == "<=") fname = "ile";
+        else if (binop.op == ">=") fname = "ige";
+        else if (binop.op == "==") fname = "ieq";
+        else if (binop.op == "!=") fname = "ine";
+
         else // TODO: Better error message
           this.error("Unsupported int operator " + binop.op, 0-1);
       } else {
@@ -778,7 +829,7 @@ buffer compile (Node program, string filename) {
         f.name = body.val;
         f.mod = c.Item("module", body.child(0)) as any;
       } else if (body.tp == "block") {
-        f.code = compile_function(body) as any[]?;
+        f.code = compile_function(body, node) as any[]?;
       } else {
         c.error("Currently only imported functions are supported", node.line);
       }

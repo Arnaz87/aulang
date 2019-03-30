@@ -16,8 +16,8 @@ int strlen (string) = string_mod.length;
 string addch (string, char) = string_mod.add;
 
 void main () {
-  int n = 0, n2; char ch;
-  ch, n2 = charat("ABC", 0);
+  int n = 1, n2; char ch;
+  ch, n2 = charat("ABC", n);
   println("Character at " + itos(n) + addch(": ", ch));
 }
 

@@ -1,0 +1,17 @@
+void f (bool b) {
+  if (b) println("T");
+  else println("F");
+}
+
+void main () {
+  // Not yet supported ops commented
+  f(2==2); f(2==1);
+  //f(2!=1); f(2!=1);
+  f(2>1); f(2<1);
+  f(2>=1); f(2<=1);
+  f(2>=1); f(2<=1);
+  f(2>2); f(2<2);
+  f(2>=2); f(2<=2);
+  f("a" == "a");
+  f("a" == "b");
+}

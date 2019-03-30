@@ -93,6 +93,12 @@ struct DeclInst {
   Node tp;
 }
 
+struct ArgInst {
+  Register reg;
+  Node tp;
+  bool dummy;
+}
+
 struct LblInst {
   string name;
 }
@@ -146,7 +152,8 @@ string inst_name (any x) {
   if (x is DupInst) return "DupInst";
   if (x is SetInst) return "SetInst";
   if (x is VarInst) return "VarInst";
-  if (x is VarInst) return "DeclInst";
+  if (x is DeclInst) return "DeclInst";
+  if (x is ArgInst) return "ArgInst";
   if (x is JmpInst) return "JmpInst";
   if (x is JifInst) return "JifInst";
   if (x is LblInst) return "LblInst";
@@ -447,11 +454,25 @@ void compile_stmt (Scope s, Node node) {
   error("Unknown statement: " + node.tp);
 }
 
-AnyList compile_function (Node root) {
+AnyList compile_function (Node body, Node node) {
   AnyList code = new AnyList();
 
   Scope scope = new Scope(new RegMap(), code, new ScopeBox?(), 0, new LoopInfo?());
-  compile_stmt(scope, root);
+
+  Node in_node = node.child(0);
+
+  int i = 0;
+  while (i < in_node.len()) {
+    string name = in_node.child(i).val;
+    Node tp = in_node.child(i).child(0);
+
+    Register reg = newReg(name);
+    scope.inst(new ArgInst(reg, tp, false) as any);
+    scope.vars[name] = reg;
+    i = i+1;
+  }
+
+  compile_stmt(scope, body);
 
   return code;
 }

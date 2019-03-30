@@ -1,0 +1,2 @@
+void f (string s) { println(s); }
+void main () { f("Foo"); }
