@@ -628,11 +628,12 @@ Node parseModule (Parser p) {
     if (p.maybe("import")) {
       valnode = new Node("import", parseLongName(p));
     } else {
-      valnode = new Node("module", p.getname());
+      valnode = parseTopLevelItem(p);
       if (p.maybe("(")) {
-        valnode.tp = "functor";
-        check(p.next(), "module");
-        valnode.push(new Node("module", p.getname()));
+        Node base = valnode;
+        valnode = new Node("functor", "");
+        valnode.push(base);
+        valnode.push(parseTopLevelItem(p));
         check(p.next(), ")");
       }
     }

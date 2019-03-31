@@ -804,6 +804,10 @@ buffer compile (Node program, string filename) {
         mod.kind = "import";
         mod.name = vnode.val;
         //c.imports[mod.name] = new Import(mod as any, new Map());
+      } else if (vnode.tp == "functor") {
+        mod.kind = "build";
+        mod.base = c.Item("module", vnode.child(0)) as any;
+        mod.argument = c.Item("module", vnode.child(1)) as any;
       } else c.error(vnode.tp + " module expression", vnode.line);
     }
 

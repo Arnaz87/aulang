@@ -1,0 +1,15 @@
+module array_mod = import auro.array;
+module arr_arg { `0` = string; }
+module str_arr = array_mod(arr_arg);
+type array = str_arr.``;
+
+array new_arr (string, int) = str_arr.`new`;
+string get (array, int) = str_arr.get;
+void set (array, int, string) = str_arr.set;
+
+void main () {
+  array a = new_arr("", 2);
+  set(a, 0, "Foo");
+  set(a, 1, "Bar");
+  println(get(a, 0) + get(a, 1));
+}
