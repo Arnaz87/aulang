@@ -372,12 +372,21 @@ void compile_stmt (Scope s, Node node) {
 
       int i = 0;
       while (i < left.len()) {
-        Register reg = s.get_var(left.child(i).val, left);
+        Register reg = newReg("");
         regs.push(reg);
         i = i+1;
       }
 
+
       compile_call(s, right, regs);
+      
+      int i = 0;
+      while (i < left.len()) {
+        Register src = regs[i];
+        Register dst = s.get_var(left.child(i).val, left);
+        s.inst(new SetInst(src, dst, false) as any);
+        i = i+1;
+      }
     } else {
       Register src = compile_expr(s, right);
       Register dst = s.get_var(left.child(0).val, left);
