@@ -404,6 +404,9 @@ void compile_stmt (Scope s, Node node) {
 
   if (node.tp == "while") {
     LoopInfo loop = newLoopInfo(s, node.val);
+    if (strlen(node.val) > 0) {
+      s.inst(new LblInst(node.val) as any);
+    }
     Scope inner = new Scope(new RegMap(), s.code, s as ScopeBox as ScopeBox?, 0, loop as LoopInfo?);
 
     s.inst(new LblInst(loop.start) as any);
