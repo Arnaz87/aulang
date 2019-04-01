@@ -1,0 +1,378 @@
+
+module system = import auro.system;
+module string_mod = import auro.string;
+module array_mod = import auro.utils.arraylist;
+
+void exit (int) = system.exit;
+
+void error (string str, int line) {
+  println("Lexer error: " + str + ", at line " + itos(line));
+  exit(1);
+}
+
+
+//=== String processing ===//
+
+type char = string_mod.char;
+
+int codeof (char) = string_mod.codeof;
+char newchar (int) = string_mod.newchar;
+char, int charat (string, int) = string_mod.charat;
+int strlen (string) = string_mod.length;
+string addch (string, char) = string_mod.add;
+
+
+
+//=== Token type ===//
+
+module record = import auro.record;
+module token_arg {
+  `0` = string;
+  `1` = string;
+  `2` = int;
+}
+module token_mod = record(token_arg);
+type token = token_mod.``;
+token new_token (string, string, int) = token_mod.`new`;
+
+string get_tp (token) = token_mod.get0;
+string get_val (token) = token_mod.get1;
+int get_line (token) = token_mod.get2;
+
+void set_tp (token, string) = token_mod.set0;
+void set_val (token, string) = token_mod.set1;
+void set_line (token, int) = token_mod.set2;
+
+
+
+//=== Token arrays ===//
+
+module tkarr_arg { `0` = token; }
+module tkarr_mod = array_mod(tkarr_arg);
+
+type tkarr = tkarr_mod.``;
+tkarr new_tkarr () = tkarr_mod.`new`;
+int tkarr_len (tkarr) = tkarr_mod.len;
+token tkarr_get (tkarr, int) = tkarr_mod.get;
+void tkarr_push (tkarr, token) = tkarr_mod.push;
+
+
+
+//=== Character classes ===//
+
+bool isDigit (char ch) {
+  int code = codeof(ch);
+  return (code >= 48) && (code <= 57); // 0-9
+}
+
+bool isHex (char ch) {
+  if (isDigit(ch)) return true;
+  int code = codeof(ch);
+  return (code >= 97) && (code <= 102); // a-f
+}
+
+int hexVal (char ch) {
+  int code = codeof(ch);
+  if (isDigit(ch)) return code-48;
+  return 10 + code-97;
+}
+
+bool isAlpha (char ch) {
+  int code = codeof(ch);
+  return (code == 95) ||              // _
+    ((code >= 65) && (code <= 90)) || // A-Z
+    ((code >= 97) && (code <= 122)) ; // a-z
+}
+
+bool isKw (string s) {
+  return
+    (s == "true") ||
+    (s == "false") ||
+    (s == "null") ||
+    (s == "void") ||
+
+    (s == "if") ||
+    (s == "else") ||
+    (s == "while") ||
+    (s == "return") ||
+    (s == "continue") ||
+    (s == "break") ||
+    (s == "goto") ||
+
+    (s == "as") ||
+    (s == "is") ||
+    (s == "new") ||
+    (s == "type") ||
+    (s == "struct") ||
+    (s == "import") ||
+    (s == "module") ||
+    (s == "extern") ||
+    (s == "export") ||
+    (s == "private") ;
+}
+
+bool isOp (char ch) {
+  int code = codeof(ch);
+  return
+    (code == 40) || // (
+    (code == 41) || // )
+    (code == 42) || // *
+    (code == 43) || // +
+    (code == 44) || // ,
+    (code == 45) || // -
+    (code == 46) || // .
+    (code == 58) || // :
+    (code == 59) || // ;
+    (code == 63) || // ?
+    (code == 91) || // [
+    (code == 93) || // ]
+    (code == 123) || // {
+    (code == 125) ;  // }
+}
+
+bool maybeEq (char ch) {
+  int code = codeof(ch);
+  return
+    (code == 33) || // !
+    (code == 60) || // <
+    (code == 61) || // =
+    (code == 62) ; // >
+}
+
+bool maybeDouble (char ch) {
+  int code = codeof(ch);
+  return
+    (code == 38) || // &
+    (code == 124) ; // |
+}
+
+bool isSpace (char ch) {
+  int code = codeof(ch);
+  return
+    (code == 9)  || // \t
+    (code == 10) || // \n
+    (code == 32) ;  // ' '
+}
+
+bool isQuote (char ch) {
+  int code = codeof(ch);
+  return
+    (code == 34) || // "
+    (code == 39) || // '
+    (code == 96) ;  // `
+}
+
+
+
+//=== Tokenize ===//
+
+tkarr tokens (string input) {
+
+  // Fix nasty bug where the last character is omited
+  input = input + " ";
+
+  tkarr arr = new_tkarr();
+
+  int len = strlen(input);
+  int pos = 0;
+  char ch;
+
+  int line = 1;
+
+  ch, pos = charat(input, pos);
+
+  main:
+  while (pos < len) {
+    skipspace:
+    while (isSpace(ch)) {
+      // Count the line
+      if (codeof(ch) == 10) { line = line+1; }
+      if (pos >= len) { break main; }
+      ch, pos = charat(input, pos);
+    }
+
+    int code = codeof(ch);
+    token tk;
+
+    if (codeof(ch) == 47) { // '/'
+      if (pos < len)
+        ch, pos = charat(input, pos);
+      if (codeof(ch) == 47) { // Start line comment
+        while (!(codeof(ch) == 10)) { // \n
+          if (pos >= len) break main;
+          ch, pos = charat(input, pos);
+        }
+        // A line comment can only terminate with a newline, count it
+        line = line+1;
+        if (pos < len) ch, pos = charat(input, pos); // skip it
+        goto skipspace;
+      } else if (codeof(ch) == 42) { // '*' start multiline comment
+        while (true) {
+          // Count lines in long comments
+          if (codeof(ch) == 10) { line = line+1; }
+          if (codeof(ch) == 42) { // '*'
+            if (pos >= len) break main;
+            ch, pos = charat(input, pos);
+            if (codeof(ch) == 47) // '/'
+              break;
+          }
+          if (pos >= len) break main;
+          ch, pos = charat(input, pos);
+        }
+        if (pos < len) ch, pos = charat(input, pos); // skip newline
+        goto skipspace;
+      } else {
+        tk = new_token("/", "", line);
+      }
+    }
+
+    else if (codeof(ch) == 36) { // $
+      string op = "$";
+      if (pos < len) {
+        ch, pos = charat(input, pos);
+
+        if ( (codeof(ch) == 60) // <
+          || (codeof(ch) == 46) // .
+        ) { 
+          op = addch(op, ch);
+          if (pos < len)
+            ch, pos = charat(input, pos);
+        }
+      }
+      tk = new_token(op, "", line);
+    }
+
+    else if (isDigit(ch)) {
+      string val = "";
+      while (isDigit(ch)) {
+        val = addch(val, ch);
+        if (pos >= len) break;
+        ch, pos = charat(input, pos);
+      }
+      tk = new_token("num", val, line);
+    }
+
+    else if (isAlpha(ch)) {
+      string val = addch("", ch);
+      if (pos < len) {
+        ch, pos = charat(input, pos);
+        while (isAlpha(ch) || isDigit(ch)) {
+          val = addch(val, ch);
+          if (pos >= len) break;
+          ch, pos = charat(input, pos);
+        }
+      }
+      if (isKw(val)) tk = new_token(val, "", line);
+      else tk = new_token("name", val, line);
+    }
+
+    else if (maybeEq(ch)) {
+      string op = addch("", ch);
+      if (pos < len) {
+        ch, pos = charat(input, pos);
+        if (codeof(ch) == 61) {
+          op = op + "=";
+          if (pos < len)
+            ch, pos = charat(input, pos);
+        }
+      }
+      tk = new_token(op, "", line);
+    }
+
+    else if (maybeDouble(ch)) {
+      char oldch = ch;
+      ch, pos = charat(input, pos);
+      if (codeof(oldch) == codeof(ch)) {
+        string op = addch(addch("", ch),ch);
+        tk = new_token(op, "", line);
+        if (pos < len) ch, pos = charat(input, pos); // Skip second char
+      } else tk = new_token(addch("", oldch), "", line);
+    }
+
+    else if (isOp(ch)) {
+      tk = new_token(addch("", ch), "", line);
+      if (pos < len)
+        ch, pos = charat(input, pos);
+    }
+
+    else if (isQuote(ch)) {
+      int quoteCode = codeof(ch);
+      string val = "";
+      beginq:
+        if (pos >= len) error("Unfinished string", line);
+        ch, pos = charat(input, pos);
+
+        // Closing quote
+        if (codeof(ch) == quoteCode) goto endq;
+
+        if (codeof(ch) == 92) { // Escape
+          if (pos >= len) error("Unfinished string", line);
+          ch, pos = charat(input, pos);
+          bool copyit =
+            (codeof(ch) == 92) ||
+            (codeof(ch) == 34) ||
+            (codeof(ch) == 39);
+
+          if (copyit) {
+            val = addch(val, ch);
+          } else if (codeof(ch) == 110) { // n
+            val = addch(val, newchar(10)); // Line feed
+          } else if (codeof(ch) == 116) { // t
+            val = addch(val, newchar(9)); // Horizontal tab
+          } else if (codeof(ch) == 120) { // x
+            if (pos+2 >= len) error("Unfinished string", line);
+            ch, pos = charat(input, pos);
+            if (isHex(ch)) {
+              int n = hexVal(ch)*16;
+              ch, pos = charat(input, pos);
+              if (isHex(ch)) {
+                n = n+hexVal(ch);
+                val = addch(val, newchar(n));
+                goto beginq;
+              }
+            }
+            error("Invalid hexadecimal code", line);
+          } else {
+            val = addch(addch(val, newchar(92)), ch);
+          }
+          goto beginq;
+        }
+
+        val = addch(val, ch); // Anything else
+        goto beginq;
+      endq:
+      if (pos < len) ch, pos = charat(input, pos); // Skip closing quote
+      if (quoteCode == 34) tk = new_token("str", val, line);   // "
+      if (quoteCode == 39) tk = new_token("char", val, line);  // '
+      if (quoteCode == 96) tk = new_token("name", val, line);  // `
+    } else {
+      error(addch("Unexpected character ", ch), line);
+    }
+
+
+    // Push the token
+    tkarr_push(arr, tk);
+  }
+
+  tkarr_push(arr, new_token("eof", "", line+1));
+  return arr;
+}
+
+
+//=== Main function ===//
+
+module util = import aulang.util;
+string readall (string filename) = util.readall;
+
+void main () {
+  string src = readall("test.au");
+  tkarr tks = tokens(src);
+  int len = tkarr_len(tks);
+  println(itos(len) + " tokens:");
+  int i = 0;
+  while (i < len) {
+    token tk = tkarr_get(tks, i);
+    println(itos(get_line(tk)) + ":   " + get_tp(tk) + " " + get_val(tk));
+    i = i+1;
+  }
+}

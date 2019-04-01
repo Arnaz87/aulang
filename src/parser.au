@@ -276,7 +276,7 @@ string parseLongName (Parser p) {
       name = name + "\x1f";
       goto nextname;
     }
-    if (p.maybe(":")) {
+    if (p.maybe("$")) {
       name = name + "\x1d";
       goto nextname;
     }
@@ -589,7 +589,11 @@ Node parseTopLevelItem (Parser p) {
 
   Node node = new Node("item", p.getname());
   while (p.maybe(".")) {
-    Node _node = new Node("field", p.getname());
+    var name = p.getname();
+    while (p.maybe("$")) {
+      name = name + "\x1d" + p.getname();
+    }
+    Node _node = new Node("field", name);
     _node.push(node);
     node = _node;
   }
