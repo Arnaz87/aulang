@@ -21,7 +21,7 @@ import auro.io {
   bool eof (file);
 }
 
-import aulang.compiler { buffer compile (string src); }
+import culang.compiler { buffer compile (string src); }
 
 string readall (file f) {
   string str = "";

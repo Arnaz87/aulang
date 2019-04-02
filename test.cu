@@ -4,7 +4,7 @@ import auro.buffer {
   int get (buffer, int);
 }
 
-import aulang.writer {
+import culang.writer {
   type Writer {
     void byte (int);
     void num (int);

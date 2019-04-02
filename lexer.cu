@@ -3,7 +3,7 @@ import auro.system {
   void println (string);
   void exit (int);
 }
-import aulang.util { string readall (string filename); }
+import culang.util { string readall (string filename); }
 
 import auro.string {
   int codeof (char);
