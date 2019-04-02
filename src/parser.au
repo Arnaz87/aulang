@@ -5,7 +5,7 @@
 
 
 module system = import auro.system;
-module array_mod = import auro.array;
+module array_mod = import auro.utils.arraylist;
 module record_mod = import auro.record;
 
 void exit (int) = system.exit;
@@ -544,7 +544,7 @@ Node parseModule (Parser p) {
   check(next(p), "{");
   nextitem:
     if (peek_tp(p) == "}") goto enditem;
-    Node itemnode = newNode("item", getname(p));
+    Node itemnode = newNode("item", parseLongName(p));
     check(next(p), "=");
     Node_push(itemnode, parseTopLevelItem(p));
     check(next(p), ";");

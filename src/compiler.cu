@@ -863,7 +863,7 @@ buffer compile (Node program, string filename) {
         i = i+1;
       }
 
-      Node body = node.child(3);
+      Node body = node.child(2);
 
       if (body.tp == "field") {
         f.name = body.val;

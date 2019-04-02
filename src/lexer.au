@@ -376,3 +376,17 @@ void main () {
     i = i+1;
   }
 }
+
+module to_export {
+  token = token;
+  tp$get$token = get_tp;
+  tp$set$token = set_tp;
+  val$get$token = get_val;
+  val$set$token = set_val;
+  line$get$token = get_line;
+  line$set$token = set_line;
+  tokens = tokens;
+  main = main;
+}
+
+export to_export;
