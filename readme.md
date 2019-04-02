@@ -25,3 +25,7 @@ Running `bash build.sh bootstrap` compiles the source code with whatever version
 - maybe improve null syntax
 - compiler.au is too big, 2100 LOC!
 - inspect imported modules and import their items automatically
+
+# Culang
+
+The previous version of the language was named culang, and it's extension is `.cu`, to install that one checkout the *culang* branch and install it. The source of aulang is written in it.

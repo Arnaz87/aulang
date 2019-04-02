@@ -40,7 +40,7 @@ fi
 
 if [ "$1" != "install" ]; then
   rm dist/*
-  compile () { echo compiling $1; auro aulang src/$1.au dist/aulang.$1; }
+  compile () { echo compiling $1; auro culang src/$1.cu dist/aulang.$1; }
   compile util &&
   compile node &&
   compile item &&
@@ -50,7 +50,7 @@ if [ "$1" != "install" ]; then
   compile writer &&
   compile compiler &&
   echo compiling aulang &&
-  auro aulang src/aulang.au dist/aulang ||
+  auro culang src/aulang.cu dist/aulang ||
   (echo "Could not compile files"; exit)
 fi
 
