@@ -158,30 +158,29 @@ Node parseType (Parser p) {
   return node;*/
 }
 
-/*
 
 bool isUnop (string ty) {
   return (ty == "-") || (ty == "!");
 }
 
 bool isBinop (string ty) {
-  if (ty == "+") return true;
-  if (ty == "-") return true;
-  if (ty == "*") return true;
-  if (ty == "/") return true;
-  if (ty == "<") return true;
-  if (ty == ">") return true;
-  if (ty == "<=") return true;
-  if (ty == "==") return true;
-  if (ty == ">=") return true;
-  if (ty == "!=") return true;
-  if (ty == "&&") return true;
-  if (ty == "||") return true;
-  return false;
+  return
+    (ty == "+") ||
+    (ty == "-") ||
+    (ty == "*") ||
+    (ty == "/") ||
+    (ty == "<") ||
+    (ty == ">") ||
+    (ty == "<=") ||
+    (ty == "==") ||
+    (ty == ">=") ||
+    (ty == "!=") ||
+    (ty == "&&") ||
+    (ty == "||");
 }
 
 Node parseBaseExpr (Parser p) {
-  int line = get_line(p);
+  int line = line(p);
   Node node;
   token tk = next(p);
   string ty = tk_tp(tk);
@@ -190,15 +189,15 @@ Node parseBaseExpr (Parser p) {
     check(next(p), ")");
     return node;
   } else if (ty == "num") {
-    node = newNode("num", tk.val);
+    node = newNode("num", tk_val(tk));
   } else if (ty == "str") {
-    node = newNode("str", tk.val);
+    node = newNode("str", tk_val(tk));
   } else if (ty == "true") {
     node = newNode("true", "");
   } else if (ty == "false") {
     node = newNode("false", "");
   } else if (ty == "name") {
-    node = newNode("var", tk.val);
+    node = newNode("var", tk_val(tk));
   } else if (ty == "new") {
     node = newNode("new", "");
     Node_push(node, parseType(p));
@@ -210,7 +209,7 @@ Node parseBaseExpr (Parser p) {
 
 Node parseSuffix (Parser p) {
   if (isUnop(peek_tp(p))) {
-    int line = get_line(p);
+    int line = line(p);
     string op = tk_tp(next(p));
     Node base = parseSuffix(p);
     Node node = newNode("unop", op);
@@ -219,7 +218,7 @@ Node parseSuffix (Parser p) {
   }
   Node base = parseBaseExpr(p);
   suffix:
-    int line = get_line(p);
+    int line = line(p);
     if (maybe(p, "(")) {
       Node nxt = newNode("call", "");
       Node_push(nxt, base);
@@ -239,10 +238,10 @@ Node parseSuffix (Parser p) {
       base = Node_inline(nxt, line);
       goto suffix;
     }
-  int line = get_line(p);
+  int line = line(p);
   while (maybe(p, "as")) {
     Node nxt = newNode("cast", "");
-    if (maybe(p, "?")) tk_tp(nxt) = "anycast";
+    if (maybe(p, "?")) set_tp(nxt, "anycast");
     Node_push(nxt, base);
     Node_push(nxt, parseType(p));
     base = Node_inline(nxt, line);
@@ -262,8 +261,8 @@ Node parseExpr (Parser p) {
     string op = tk_tp(next(p));
     Node right = parseSuffix(p);
     Node node = newNode("binop", op);
-    if (op == "||") tk_tp(node) = "logic";
-    if (op == "&&") tk_tp(node) = "logic";
+    if (op == "||") set_tp(node, "logic");
+    if (op == "&&") set_tp(node, "logic");
     Node_push(node, left);
     Node_push(node, right);
     left = node;
@@ -281,7 +280,6 @@ Node parseExprList (Parser p, string end) {
   check(next(p), end);
   return node;
 }
-*/
 
 
 
@@ -349,15 +347,15 @@ Node parseIdentItem (Parser p) {
       Node_push(declnode, tpnode);
       return declnode;
     }
-    /*if (maybe(p, "=")) {
+    if (maybe(p, "=")) {
       Node tpnode = Node_child(outs, 0);
       Node node = newNode("decl_assign", name);
       set_line(node, line);
       Node_push(node, tpnode);
-      Node_push(node, parseExpr(p));
+      //Node_push(node, parseExpr(p));
       check(next(p), ";");
       return node;
-    }*/
+    }
   }
 
   check(peek(p), "("); // already failed '(', but give error message
@@ -368,7 +366,7 @@ Node parseImport (Parser p) {
   // import keyword already consumed
 
   Node result = newNode("import", "");
-  if (maybe(p, "module")) tk_tp(result) = "import-module";
+  if (maybe(p, "module")) set_tp(result, "import-module");
   set_val(result, parseLongName(p);
 
   bool hasbody = false;
@@ -377,11 +375,11 @@ Node parseImport (Parser p) {
   if (maybe(p, "(")) {
     hasbody = true;
     if (maybe(p, "module")) {
-      tk_tp(argnode) = "module";
+      set_tp(argnode, "module");
       set_val(argnode, getname(p);
       goto endarg;
     }
-    tk_tp(argnode) = "arglist";
+    set_tp(argnode, "arglist");
     if (peek_tp(p) == ")") goto endarg;
     nextarg:
       Node argNode = newNode("name", getname(p));
@@ -500,7 +498,7 @@ Node parseDecl (Parser p) {
 
   nextpart:
     Node partnode = newNode("declpart", getname(p));
-    //if (maybe(p, "=")) Node_push(partnode, parseExpr(p));
+    if (maybe(p, "=")) Node_push(partnode, parseExpr(p));
     Node_push(node, partnode);
     if (maybe(p, ",")) goto nextpart;
   check(next(p), ";");
@@ -634,7 +632,7 @@ Node parseModule (Parser p) {
   }
 
   if (maybe(p, "=")) {
-    tk_tp(modnode) = "module-assign";
+    set_tp(modnode, "module-assign");
     Node valnode;
     if (maybe(p, "import")) {
       valnode = newNode("import", parseLongName(p));
@@ -687,7 +685,7 @@ Node parseTopLevel (Parser p) {
     Node node = newNode("export", "");
     Node_push(node, parseTopLevelItem(p));
     if (maybe(p, "as")) {
-      tk_tp(node) = "export-alias";
+      set_tp(node, "export-alias");
       set_val(node, getname(p);
     }
     check(next(p), ";");
@@ -718,7 +716,7 @@ Node parseTopLevel (Parser p) {
       check(next(p), ")");
       check(next(p), ";");
     } else if (maybe(p, "=")) {
-      tk_tp(typenode) = "type-assign";
+      set_tp(typenode, "type-assign");
       Node_push(typenode, parseTopLevelItem(p));
       check(next(p), ";");
     }
