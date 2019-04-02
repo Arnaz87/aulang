@@ -1,4 +1,655 @@
+
+// =============================== //
+//         Imports & Types         //
+// =============================== //
+
+
+module system = import auro.system;
+module array_mod = import auro.array;
+module record_mod = import auro.record;
+
+void exit (int) = system.exit;
+void syserr (string) = system.error;
+
+void error (string str, int line) {
+  println("Lexer error: " + str + ", at line " + itos(line));
+  exit(1);
+}
+
+
+
+//===   Node  ===//
+
+module aulang_node = import aulang.node;
+
+type Node = aulang_node.Node;
+
+Node newNode (string tp, string val) = aulang_node.`new`$Node;
+
+string get_tp (Node) = aulang_node.tp$get$Node;
+string get_val (Node) = aulang_node.val$get$Node;
+int get_line (Node) = aulang_node.line$get$Node;
+void set_tp (Node, string) = aulang_node.tp$set$Node;
+void set_val (Node, string) = aulang_node.val$set$Node;
+void set_line (Node, int) = aulang_node.line$set$Node;
+
+Node Node_child (Node, int) = aulang_node.child$Node;
+void Node_push (Node self, Node elem) = aulang_node.push$Node;
+int Node_len (Node) = aulang_node.len$Node;
+
+void Node_print (Node, string indentation) = aulang_node.print$Node;
+Node Node_inline (Node, int) = aulang_node.inline$Node;
+
+
+//===  Lexer  ===//
+
+module aulang_lexer = import aulang.lexer;
+
+type token = aulang_lexer.token;
+string tk_tp (token) = aulang_lexer.tp$get$token;
+string tk_val (token) = aulang_lexer.val$get$token;
+int tk_line (token) = aulang_lexer.line$get$token;
+
+module tkarr_arg { `0` = token; }
+module tkarr_mod = array_mod(tkarr_arg);
+
+type tkarr = tkarr_mod.``;
+int tkarr_len (tkarr) = tkarr_mod.len;
+token tkarr_get (tkarr, int) = tkarr_mod.get;
+tkarr lex_tokens (string) = aulang_lexer.tokens;
+
+
+
+
+// =============================== //
+//        Parser and basics        //
+// =============================== //
+
+
+module parser_arg {
+  `0` = tkarr;
+  `1` = int;
+}
+module parser_mod = record_mod(parser_arg);
+type Parser = parser_mod.``;
+
+Parser newParser (tkarr, int) = parser_mod.`new`;
+
+tkarr tokens (Parser) = parser_mod.get0;
+int get_pos (Parser) = parser_mod.get1;
+void set_pos (Parser, int) = parser_mod.set1;
+
+void error (string msg, token tk) {
+  string pos = "line " + itos(tk_line(tk));
+  if (tk_tp(tk) == "eof") pos = "end of file";
+  println("Parse error: " + msg + ", at " + pos);
+  exit(1);
+}
+
+void check (token tk, string tp) {
+  if (!(tk_tp(tk) == tp)) {
+    error("expected " + tp + " but got " + tk_tp(tk), tk);
+  }
+}
+
+
+token peek (Parser this) {
+  return tkarr_get(tokens(this), get_pos(this));
+}
+
+string peek_tp (Parser this) {
+  return tk_tp(peek(this));
+}
+
+token peekat(Parser this, int p) {
+  return tkarr_get(tokens(this), get_pos(this) + p);
+}
+
+token next (Parser this) {
+  token tk = peek(this);
+  set_pos(this, get_pos(this) + 1);
+  return tk;
+}
+
+string getname (Parser this) {
+  token tk = next(this);
+  check(tk, "name");
+  return tk_val(tk);
+}
+
+bool maybe (Parser this, string tp) {
+  if (tk_tp(peek(this)) == tp) {
+    next(this);
+    return true;
+  }
+  return false;
+}
+
+int line (Parser this) {
+  return tk_line(peek(this));
+}
+
+
+
+
+// =============================== //
+//            Expressions          //
+// =============================== //
+
+Node parseType (Parser p) {
+  return parseTopLevelItem(p);
+  /*int line = line(p);
+  Node node = newNode("type", Node_inline(getname(p), line));
+  repeat:
+    if (maybe(p, "?")) {
+      Node basenode = node;
+      node = Node_inline(newNode("null", ""), line);
+      Node_push(node, basenode);
+      goto repeat;
+    }
+    if (!(peek_tp(p) == "[")) goto end;
+    if (!(tk_tp(peekat(p, 1)) == "]")) goto end;
+    next(p); next(p);
+    Node basenode = node;
+    node = Node_inline(newNode("array", ""), line);
+    Node_push(node, basenode);
+    goto repeat;
+  end:
+  return node;*/
+}
+
+
+bool isUnop (string ty) {
+  return (ty == "-") || (ty == "!");
+}
+
+bool isBinop (string ty) {
+  return
+    (ty == "+") ||
+    (ty == "-") ||
+    (ty == "*") ||
+    (ty == "/") ||
+    (ty == "<") ||
+    (ty == ">") ||
+    (ty == "<=") ||
+    (ty == "==") ||
+    (ty == ">=") ||
+    (ty == "!=") ||
+    (ty == "&&") ||
+    (ty == "||");
+}
+
+Node parseBaseExpr (Parser p) {
+  int line = line(p);
+  Node node;
+  token tk = next(p);
+  string ty = tk_tp(tk);
+  if (ty == "(") {
+    Node node = parseExpr(p);
+    check(next(p), ")");
+    return node;
+  } else if (ty == "num") {
+    node = newNode("num", tk_val(tk));
+  } else if (ty == "str") {
+    node = newNode("str", tk_val(tk));
+  } else if (ty == "true") {
+    node = newNode("true", "");
+  } else if (ty == "false") {
+    node = newNode("false", "");
+  } else if (ty == "name") {
+    node = newNode("var", tk_val(tk));
+  } else if (ty == "new") {
+    node = newNode("new", "");
+    Node_push(node, parseType(p));
+    check(next(p), "(");
+    Node_push(node, parseExprList(p, ")"));
+  } else { error("invalid expression", tk); }
+  return Node_inline(node, line);
+}
+
+Node parseSuffix (Parser p) {
+  if (isUnop(peek_tp(p))) {
+    int line = line(p);
+    string op = tk_tp(next(p));
+    Node base = parseSuffix(p);
+    Node node = newNode("unop", op);
+    Node_push(node, base);
+    return Node_inline(node, line);
+  }
+  Node base = parseBaseExpr(p);
+  suffix:
+    int line = line(p);
+    if (maybe(p, "(")) {
+      Node nxt = newNode("call", "");
+      Node_push(nxt, base);
+      Node_push(nxt, parseExprList(p, ")"));
+      base = Node_inline(nxt, line);
+      goto suffix;
+    } else if (maybe(p, ".")) {
+      Node nxt = newNode("field", getname(p));
+      Node_push(nxt, base);
+      base = Node_inline(nxt, line);
+      goto suffix;
+    } else if (maybe(p, "[")) {
+      Node nxt = newNode("index", "");
+      Node_push(nxt, base);
+      Node_push(nxt, parseExpr(p));
+      check(next(p), "]");
+      base = Node_inline(nxt, line);
+      goto suffix;
+    }
+  int line = line(p);
+  while (maybe(p, "as")) {
+    Node nxt = newNode("cast", "");
+    if (maybe(p, "?")) set_tp(nxt, "anycast");
+    Node_push(nxt, base);
+    Node_push(nxt, parseType(p));
+    base = Node_inline(nxt, line);
+  }
+  if (maybe(p, "is")) {
+    Node nxt = newNode("is", "");
+    Node_push(nxt, base);
+    Node_push(nxt, parseType(p));
+    base = Node_inline(nxt, line);
+  }
+  return base;
+}
+
+Node parseExpr (Parser p) {
+  Node left = parseSuffix(p);
+  while (isBinop(peek_tp(p))) {
+    string op = tk_tp(next(p));
+    Node right = parseSuffix(p);
+    Node node = newNode("binop", op);
+    if (op == "||") set_tp(node, "logic");
+    if (op == "&&") set_tp(node, "logic");
+    Node_push(node, left);
+    Node_push(node, right);
+    left = node;
+  }
+  return left;
+}
+
+Node parseExprList (Parser p, string end) {
+  Node node = newNode("exprlist", "");
+  if (peek_tp(p) == end) goto end;
+  nextexpr:
+    Node_push(node, parseExpr(p));
+    if (maybe(p, ",")) goto nextexpr;
+  end:
+  check(next(p), end);
+  return node;
+}
+
+
+
+
+// =============================== //
+//            Statements           //
+// =============================== //
+
+string parseLongName (Parser p) {
+  string name = "";
+  nextname:
+    name = name + getname(p);
+    if (maybe(p, ".")) {
+      name = name + "\x1f";
+      goto nextname;
+    }
+    if (maybe(p, "$")) {
+      name = name + "\x1d";
+      goto nextname;
+    }
+    return name;
+}
+
+// Items that start with an identifier
+Node parseIdentItem (Parser p) {
+  token _tk = peek(p);
+  int line = tk_line(_tk);
+  Node outs = newNode("outs", "");
+  if (!maybe(p, "void")) {
+    nextout:
+    Node_push(outs, parseTopLevelItem(p));
+    if (maybe(p, ",")) goto nextout;
+  }
+
+  string name = parseLongName(p);
+
+  if (maybe(p, "(")) {
+    Node ins = newNode("ins", "");
+    if (peek_tp(p) == ")") goto endin;
+    nextin:
+      Node argNode = newNode("arg", "");
+
+      Node_push(argNode, parseTopLevelItem(p));
+
+      if (peek_tp(p) == "name")
+        set_val(argNode, getname(p));
+      Node_push(ins, argNode);
+      if (peek_tp(p) == ",") {
+        next(p);
+        goto nextin;
+      }
+    endin:
+    check(next(p), ")");
+
+    Node node = newNode("function", name);
+    set_line(node, line);
+    Node_push(node, ins);
+    Node_push(node, outs);
+    return node;
+  } else if (Node_len(outs) == 1) {
+    if (maybe(p, ";")) {
+      Node tpnode = Node_child(outs, 0);
+      Node declnode = newNode("decl", name);
+      set_line(declnode, line);
+      Node_push(declnode, tpnode);
+      return declnode;
+    }
+    if (maybe(p, "=")) {
+      Node tpnode = Node_child(outs, 0);
+      Node node = newNode("decl_assign", name);
+      set_line(node, line);
+      Node_push(node, tpnode);
+      //Node_push(node, parseExpr(p));
+      check(next(p), ";");
+      return node;
+    }
+  }
+
+  check(peek(p), "("); // already failed '(', but give error message
+}
+
+Node parseAssignment (Parser p, Node first) {
+  Node left = newNode("exprlist", "");
+  Node_push(left, first);
+
+  nextleft:
+    if (!maybe(p, ",")) goto endleft;
+    Node_push(left, parseExpr(p));
+    goto nextleft;
+  endleft:
+  check(next(p), "=");
+
+  Node expr = parseExpr(p);
+  check(next(p), ";");
+
+  Node node = newNode("assignment", "");
+  Node_push(node, left);
+  Node_push(node, expr);
+  return node;
+}
+
+Node parseDecl (Parser p) {
+  Node node = newNode("decl", "");
+  Node_push(node, parseType(p));
+
+  nextpart:
+    Node partnode = newNode("declpart", getname(p));
+    if (maybe(p, "=")) Node_push(partnode, parseExpr(p));
+    Node_push(node, partnode);
+    if (maybe(p, ",")) goto nextpart;
+  check(next(p), ";");
+
+  return node;
+}
+
+Node parseStmt (Parser p) {
+  int line = line(p);
+  token _tk = peek(p);
+  if (peek_tp(p) == "{") return parseBlock(p);
+  if (maybe(p, "goto")) {
+    Node node = newNode("goto", getname(p));
+    check(next(p), ";");
+    return Node_inline(node, line);
+  }
+  if (maybe(p, "return")) {
+    Node node = newNode("return", "");
+    Node_push(node, parseExprList(p, ";"));
+    return Node_inline(node, line);
+  }
+  if (maybe(p, "break")) {
+    Node node = newNode("break", "");
+    if (peek_tp(p) == "name")
+      set_val(node, getname(p));
+    check(next(p), ";");
+    return Node_inline(node, line);
+  }
+  if (maybe(p, "if")) {
+    Node node = newNode("if", "");
+    check(next(p), "(");
+    Node_push(node, parseExpr(p));
+    check(next(p), ")");
+    Node_push(node, parseStmt(p));
+    if (maybe(p, "else"))
+      Node_push(node, parseStmt(p));
+    return Node_inline(node, line);
+  }
+  if (maybe(p, "while")) {
+    Node node = newNode("while", "");
+    check(next(p), "(");
+    Node_push(node, parseExpr(p));
+    check(next(p), ")");
+    Node_push(node, parseStmt(p));
+    return Node_inline(node, line);
+  }
+  if (peek_tp(p) == "name") {
+    string ty = tk_tp(peekat(p, 1));
+    if (ty == ":") {
+      string name = getname(p); next(p);
+      if (peek_tp(p) == "while") {
+        Node loop = parseStmt(p);
+        set_val(loop, name);
+        return loop;
+      } else {
+        return Node_inline(newNode("label", name), line);
+      }
+    }
+    if (ty == "[")
+      if (tk_tp(peekat(p, 2)) == "]")
+        return Node_inline(parseDecl(p), line);
+    if (ty == "?") return Node_inline(parseDecl(p), line);
+    if (ty == "name") return Node_inline(parseDecl(p), line);
+  }
+  Node expr = parseExpr(p);
+  if (peek_tp(p) == "=" || (peek_tp(p) == ","))
+    return Node_inline(parseAssignment(p, expr), line);
+  if (get_tp(expr) == "call") {
+    check(next(p), ";");
+    return expr;
+  }
+  error("invalid statement", _tk);
+}
+
+Node parseBlock (Parser p) {
+  Node result = newNode("block", "");
+  check(next(p), "{");
+  repeat:
+  if (maybe(p, "}")) return result;
+  int line = line(p);
+  Node stmt = parseStmt(p);
+  set_line(stmt, line);
+  Node_push(result, stmt);
+  goto repeat;
+}
+
+Node parseTopLevelItem (Parser p) {
+  int line = line(p);
+
+  if (maybe(p, "$."))
+    return Node_inline(newNode("generic_arg", getname(p)), line);
+
+  Node node = newNode("item", getname(p));
+  
+  while (maybe(p, ".")) {
+    var name = getname(p);
+    while (maybe(p, "$")) {
+      name = name + "\x1d" + getname(p);
+    }
+    Node _node = newNode("field", name);
+    Node_push(_node, node);
+    node = _node;
+  }
+
+  if (maybe(p, "$<")) {
+    Node _generic = newNode("generic", "");
+    Node_push(_generic, Node_inline(node, line));
+    node = _generic;
+
+    loop:
+      Node decl = newNode("decl", getname(p));
+      check(next(p), "=");
+      Node item = parseTopLevelItem(p);
+      Node_push(decl, item);
+      Node_push(node, decl);
+      if (maybe(p, ",")) goto loop;
+    check(next(p), ">");
+  }
+
+  return Node_inline(node, line);
+}
+
+Node parseModule (Parser p) {
+  Node modnode = newNode("module-def", getname(p));
+
+  token generic_tk = peek(p);
+  bool generic = false;
+  if (maybe(p, "$<")) {
+    generic = true;
+    check(next(p), ">");
+  }
+
+  if (maybe(p, "=")) {
+    set_tp(modnode, "module-assign");
+    Node valnode;
+    if (maybe(p, "import")) {
+      valnode = newNode("import", parseLongName(p));
+    } else {
+      valnode = parseTopLevelItem(p);
+      if (maybe(p, "(")) {
+        Node base = valnode;
+        valnode = newNode("functor", "");
+        Node_push(valnode, base);
+        Node_push(valnode, parseTopLevelItem(p));
+        check(next(p), ")");
+      }
+    }
+    check(next(p), ";");
+    Node_push(modnode, valnode);
+    if (generic) Node_push(modnode, newNode("generic", ""));
+    return modnode;
+  }
+
+  check(next(p), "{");
+  nextitem:
+    if (peek_tp(p) == "}") goto enditem;
+    Node itemnode = newNode("item", getname(p));
+    check(next(p), "=");
+    Node_push(itemnode, parseTopLevelItem(p));
+    check(next(p), ";");
+    Node_push(modnode, itemnode);
+    goto nextitem;
+  enditem:
+  check(next(p), "}");
+
+  if (generic) error("definition modules can't be generic", generic_tk);
+
+  return modnode;
+}
+
+Node parseTopLevel (Parser p) {
+  token _tk = peek(p);
+  if (maybe(p, "export")) {
+    Node node = newNode("export", "");
+    Node_push(node, parseTopLevelItem(p));
+    if (maybe(p, "as")) {
+      set_tp(node, "export-alias");
+      set_val(node, getname(p));
+    }
+    check(next(p), ";");
+    return Node_inline(node, tk_line(_tk));
+  }
+
+  bool ispriv = maybe(p, "private");
+  Node node;
+  if (maybe(p, "struct")) {
+    Node typenode = newNode("struct", parseLongName(p));
+    check(next(p), "{");
+    nextmember:
+      if (maybe(p, "}")) goto endmember;
+      Node item = parseIdentItem(p);
+      if (get_tp(item) == "function")
+        Node_push(item, parseBlock(p));
+      Node_push(typenode, item);
+      goto nextmember;
+    endmember:
+    node = Node_inline(typenode, tk_line(_tk));
+  } else if (maybe(p, "type")) {
+    Node typenode = newNode("type", parseLongName(p));
+    if (maybe(p, "(")) {
+      check(next(p), "(");
+      Node base = parseType(p);
+      Node_push(typenode, base);
+      check(next(p), ")");
+      check(next(p), ";");
+    } else if (maybe(p, "=")) {
+      set_tp(typenode, "type-assign");
+      Node_push(typenode, parseTopLevelItem(p));
+      check(next(p), ";");
+    }
+    node = Node_inline(typenode, tk_line(_tk));
+  } else if (maybe(p, "module")) {
+    node = Node_inline(parseModule(p), tk_line(_tk));
+  } else {
+    node = parseIdentItem(p);
+    if (get_tp(node) == "function") {
+      if (maybe(p, "=")) {
+        Node_push(node, parseTopLevelItem(p));
+        check(next(p), ";");
+      } else {
+        Node_push(node, parseBlock(p));
+      }
+    } else if (!(get_tp(node) == "decl_assign")) {
+      error("invalid top level statement", _tk);
+    }
+  }
+  
+  if (ispriv) {
+    Node privnode = newNode("private", "");
+    Node_push(privnode, node);
+    return privnode;
+  } else return node;
+  
+  return node;
+}
+
+
+
+
+// =============================== //
+//             Interface           //
+// =============================== //
+
+
+Node parse (string src) {
+  Node result = newNode("program", "");
+
+  Parser parser = newParser(lex_tokens(src), 0);
+
+  while (!(tk_tp(peek(parser)) == "eof")) {
+    Node node = parseTopLevel(parser);
+    Node_push(result, node);
+  }
+
+  return result;
+}
+
+module util = import aulang.util;
+string readall (string filename) = util.readall;
+
 void main () {
-  int a = foo(2 < (2+3) || false, "str");
-  //println("Hola Mundo!");
+  string src = readall("test.au");
+  Node program = parse(src);
+  Node_print(program, "");
 }
