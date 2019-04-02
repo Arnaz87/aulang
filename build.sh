@@ -55,7 +55,7 @@ if [ "$1" != "install" ]; then
   compile codegen &&
   compile compiler &&
   echo compiling aulang &&
-  auro culang src/aulang.cu dist/aulang
+  auro aulang src/aulang.au dist/aulang
 
   if [ $? == 1 ]; then
     echo "Could not compile files"

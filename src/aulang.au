@@ -1,0 +1,55 @@
+
+module system = import auro.system;
+module buffer_mod = import auro.buffer;
+module string_mod = import auro.string;
+
+int argc () = system.argc;
+string argv (int) = system.argv;
+void exit(int) = system.exit;
+
+type buffer = buffer_mod.buffer;
+string newstr (buffer) = string_mod.`new`;
+
+
+module io_mod = import auro.io;
+type file = io_mod.file;
+type mode = io_mod.mode;
+mode r () = io_mod.r;
+mode w () = io_mod.w;
+file open (string, mode) = io_mod.open;
+buffer read (file, int) = io_mod.read;
+void write (file, buffer) = io_mod.write;
+void close (file) = io_mod.close;
+bool eof (file) = io_mod.eof;
+
+
+module compiler = import aulang.compiler;
+buffer compile (string src, string filename) = compiler.compile_src;
+
+
+string readall (file f) {
+  string str = "";
+
+  repeat:
+  buffer buf = read(f, 512);
+  str = str + newstr(buf);
+  if (eof(f)) {} else goto repeat;
+
+  return str;
+}
+
+void main () {
+  if (argc() == 3) {} else {
+    println("Usage: " + argv(0) + " <input> <output>");
+    exit(1);
+  }
+
+  file in_file = open(argv(1), r());
+  string src = readall(in_file);
+  close(in_file);
+
+  buffer buf = compile(src, argv(1));
+  file out_file = open(argv(2), w());
+  write(out_file, buf);
+  close(out_file);
+}
