@@ -585,7 +585,7 @@ void transform_instructions (Compiler this, Function f) {
         call.out(k).tp = this.getItem(fn.outs[k]);
         k = k+1;
       }
-      reg_count = reg_count + k;
+      reg_count = reg_count + fn.outs.len();
     }
 
     if (inst is RetInst) {

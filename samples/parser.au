@@ -97,13 +97,17 @@ token peek (Parser this) {
   return tkarr_get(tokens(this), get_pos(this));
 }
 
+string peek_tp (Parser this) {
+  return tk_tp(peek(this));
+}
+
 token peekat(Parser this, int p) {
   return tkarr_get(tokens(this), get_pos(this) + p);
 }
 
 token next (Parser this) {
   token tk = peek(this);
-  //set_pos(this, get_pos(this) + 1);
+  set_pos(this, get_pos(this) + 1);
   return tk;
 }
 
@@ -131,30 +135,30 @@ int line (Parser this) {
 // =============================== //
 //            Expressions          //
 // =============================== //
-/*
 
 Node parseType (Parser p) {
   return parseTopLevelItem(p);
-  int line = get_line(p);
-  Node node = newNode("type", getname(p)).inline(line);
+  /*int line = line(p);
+  Node node = newNode("type", Node_inline(getname(p), line));
   repeat:
     if (maybe(p, "?")) {
       Node basenode = node;
-      node = newNode("null", "").inline(line);
+      node = Node_inline(newNode("null", ""), line);
       Node_push(node, basenode);
       goto repeat;
     }
-    if (!(p.peek().tp == "[")) goto end;
-    if (!(p.peekat(1).tp == "]")) goto end;
+    if (!(peek_tp(p) == "[")) goto end;
+    if (!(tk_tp(peekat(p, 1)) == "]")) goto end;
     next(p); next(p);
     Node basenode = node;
-    node = newNode("array", "").inline(line);
+    node = Node_inline(newNode("array", ""), line);
     Node_push(node, basenode);
     goto repeat;
   end:
-  return node;
+  return node;*/
 }
 
+/*
 
 bool isUnop (string ty) {
   return (ty == "-") || (ty == "!");
@@ -180,7 +184,7 @@ Node parseBaseExpr (Parser p) {
   int line = get_line(p);
   Node node;
   token tk = next(p);
-  string ty = tk.tp;
+  string ty = tk_tp(tk);
   if (ty == "(") {
     Node node = parseExpr(p);
     check(next(p), ")");
@@ -205,9 +209,9 @@ Node parseBaseExpr (Parser p) {
 }
 
 Node parseSuffix (Parser p) {
-  if (isUnop(p.peek().tp)) {
+  if (isUnop(peek_tp(p))) {
     int line = get_line(p);
-    string op = next(p).tp;
+    string op = tk_tp(next(p));
     Node base = parseSuffix(p);
     Node node = newNode("unop", op);
     Node_push(node, base);
@@ -238,7 +242,7 @@ Node parseSuffix (Parser p) {
   int line = get_line(p);
   while (maybe(p, "as")) {
     Node nxt = newNode("cast", "");
-    if (maybe(p, "?")) nxt.tp = "anycast";
+    if (maybe(p, "?")) tk_tp(nxt) = "anycast";
     Node_push(nxt, base);
     Node_push(nxt, parseType(p));
     base = Node_inline(nxt, line);
@@ -254,12 +258,12 @@ Node parseSuffix (Parser p) {
 
 Node parseExpr (Parser p) {
   Node left = parseSuffix(p);
-  while (isBinop(p.peek().tp)) {
-    string op = next(p).tp;
+  while (isBinop(peek_tp(p))) {
+    string op = tk_tp(next(p));
     Node right = parseSuffix(p);
     Node node = newNode("binop", op);
-    if (op == "||") node.tp = "logic";
-    if (op == "&&") node.tp = "logic";
+    if (op == "||") tk_tp(node) = "logic";
+    if (op == "&&") tk_tp(node) = "logic";
     Node_push(node, left);
     Node_push(node, right);
     left = node;
@@ -269,7 +273,7 @@ Node parseExpr (Parser p) {
 
 Node parseExprList (Parser p, string end) {
   Node node = newNode("exprlist", "");
-  if (p.peek().tp == end) goto end;
+  if (peek_tp(p) == end) goto end;
   nextexpr:
     Node_push(node, parseExpr(p));
     if (maybe(p, ",")) goto nextexpr;
@@ -277,6 +281,7 @@ Node parseExprList (Parser p, string end) {
   check(next(p), end);
   return node;
 }
+*/
 
 
 
@@ -300,18 +305,6 @@ string parseLongName (Parser p) {
     return name;
 }
 
-Node parseNameList (Parser p, string tp, string sep) {
-  Node node = newNode(tp, "");
-  repeat:
-    Node_push(node, newNode("name", getname(p)));
-    if (p.peek().tp == sep) {
-      next(p);
-      goto repeat;
-    }
-  return node;
-}
-*/
-
 // Items that start with an identifier
 Node parseIdentItem (Parser p) {
   token _tk = peek(p);
@@ -323,61 +316,51 @@ Node parseIdentItem (Parser p) {
     if (maybe(p, ",")) goto nextout;
   }
 
-  /*
   string name = parseLongName(p);
 
   if (maybe(p, "(")) {
     Node ins = newNode("ins", "");
-    if (p.peek().tp == ")") goto endin;
+    if (peek_tp(p) == ")") goto endin;
     nextin:
       Node argNode = newNode("arg", "");
 
       Node_push(argNode, parseTopLevelItem(p));
 
-      if (p.peek().tp == "name")
-        argNode.val = getname(p);
+      if (peek_tp(p) == "name")
+        set_val(argNode, getname(p));
       Node_push(ins, argNode);
-      if (p.peek().tp == ",") {
+      if (peek_tp(p) == ",") {
         next(p);
         goto nextin;
       }
     endin:
     check(next(p), ")");
 
-    string alias = "";
-    if (maybe(p, "as")) alias = getname(p);
-
-    Node node = newNode("function", name).inline(line);
+    Node node = newNode("function", name);
+    set_line(node, line);
     Node_push(node, ins);
     Node_push(node, outs);
-    Node_push(node, newNode("alias", alias));
     return node;
-  } else if (outs.len() == 1) {
+  } else if (Node_len(outs) == 1) {
     if (maybe(p, ";")) {
-      Node tpnode = outs.child(0);
+      Node tpnode = Node_child(outs, 0);
       Node declnode = newNode("decl", name);
-      declnode.line = line;
+      set_line(declnode, line);
       Node_push(declnode, tpnode);
       return declnode;
     }
-    if (maybe(p, "as")) {
-      Node node = newNode("alias", getname(p));
-      Node_push(node, newNode("item", name));
-      return node;
-    }
-    if (maybe(p, "=")) {
-      Node tpnode = outs.child(0);
+    /*if (maybe(p, "=")) {
+      Node tpnode = Node_child(outs, 0);
       Node node = newNode("decl_assign", name);
-      node.line = line;
+      set_line(node, line);
       Node_push(node, tpnode);
       Node_push(node, parseExpr(p));
       check(next(p), ";");
       return node;
-    }
+    }*/
   }
-  */
-  //check(peek(p), "("); // already failed '(', but give error message
-  return newNode("foo", "bar");
+
+  check(peek(p), "("); // already failed '(', but give error message
 }
 
 /*
@@ -385,8 +368,8 @@ Node parseImport (Parser p) {
   // import keyword already consumed
 
   Node result = newNode("import", "");
-  if (maybe(p, "module")) result.tp = "import-module";
-  result.val = parseLongName(p);
+  if (maybe(p, "module")) tk_tp(result) = "import-module";
+  set_val(result, parseLongName(p);
 
   bool hasbody = false;
 
@@ -394,12 +377,12 @@ Node parseImport (Parser p) {
   if (maybe(p, "(")) {
     hasbody = true;
     if (maybe(p, "module")) {
-      argnode.tp = "module";
-      argnode.val = getname(p);
+      tk_tp(argnode) = "module";
+      set_val(argnode, getname(p);
       goto endarg;
     }
-    argnode.tp = "arglist";
-    if (p.peek().tp == ")") goto endarg;
+    tk_tp(argnode) = "arglist";
+    if (peek_tp(p) == ")") goto endarg;
     nextarg:
       Node argNode = newNode("name", getname(p));
       if (maybe(p, "as")) {
@@ -413,7 +396,7 @@ Node parseImport (Parser p) {
     check(next(p), ")");
   }
 
-  if (p.peek().tp == "{") hasbody = true;
+  if (peek_tp(p) == "{") hasbody = true;
 
   if (hasbody) {
     check(next(p), "{");
@@ -422,7 +405,7 @@ Node parseImport (Parser p) {
     Node_push(bodynode, argnode);
 
     nextitem:
-      token _tk = p.peek();
+      token _tk = peek(p);
       int line = get_line(p);
       if (maybe(p, "}")) goto end;
       else if (maybe(p, "type")) {
@@ -436,19 +419,19 @@ Node parseImport (Parser p) {
           nextmember:
           int line = get_line(p);
           if (maybe(p, "new")) {
-            Node item = newNode("new", "").inline(line);
+            Node item = Node_inline(newNode("new", ""), line);
             Node ins = newNode("ins", "");
             check(next(p), "(");
-            if (p.peek().tp == ")") goto endin;
+            if (peek_tp(p) == ")") goto endin;
             nextin:
               Node inNode = newNode("arg", "");
               Node_push(inNode, newNode("type", getname(p)));
               string argname = "";
-              if (p.peek().tp == "name")
+              if (peek_tp(p) == "name")
                 argname = getname(p);
               Node_push(inNode, newNode("name", argname));
               Node_push(ins, inNode);
-              if (p.peek().tp == ",") {
+              if (peek_tp(p) == ",") {
                 next(p);
                 goto nextin;
               }
@@ -459,7 +442,7 @@ Node parseImport (Parser p) {
             Node_push(typenode, item);
           } else {
             Node item = parseIdentItem(p);
-            if (item.tp == "function")
+            if (tk_tp(item) == "function")
               check(next(p), ";");
             Node_push(typenode, item);
           }
@@ -476,7 +459,7 @@ Node parseImport (Parser p) {
         Node_push(bodynode, Node_inline(item, line));
       } else {
         Node item = parseIdentItem(p);
-        if (item.tp == "function")
+        if (tk_tp(item) == "function")
           check(next(p), ";");
         else error("???", _tk);
         Node_push(bodynode, item);
@@ -510,13 +493,14 @@ Node parseAssignment (Parser p, Node first) {
   return node;
 }
 
+*/
 Node parseDecl (Parser p) {
   Node node = newNode("decl", "");
   Node_push(node, parseType(p));
 
   nextpart:
     Node partnode = newNode("declpart", getname(p));
-    if (maybe(p, "=")) Node_push(partnode, parseExpr(p));
+    //if (maybe(p, "=")) Node_push(partnode, parseExpr(p));
     Node_push(node, partnode);
     if (maybe(p, ",")) goto nextpart;
   check(next(p), ";");
@@ -525,14 +509,15 @@ Node parseDecl (Parser p) {
 }
 
 Node parseStmt (Parser p) {
-  int line = get_line(p);
-  token _tk = p.peek();
-  if (p.peek().tp == "{") return parseBlock(p);
+  int line = line(p);
+  token _tk = peek(p);
+  if (peek_tp(p) == "{") return parseBlock(p);
   if (maybe(p, "goto")) {
     Node node = newNode("goto", getname(p));
     check(next(p), ";");
     return Node_inline(node, line);
   }
+  /*
   if (maybe(p, "return")) {
     Node node = newNode("return", "");
     Node_push(node, parseExprList(p, ";"));
@@ -540,8 +525,8 @@ Node parseStmt (Parser p) {
   }
   if (maybe(p, "break")) {
     Node node = newNode("break", "");
-    if (p.peek().tp == "name")
-      node.val = getname(p);
+    if (peek_tp(p) == "name")
+      set_val(node, getname(p);
     check(next(p), ";");
     return Node_inline(node, line);
   }
@@ -563,31 +548,33 @@ Node parseStmt (Parser p) {
     Node_push(node, parseStmt(p));
     return Node_inline(node, line);
   }
-  if (p.peek().tp == "name") {
-    string ty = p.peekat(1).tp;
+  */
+  if (peek_tp(p) == "name") {
+    string ty = tk_tp(peekat(p, 1));
     if (ty == ":") {
       string name = getname(p); next(p);
-      if (p.peek().tp == "while") {
+      if (peek_tp(p) == "while") {
         Node loop = parseStmt(p);
-        loop.val = name;
+        set_val(loop, name);
         return loop;
       } else {
-        return newNode("label", name).inline(line);
+        return Node_inline(newNode("label", name), line);
       }
     }
     if (ty == "[")
-      if (p.peekat(2).tp == "]")
-        return parseDecl(p).inline(line);
-    if (ty == "?") return parseDecl(p).inline(line);
-    if (ty == "name") return parseDecl(p).inline(line);
+      if (tk_tp(peekat(p, 2)) == "]")
+        return Node_inline(parseDecl(p), line);
+    if (ty == "?") return Node_inline(parseDecl(p), line);
+    if (ty == "name") return Node_inline(parseDecl(p), line);
   }
+  /*
   Node expr = parseExpr(p);
-  if (p.peek().tp == "=") return parseAssignment(p, expr).inline(line);
-  if (p.peek().tp == ",") return parseAssignment(p, expr).inline(line);
-  if (expr.tp == "call") {
+  if (peek_tp(p) == "=") return Node_inline(parseAssignment(p, expr), line);
+  if (peek_tp(p) == ",") return Node_inline(parseAssignment(p, expr), line);
+  if (tk_tp(expr) == "call") {
     check(next(p), ";");
     return expr;
-  }
+  }*/
   error("invalid statement", _tk);
 }
 
@@ -596,21 +583,21 @@ Node parseBlock (Parser p) {
   check(next(p), "{");
   repeat:
   if (maybe(p, "}")) return result;
-  int line = get_line(p);
-  Node stmt = parseStmt(p).inline(line);
+  int line = line(p);
+  Node stmt = parseStmt(p);
+  set_line(stmt, line);
   Node_push(result, stmt);
   goto repeat;
 }
-*/
 
 Node parseTopLevelItem (Parser p) {
-  int line = get_line(p);
+  int line = line(p);
 
   if (maybe(p, "$."))
     return Node_inline(newNode("generic_arg", getname(p)), line);
 
   Node node = newNode("item", getname(p));
-  /*
+  
   while (maybe(p, ".")) {
     Node _node = newNode("field", getname(p));
     Node_push(_node, node);
@@ -630,7 +617,7 @@ Node parseTopLevelItem (Parser p) {
       Node_push(node, decl);
       if (maybe(p, ",")) goto loop;
     check(next(p), ">");
-  }*/
+  }
 
   return Node_inline(node, line);
 }
@@ -639,7 +626,7 @@ Node parseTopLevelItem (Parser p) {
 Node parseModule (Parser p) {
   Node modnode = newNode("module-def", getname(p));
 
-  token generic_tk = p.peek();
+  token generic_tk = peek(p);
   bool generic = false;
   if (maybe(p, "$<")) {
     generic = true;
@@ -647,7 +634,7 @@ Node parseModule (Parser p) {
   }
 
   if (maybe(p, "=")) {
-    modnode.tp = "module-assign";
+    tk_tp(modnode) = "module-assign";
     Node valnode;
     if (maybe(p, "import")) {
       valnode = newNode("import", parseLongName(p));
@@ -669,7 +656,7 @@ Node parseModule (Parser p) {
 
   check(next(p), "{");
   nextitem:
-    if (p.peek().tp == "}") goto enditem;
+    if (peek_tp(p) == "}") goto enditem;
     Node itemnode = newNode("item", getname(p));
     check(next(p), "=");
     Node_push(itemnode, parseTopLevelItem(p));
@@ -688,8 +675,8 @@ Node parseModule (Parser p) {
 Node parseTopLevel (Parser p) {
   token _tk = peek(p);
   /*if (maybe(p, "import")) {
-    //return parseImport(p).inline(_tk.line);
-    Node node = newNode("import", parseLongName(p)).inline(_tk.line);
+    //return Node_inline(parseImport(p), _tk.line);
+    Node node = newNode("import", Node_inline(parseLongName(p)), _tk.line);
     check(next(p), ";");
     return node;
   }
@@ -700,15 +687,15 @@ Node parseTopLevel (Parser p) {
     Node node = newNode("export", "");
     Node_push(node, parseTopLevelItem(p));
     if (maybe(p, "as")) {
-      node.tp = "export-alias";
-      node.val = getname(p);
+      tk_tp(node) = "export-alias";
+      set_val(node, getname(p);
     }
     check(next(p), ";");
     return Node_inline(node, _tk.line);
   }
+  */
 
   bool ispriv = maybe(p, "private");
-  */
   Node node;
   /*if (maybe(p, "struct")) {
     Node typenode = newNode("struct", parseLongName(p));
@@ -716,7 +703,7 @@ Node parseTopLevel (Parser p) {
     nextmember:
       if (maybe(p, "}")) goto endmember;
       Node item = parseIdentItem(p);
-      if (item.tp == "function")
+      if (tk_tp(item) == "function")
         Node_push(item, parseBlock(p));
       Node_push(typenode, item);
       goto nextmember;
@@ -731,34 +718,34 @@ Node parseTopLevel (Parser p) {
       check(next(p), ")");
       check(next(p), ";");
     } else if (maybe(p, "=")) {
-      typenode.tp = "type-assign";
+      tk_tp(typenode) = "type-assign";
       Node_push(typenode, parseTopLevelItem(p));
       check(next(p), ";");
     }
     node = Node_inline(typenode, _tk.line);
   } else if (maybe(p, "module")) {
-    node = parseModule(p).inline(_tk.line);
+    node = Node_inline(parseModule(p), _tk.line);
   } else {*/
     node = parseIdentItem(p);
-    /*if (node.tp == "function") {
+    if (get_tp(node) == "function") {
       if (maybe(p, "=")) {
         Node_push(node, parseTopLevelItem(p));
         check(next(p), ";");
       } else {
         Node_push(node, parseBlock(p));
       }
-    } else if (!(node.tp == "decl_assign")) {
+    } else if (!(get_tp(node) == "decl_assign")) {
       error("invalid top level statement", _tk);
-    }*/
+    }
   //}
 
-  /*
+  
   if (ispriv) {
     Node privnode = newNode("private", "");
     Node_push(privnode, node);
     return privnode;
   } else return node;
-  */
+  
   return node;
 }
 
