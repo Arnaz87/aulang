@@ -5,8 +5,8 @@
 
 # See http://www.sublimetext.com/docs/3/syntax.html
 # See https://manual.macromates.com/en/language_grammars, section 12.4
-file_extensions: [au]
-scope: source.aulang
+file_extensions: [cu]
+scope: source.culang
 
 variables:
   control_kw: if|else|while|continue|break|goto|return
@@ -25,60 +25,60 @@ contexts:
   main:
     - match: \b(new)\s+({{name}})({{type_mod}})
       captures:
-        1: keyword.operator.new.aulang
-        2: support.type.aulang
-        3: punctuation.modifier.type.aulang
+        1: keyword.operator.new.culang
+        2: support.type.culang
+        3: punctuation.modifier.type.culang
 
     - match: '(?:\b(void)|({{name}})({{type_mod}})(?:\s*,\s*({{name}})({{type_mod}}))*)\s+({{name}})\s*(\()'
       captures:
-        1: storage.type.aulang
-        2: support.type.aulang
-        3: punctuation.modifier.type.aulang
-        4: support.type.aulang
-        5: punctuation.modifier.type.aulang
-        6: entity.name.function.aulang
-        7: punctuation.section.parameters.begin.aulang
+        1: storage.type.culang
+        2: support.type.culang
+        3: punctuation.modifier.type.culang
+        4: support.type.culang
+        5: punctuation.modifier.type.culang
+        6: entity.name.function.culang
+        7: punctuation.section.parameters.begin.culang
       push: parameters
 
     - match: \b(type|struct)\s+({{name}})({{type_mod}})
       captures:
-        1: storage.type.aulang
-        2: entity.name.type.aulang
-        3: punctuation.modifier.type.aulang
+        1: storage.type.culang
+        2: entity.name.type.culang
+        3: punctuation.modifier.type.culang
 
     - match: \b(import)\s+({{name}})(?:(\.)({{name}}))*
-      scope: meta.import.aulang
+      scope: meta.import.culang
       captures:
-        1: keyword.other.import.aulang
-        3: punctuation.separator.aulang
+        1: keyword.other.import.culang
+        3: punctuation.separator.culang
 
     - match: '({{name}})({{type_mod}})\s+(?={{name}})'
       captures:
-        1: support.type.aulang
-        2: punctuation.modifier.type.aulang
+        1: support.type.culang
+        2: punctuation.modifier.type.culang
 
     - match: \b({{name}})\s*\(
       captures:
-        1: variable.function.aulang
+        1: variable.function.culang
 
     - match: '\b({{name}})\s*(:)'
       captures:
-        1: entity.name.label.aulang
-        2: punctuation.separator.aulang
+        1: entity.name.label.culang
+        2: punctuation.separator.culang
 
     - include: lexical
 
   parameters:
-    - meta_scope: meta.parameters.aulang
+    - meta_scope: meta.parameters.culang
     - match: \b({{name}})({{type_mod}})\s*({{name}})?\b
       captures:
-        1: support.type.aulang
-        2: punctuation.modifier.type.aulang
-        3: variable.parameter.aulang
+        1: support.type.culang
+        2: punctuation.modifier.type.culang
+        3: variable.parameter.culang
     - match: ','
-      scope: punctuaction.separator.parameter.aulang
+      scope: punctuaction.separator.parameter.culang
     - match: \)
-      scope: punctuation.section.parameters.end.aulang
+      scope: punctuation.section.parameters.end.culang
       pop: true
     - include: lexical
 
@@ -86,63 +86,63 @@ contexts:
   lexical:
     - include: comments
     - match: (==|!=|<=|>=|<|>)
-      scope: keyword.operator.comparison.aulang
+      scope: keyword.operator.comparison.culang
     - match: (\-|\+|\*|\/|%)
-      scope: keyword.operator.arithmetic.aulang
+      scope: keyword.operator.arithmetic.culang
     - match: =
-      scope: keyword.operator.assignment.aulang
+      scope: keyword.operator.assignment.culang
     - match: '\b({{control_kw}})\b'
-      scope: keyword.control.aulang
+      scope: keyword.control.culang
     - match: '\b({{other_kw}})\b'
-      scope: keyword.other.aulang
+      scope: keyword.other.culang
     - match: \b({{constant_kw}})\b
-      scope: constant.language.aulang
+      scope: constant.language.culang
     - match: \b({{type_kw}})\b
-      scope: storage.type.aulang
+      scope: storage.type.culang
     - match: \b({{operator_kw}})\b
-      scope: keyword.operator.aulang
+      scope: keyword.operator.culang
     - match: '\b\d+\b'
-      scope: constant.numeric.aulang
+      scope: constant.numeric.culang
     - match: '\b({{name}})(\?|\[\])+'
       captures:
-        1: support.type.aulang
-        2: punctuation.modifier.type.aulang
+        1: support.type.culang
+        2: punctuation.modifier.type.culang
     - match: '\b(int|float|bool|char|string|any)\b' # default types
-      scope: support.type.aulang
+      scope: support.type.culang
     - match: \'.\'
-      scope: constant.character.aulang
+      scope: constant.character.culang
     - match: \'\\.\'
-      scope: constant.character.escape.aulang
+      scope: constant.character.escape.culang
     - match: \'.+\'
-      scope: invalid.illegal.aulang
+      scope: invalid.illegal.culang
     - match: '"'
-      scope: punctuation.definition.string.begin.aulang
+      scope: punctuation.definition.string.begin.culang
       push:
-        - meta_scope: string.quoted.double.aulang
+        - meta_scope: string.quoted.double.culang
         - include: escapes
         - match: '"'
-          scope: punctuation.definition.string.end.aulang
+          scope: punctuation.definition.string.end.culang
           pop: true
 
   comments:
     - match: /\*
       captures:
-        0: punctuation.definition.comment.aulang
+        0: punctuation.definition.comment.culang
       push:
-        - meta_scope: comment.block.aulang
+        - meta_scope: comment.block.culang
         - match: \*/
           captures:
-            0: punctuation.definition.comment.aulang
+            0: punctuation.definition.comment.culang
           pop: true
     - match: (//).*$\n?
-      scope: comment.line.double-slash.aulang
+      scope: comment.line.double-slash.culang
       captures:
-        1: punctuation.definition.comment.aulang
+        1: punctuation.definition.comment.culang
 
   escapes:
     - match: \\x[0-9a-f][0-9a-f]
-      scope: constant.character.escape.aulang
+      scope: constant.character.escape.culang
     - match: \\x..
-      scope: invalid.illegal.aulang
+      scope: invalid.illegal.culang
     - match: \\.
-      scope: constant.character.escape.aulang
+      scope: constant.character.escape.culang
