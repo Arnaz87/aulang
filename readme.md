@@ -1,8 +1,8 @@
 # Aulang
 
-C-like programming language running on the [Auro VM](https://gitlab.com/aurovm). The language is complete enough to be written in itself, but it's a pain to use because of the lack of advanced features.
+C-like programming language running on the [Auro VM](https://gitlab.com/aurovm). It's not designed for application development, but just for interacting with the Auro environment. The language is complete enough to be written in itself, but it's a pain to use because of the lack of advanced features and horrendous debugging (for now).
 
-[Doucumentation](/aulang.md).
+[Language Reference](/aulang.md).
 
 To install it, you first need to install the [Auro VM implementation](https://gitlab.com/aurovm/aurovm), and then run `bash build.sh install`.
 
@@ -12,17 +12,20 @@ Running `bash build.sh bootstrap` compiles the source code with whatever version
 
 **TODO**:
 
+- Give source positions in error messages
+- Metadata support
 - Operator precedence
 - Good typechecking
 - char type
 - Multiple sized primitives
 - Module independent arrays
-- Module syntax
-- for, switch, do while, break, continue *(Is it better to not include them?)*
-- struct-like types
-- unions
-- maybe improve null syntax
-- inspect imported modules and import their items automatically
+- Module expressions
+- for, switch, do while, continue *(Is it better to not include them?)*
+- Record type
+- Union type
+- Maybe improve null syntax
+- Inspect imported modules and import their items automatically
+- Anonymous function expressions
 
 # Culang
 

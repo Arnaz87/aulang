@@ -19,12 +19,9 @@ Lexically Aulang is the same as C with the following remarks:
 
 Note: the code snippets are marked as C to take advantage of markdown syntax highlighters, but it's actually Auro code.
 
-# Top Level
+# Top Level Statements
 
 ~~~c
-// This functionality, although mildly inonvinient, is enough to describe
-// every top level item.
-
 // Global modules
 module system = import auro.system;
 // Member modules of other modules
@@ -32,10 +29,7 @@ module unsafe = system.unsafe;
 // Module definitions
 module int_param {
   T = int;
-  // Alternative syntax
-  int as T;
 }
-module int_param { T = int; }
 // Parametric modules
 module int_arr_mod = array(intparam);
 
@@ -43,7 +37,7 @@ module int_arr_mod = array(intparam);
 type int_arr = int_arr_mod.array;
 
 // functions can be either from another module
-void println (string param) = system.println;
+void println (string msg) = system.println;
 // Or defined here
 void main () {}
 
@@ -69,14 +63,14 @@ Multiple assignment in declaration statements works like in C, but multiple vari
 
 Statics are like module level variables, they have the same syntax and behave the same as regular variables in function bodies, with the exception that they must be initialized immediately when declared.
 
-*Not yet implemented.**
+*Not yet implemented.*
 
 # Expressions
 
 Expressions can be unary operations, binary operations and function calls.
 
-Arithmetic operations are overloaded for int and float, the addition operation is also overloadod for string. Logical operations are short circuited.
+Arithmetic and relation operations are overloaded for ints and floats. The addition and equality operations are overloadod for strings. Logical operations are short circuited and only work with booleans. there's no operator precedence yet but it's planned.
 
-Cu doesn't cast expressions implicitly, nor does an explicit cast expression exists, if casting is desired it must be trough library functions.
+Values aren't casted implicitly, nor is there an explicit cast expression, if casting is desired it must be trough library functions.
 
 Function calls that return multiple values, when used in expressions an not in multi assignments, only use the first result and discard the rest.
