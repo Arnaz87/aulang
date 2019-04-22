@@ -1,0 +1,25 @@
+
+module fn_base = import auro.function;
+module fn2_arg {in0 = string; in1 = string;}
+module fn2_mod = fn_base(fn2_arg);
+
+type fn2 = fn2_mod.``;
+void call_fn2(fn2, string, string) = fn2_mod.apply;
+
+module fn2_new_mod = fn2_mod.`new`;
+
+module fn2a_arg {`0` = fa;}
+module fn2a_mod = fn2_new_mod(fn2a_arg);
+fn2 get_fn2a () = fn2a_mod.``;
+
+module fn2b_arg {`0` = fb;}
+module fn2b_mod = fn2_new_mod(fn2b_arg);
+fn2 get_fn2b () = fn2b_mod.``;
+
+void fa (string x, string y) { println("a" + x + y); }
+void fb (string x, string y) { println("b" + x + y); }
+
+void main () {
+  call_fn2(get_fn2a(), "1", "2");
+  call_fn2(get_fn2b(), "1", "2");
+}

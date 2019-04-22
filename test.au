@@ -1,3 +1,6 @@
 
-void f () = mod.f;
-void g () {}
+module A = import A;
+module B = A.B;
+void f () = B.f;
+
+void main () { f(); }

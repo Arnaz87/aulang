@@ -808,6 +808,10 @@ buffer compile (Node program, string filename) {
         mod.kind = "build";
         mod.base = c.Item("module", vnode.child(0)) as any;
         mod.argument = c.Item("module", vnode.child(1)) as any;
+      } else if (vnode.tp == "field") {
+        mod.kind = "use";
+        mod.base = c.Item("module", vnode.child(0)) as any;
+        mod.name = vnode.val;
       } else c.error(vnode.tp + " module expression", vnode.line);
     }
 
@@ -958,6 +962,11 @@ void writeModules (Compiler c) {
         w.str(p.k);
         j = j+1;
       }
+    } else if (mod.kind == "use") {
+      w.byte(3);
+      Module base = c.getItem(mod.base) as Module;
+      w.num(base.id);
+      w.str(mod.name);
     } else if (mod.kind == "build") {
       w.byte(4);
       Module base = c.getItem(mod.base) as Module;
