@@ -4,6 +4,8 @@ C-like programming language running on the [Auro VM](https://gitlab.com/aurovm).
 
 [Language Reference](/aulang.md).
 
+[Online editor](http://arnaud.com.ve/auro/?lang=aulang).
+
 To install it, you first need to install the [Auro VM implementation](https://gitlab.com/aurovm/aurovm), and then run `bash build.sh install`.
 
 To compile a auro file, run `auro aulang <source.au> <target>` and run it with `auro <target>`. Aditionally, that module can then be installed system-wide with `auro --install <target>`.
