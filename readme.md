@@ -1,6 +1,6 @@
 # Aulang
 
-C-like programming language running on the [Auro VM](https://gitlab.com/aurovm). It's not designed for application development, but just for interacting with the Auro environment. The language is complete enough to be written in itself, but it's a pain to use because of the lack of advanced features and horrendous debugging (for now).
+C-like programming language running on the [Auro VM](https://gitlab.com/aurovm/spec#auro). It's not designed for application development, but as a glue language between Auro and other better designed languages. The language is complete enough to be written in itself, but it's a pain to use because of the lack of advanced features and horrendous debugging (for now).
 
 [Language Reference](/aulang.md).
 
