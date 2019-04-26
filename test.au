@@ -1,6 +1,5 @@
+module system = import auro.system;
+void error (string) = system.error;
 
-module A = import A;
-module B = A.B;
-void f () = B.f;
-
+void f () { error("Foo"); }
 void main () { f(); }

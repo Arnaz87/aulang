@@ -53,6 +53,7 @@ struct CallInst {
   Register[] ins;
   Register[] outs;
   Node node;
+  int index;
 
   int ins_len (CallInst this) { return this.ins.len(); }
   int outs_len (CallInst this) { return this.outs.len(); }
@@ -137,7 +138,7 @@ struct BinopInst {
 }
 
 private CallInst _new_call (any fn, Node node) {
-  return new CallInst(fn, new Register[](), new Register[](), node);
+  return new CallInst(fn, new Register[](), new Register[](), node, 0);
 }
 export _new_call as `new\x1dCallInst`;
 
@@ -325,7 +326,7 @@ Register[] compile_expr_list (Scope s, Node node) {
 void compile_call (Scope s, Node node, Register[] outs) {
   Item fn = new Item("function", node.child(0));
   Register[] ins = compile_expr_list(s, node.child(1));
-  s.inst(new CallInst(fn as any, ins, outs, node) as any);
+  s.inst(new CallInst(fn as any, ins, outs, node, 0) as any);
 }
 
 void compile_stmt (Scope s, Node node) {

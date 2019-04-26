@@ -181,13 +181,20 @@ struct Type {
   string builtin;
 }
 
+struct Line {
+  int inst;
+  int line;
+}
+
 struct Function {
   int id;
   string name;
+  int line;
   any mod;
   any[] ins;
   any[] outs;
   any[]? code;
+  Line[] lines;
 }
 
 struct Const {
@@ -346,7 +353,7 @@ struct Compiler {
   }
 
   Function Function (Compiler this) {
-    Function f = new Function(this.functions.len(), "", false as any, new any[](), new any[](), new any[]?());
+    Function f = new Function(this.functions.len(), "", 0, false as any, new any[](), new any[](), new any[]?(), new Line[]());
     this.functions.push(f);
     return f;
   }
@@ -586,6 +593,8 @@ void transform_instructions (Compiler this, Function f) {
         k = k+1;
       }
       reg_count = reg_count + fn.outs.len();
+
+      f.lines.push(new Line(i, call.node.line));
     }
 
     if (inst is RetInst) {
@@ -687,7 +696,7 @@ void transform_instructions (Compiler this, Function f) {
         this.error("Unsupported unary operator " + unop.op, 0-1);
 
       Function fn = get_builtin(this, fname) as Function;
-      CallInst call = new CallInst(fn as any, this.program);
+      CallInst call = new CallInst(fn as any, unop.node);
       call.ins_push(unop.in);
       call.outs_push(unop.out);
 
@@ -703,12 +712,13 @@ void transform_instructions (Compiler this, Function f) {
       Type lt = this.getItem(binop.left.tp) as Type;
       Type rt = this.getItem(binop.right.tp) as Type;
 
+      int line = binop.node.line;
       string fname;
       if (lt.builtin == "string" && (rt.builtin == "string")) {
         if (binop.op == "+") fname = "concat";
         else if (binop.op == "==") fname = "streq";
         else // TODO: Better error message
-          this.error("Unsupported string operator " + binop.op, 0-1);
+          this.error("Unsupported string operator " + binop.op, line);
       } else if (lt.builtin == "int" && (rt.builtin == "int")) {
         if (binop.op == "+") fname = "iadd";
         else if (binop.op == "-") fname = "isub";
@@ -723,14 +733,14 @@ void transform_instructions (Compiler this, Function f) {
         else if (binop.op == "!=") fname = "ine";
 
         else // TODO: Better error message
-          this.error("Unsupported int operator " + binop.op, 0-1);
+          this.error("Unsupported int operator " + binop.op, line);
       } else {
         // TODO: Awful error message
-        this.error("Cannot operate these types", 0-1);
+        this.error("Cannot operate these types", line);
       }
       Function fn = get_builtin(this, fname) as Function;
 
-      CallInst call = new CallInst(fn as any, this.program);
+      CallInst call = new CallInst(fn as any, binop.node);
       call.ins_push(binop.left);
       call.ins_push(binop.right);
       call.outs_push(binop.out);
@@ -873,6 +883,7 @@ buffer compile (Node program, string filename) {
         f.name = body.val;
         f.mod = c.Item("module", body.child(0)) as any;
       } else if (body.tp == "block") {
+        f.name = node.val;
         f.code = compile_function(body, node) as any[]?;
       } else {
         c.error("Currently only imported functions are supported", node.line);
@@ -1149,6 +1160,74 @@ void writeCode (Compiler c) {
   }
 }
 
+void writeMetadata (Compiler c) {
+  Writer w = c.writer;
+
+  // Third item, function list
+  int fcount = 0;
+  int i = 0;
+  while (i < c.functions.len()) {
+    Function f = c.functions[i];
+    if (!f.code.isnull())
+      fcount = fcount+1;
+    i = i+1;
+  }
+
+  int itemcount = fcount + 2; // "source map" + file + functions
+
+  w.num(4); // 1 items (1<<2)
+    w.num(itemcount*4); // items
+      w.num(42); // 10 chars (10<<2 | 2)
+      w.rawstr("source map");
+
+      w.num(8); // 2 items (2<<2)
+        w.num(18); // 10 chars (4<<2 | 2)
+        w.rawstr("file");
+        w.num(strlen(c.filename)*4 + 2);
+        w.rawstr(c.filename);
+
+  int i = 0;
+  while (i < c.functions.len()) {
+    Function f = c.functions[i];
+    if (!f.code.isnull()) {
+      w.num(5*4); // 5 items
+
+      w.num(34); // 8 characters
+      w.rawstr("function");
+
+      w.num((i*2)+1);
+
+      w.num(8); // 2 items
+        w.num(18); // 4 chars
+        w.rawstr("name");
+
+        w.num((strlen(f.name)*4)+2);
+        w.rawstr(f.name);
+
+      w.num(8); // 2 items
+        w.num(18); // 4 chars
+        w.rawstr("line");
+
+        w.num((f.line*2)+1);
+
+      int lcount = f.lines.len();
+      w.num((lcount+1)*4);
+        w.num(18); // 4 chars
+        w.rawstr("code");
+
+        int j = 0;
+        while (j < lcount) {
+          Line ln = f.lines[j];
+          w.num(8); // 2 items
+          w.num((ln.inst*2)+1);
+          w.num((ln.line*2)+1);
+          j = j+1;
+        }
+    }
+    i = i+1;
+  }
+}
+
 buffer getBuffer (Compiler c) {
   Writer w = c.writer;
 
@@ -1160,7 +1239,7 @@ buffer getBuffer (Compiler c) {
   writeFunctions(c);
   writeConstants(c);
   writeCode(c);
-  w.num(0); // Metadata
+  writeMetadata(c);
 
   return w.tobuffer();
 }

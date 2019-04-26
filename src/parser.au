@@ -261,6 +261,7 @@ Node parseExpr (Parser p) {
     string op = tk_tp(next(p));
     Node right = parseSuffix(p);
     Node node = newNode("binop", op);
+    set_line(node, get_line(left));
     if (op == "||") set_tp(node, "logic");
     if (op == "&&") set_tp(node, "logic");
     Node_push(node, left);
