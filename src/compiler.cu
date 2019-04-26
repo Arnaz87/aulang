@@ -380,8 +380,8 @@ struct Compiler {
 // =============================== //
 
 bool is_builtin_name (string s) {
-  return (s == "string") || (s == "int") || (s == "bool") ||
-    (s == "itos") || (s == "println");
+  return (s == "string") || (s == "int") || (s == "bool") || (s == "float") ||
+    (s == "println") || (s == "itos") || (s == "ftos") || (s == "itof") || (s == "ftoi");
 }
 
 any builtin_module (Compiler this, string name, string modname) {
@@ -419,6 +419,8 @@ any get_builtin (Compiler this, string name) {
     return builtin_module(this, name, "auro\x1fstring");
   if (name == "int_module")
     return builtin_module(this, name, "auro\x1fint");
+  if (name == "float_module")
+    return builtin_module(this, name, "auro\x1ffloat");
   if (name == "bool_module")
     return builtin_module(this, name, "auro\x1fbool");
   if (name == "buffer_module")
@@ -428,6 +430,8 @@ any get_builtin (Compiler this, string name) {
     return builtin_type(this, name, "string_module", "string");
   if (name == "int")
     return builtin_type(this, name, "int_module", "int");
+  if (name == "float")
+    return builtin_type(this, name, "float_module", "float");
   if (name == "bool")
     return builtin_type(this, name, "bool_module", "bool");
   if (name == "buffer")
@@ -483,6 +487,21 @@ any get_builtin (Compiler this, string name) {
     return f as any;
   }
 
+  if (name == "fadd" || (name == "fsub") || (name == "fmul") || (name == "fdiv")) {
+    string fname;
+    if (name == "fadd") fname = "add";
+    if (name == "fsub") fname = "sub";
+    if (name == "fmul") fname = "mul";
+    if (name == "fdiv") fname = "div";
+
+    Function f = builtin_function(this, name, "float_module", fname);
+    any t = get_builtin(this, "float");
+    f.ins.push(t);
+    f.ins.push(t);
+    f.outs.push(t);
+    return f as any;
+  }
+
   if (name == "ieq" || (name == "ine") || (name == "ilt") || (name == "igt") || (name == "ile") || (name == "ige")) {
     string fname;
     if (name == "ieq") fname = "eq";
@@ -500,15 +519,53 @@ any get_builtin (Compiler this, string name) {
     return f as any;
   }
 
+  if (name == "feq" || (name == "fne") || (name == "flt") || (name == "fgt") || (name == "fle") || (name == "fge")) {
+    string fname;
+    if (name == "feq") fname = "eq";
+    if (name == "fne") fname = "ne";
+    if (name == "flt") fname = "lt";
+    if (name == "fgt") fname = "gt";
+    if (name == "fle") fname = "le";
+    if (name == "fge") fname = "ge";
+
+    Function f = builtin_function(this, name, "float_module", fname);
+    any t = get_builtin(this, "float");
+    f.ins.push(t);
+    f.ins.push(t);
+    f.outs.push(get_builtin(this, "bool"));
+    return f as any;
+  }
+
   if (name == "println") {
     Function f = builtin_function(this, name, "system_module", "println");
     f.ins.push(get_builtin(this, "string"));
     return f as any;
   }
 
+  if (name == "itof") {
+    Function f = builtin_function(this, name, "float_module", "itof");
+    f.ins.push(get_builtin(this, "int"));
+    f.outs.push(get_builtin(this, "float"));
+    return f as any;
+  }
+
+  if (name == "ftoi") {
+    Function f = builtin_function(this, name, "float_module", "ftoi");
+    f.ins.push(get_builtin(this, "float"));
+    f.outs.push(get_builtin(this, "int"));
+    return f as any;
+  }
+
   if (name == "itos") {
     Function f = builtin_function(this, name, "string_module", "itos");
     f.ins.push(get_builtin(this, "int"));
+    f.outs.push(get_builtin(this, "string"));
+    return f as any;
+  }
+
+  if (name == "ftos") {
+    Function f = builtin_function(this, name, "string_module", "ftos");
+    f.ins.push(get_builtin(this, "float"));
     f.outs.push(get_builtin(this, "string"));
     return f as any;
   }
@@ -734,6 +791,22 @@ void transform_instructions (Compiler this, Function f) {
 
         else // TODO: Better error message
           this.error("Unsupported int operator " + binop.op, line);
+
+      } else if (lt.builtin == "float" && (rt.builtin == "float")) {
+        if (binop.op == "+") fname = "fadd";
+        else if (binop.op == "-") fname = "fsub";
+        else if (binop.op == "*") fname = "fmul";
+        else if (binop.op == "/") fname = "fdiv";
+
+        else if (binop.op == "<") fname = "flt";
+        else if (binop.op == ">") fname = "fgt";
+        else if (binop.op == "<=") fname = "fle";
+        else if (binop.op == ">=") fname = "fge";
+        else if (binop.op == "==") fname = "feq";
+        else if (binop.op == "!=") fname = "fne";
+
+        else // TODO: Better error message
+          this.error("Unsupported float operator " + binop.op, line);
       } else {
         // TODO: Awful error message
         this.error("Cannot operate these types", line);

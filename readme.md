@@ -14,7 +14,6 @@ Running `bash build.sh bootstrap` compiles the source code with whatever version
 
 **TODO**:
 
-- Give source positions in error messages
 - Metadata support
 - Operator precedence
 - Good typechecking

@@ -1,5 +1,3 @@
-module system = import auro.system;
-void error (string) = system.error;
-
-void f () { error("Foo"); }
-void main () { f(); }
+void main () {
+  println(ftos(itof(3) /itof(2)));
+}
