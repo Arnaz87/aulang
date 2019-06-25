@@ -855,6 +855,42 @@ void transform_instructions (Compiler this, Function f) {
   }
 }
 
+any compile_module_expr (Compiler this, Node node) {
+  if (node.tp == "item") {
+    return this.Item("module", node) as any;
+  }
+
+  Module mod = this.Module();
+  mod.line = node.line;
+
+  if (node.tp == "import") {
+    mod.kind = "import";
+    mod.name = node.val;
+    //c.imports[mod.name] = new Import(mod as any, new Map());
+  } else if (node.tp == "functor") {
+    mod.kind = "build";
+    mod.base = compile_module_expr(this, node.child(0));
+    mod.argument = compile_module_expr(this, node.child(1));
+  } else if (node.tp == "field") {
+    mod.kind = "use";
+    mod.base = compile_module_expr(this, node.child(0));
+    mod.name = node.val;
+  } else if (node.tp == "module-def") {
+    mod.kind = "define";
+    int j = 0;
+    while (j < node.len()) {
+      Node inode = node.child(j);
+      string alias = inode.val;
+
+      any item = this.Item("item", inode.child(0)) as any;
+      mod[alias] = item;
+      j = j+1;
+    }
+  } else this.error(node.tp + " module expression", node.line);
+
+  return mod as any;
+}
+
 buffer compile (Node program, string filename) {
   Compiler c = new Compiler (
     filename, program,
@@ -877,42 +913,7 @@ buffer compile (Node program, string filename) {
     }
 
     if (node.tp == "module-assign") {
-      Module mod = c.Module();
-      mod.line = node.line;
-      c.items[node.val] = mod as any;
-
-      Node vnode = node.child(0);
-
-      if (vnode.tp == "import") {
-        mod.kind = "import";
-        mod.name = vnode.val;
-        //c.imports[mod.name] = new Import(mod as any, new Map());
-      } else if (vnode.tp == "functor") {
-        mod.kind = "build";
-        mod.base = c.Item("module", vnode.child(0)) as any;
-        mod.argument = c.Item("module", vnode.child(1)) as any;
-      } else if (vnode.tp == "field") {
-        mod.kind = "use";
-        mod.base = c.Item("module", vnode.child(0)) as any;
-        mod.name = vnode.val;
-      } else c.error(vnode.tp + " module expression", vnode.line);
-    }
-
-    else if (node.tp == "module-def") {
-      Module mod = c.Module();
-      mod.kind = "define";
-      mod.line = node.line;
-      c.items[node.val] = mod as any;
-
-      int j = 0;
-      while (j < node.len()) {
-        Node inode = node.child(j);
-        string alias = inode.val;
-
-        any item = c.Item("item", inode.child(0)) as any;
-        mod[alias] = item;
-        j = j+1;
-      }
+      c.items[node.val] = compile_module_expr(c, node.child(0));
     }
 
     else if (node.tp == "type-assign") {
@@ -1058,7 +1059,7 @@ void writeModules (Compiler c) {
       w.num(base.id);
       w.num(arg.id);
     }
-    else error("What am i doing?");
+    else error("What am i doing?" + mod.kind);
   }
 }
 

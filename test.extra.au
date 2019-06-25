@@ -1,3 +1,0 @@
-
-string extra_f (int n) { return itos(n); }
-string msg () { return "Hello World"; }

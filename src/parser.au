@@ -511,8 +511,39 @@ Node parseTopLevelItem (Parser p) {
   return Node_inline(node, line);
 }
 
+Node parseModuleExpr (Parser p) {
+  Node valnode;
+  if (maybe(p, "import")) {
+    valnode = newNode("import", parseLongName(p));
+  } else if (maybe(p, "{")) {
+    valnode = newNode("module-def", "");
+    while (!maybe(p, "}")) {
+      Node itemnode = newNode("item", parseLongName(p));
+      check(next(p), "=");
+      Node_push(itemnode, parseTopLevelItem(p));
+      check(next(p), ";");
+      Node_push(valnode, itemnode);
+    }
+  } else {
+    if (maybe(p, "(")) {
+      valnode = parseModuleExpr(p);
+      check(next(p), ")");
+    } else {
+      valnode = parseTopLevelItem(p);
+    }
+    if (maybe(p, "(")) {
+      Node base = valnode;
+      valnode = newNode("functor", "");
+      Node_push(valnode, base);
+      Node_push(valnode, parseModuleExpr(p));
+      check(next(p), ")");
+    }
+  }
+  return valnode;
+}
+
 Node parseModule (Parser p) {
-  Node modnode = newNode("module-def", getname(p));
+  Node modnode = newNode("module-assign", getname(p));
 
   token generic_tk = peek(p);
   bool generic = false;
@@ -521,40 +552,19 @@ Node parseModule (Parser p) {
     check(next(p), ">");
   }
 
-  if (maybe(p, "=")) {
-    set_tp(modnode, "module-assign");
-    Node valnode;
-    if (maybe(p, "import")) {
-      valnode = newNode("import", parseLongName(p));
-    } else {
-      valnode = parseTopLevelItem(p);
-      if (maybe(p, "(")) {
-        Node base = valnode;
-        valnode = newNode("functor", "");
-        Node_push(valnode, base);
-        Node_push(valnode, parseTopLevelItem(p));
-        check(next(p), ")");
-      }
-    }
+  if (peek_tp(p) == "{") {
+    Node_push(modnode, parseModuleExpr(p));
+
+    if (generic) error("definition modules can't be generic", generic_tk);
+  } else {
+    check(next(p), "=");
+    Node valnode = parseModuleExpr(p);
     check(next(p), ";");
     Node_push(modnode, valnode);
+
     if (generic) Node_push(modnode, newNode("generic", ""));
-    return modnode;
   }
 
-  check(next(p), "{");
-  nextitem:
-    if (peek_tp(p) == "}") goto enditem;
-    Node itemnode = newNode("item", parseLongName(p));
-    check(next(p), "=");
-    Node_push(itemnode, parseTopLevelItem(p));
-    check(next(p), ";");
-    Node_push(modnode, itemnode);
-    goto nextitem;
-  enditem:
-  check(next(p), "}");
-
-  if (generic) error("definition modules can't be generic", generic_tk);
 
   return modnode;
 }
