@@ -1,5 +1,2 @@
-void main () {
-  println("Hello World!");
-}
-
-#metadata (one, two, (tree, "four"));
+void main () { println("Hello World!"); }
+#metadata ("one", "two", ("tree", "main"));

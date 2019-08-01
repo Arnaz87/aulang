@@ -6,12 +6,15 @@ import auro.string {
 
 import aulang.node {
   type Node as Node {
+    new (string tp, string val);
+
     string tp;
     string val;
     int line;
 
     int len ();
     Node child (int);
+    void push (Node);
 
     string to_string ();
   }
@@ -286,6 +289,8 @@ struct Compiler {
   any exported;
 
   Item[] all_items;
+
+  Node meta_node;
 
   any? getFromNode (Compiler this, Node node) {
     if (node.tp == "field") {
@@ -896,7 +901,8 @@ buffer compile (Node program, string filename) {
     filename, program,
     new Map(), new Writer(),
     new Module[](), new Type[](), new Function[](), new Const[](),
-    new Map(), new Map(), false as any, new Item[]()
+    new Map(), new Map(), false as any, new Item[](),
+    new Node("", "")
   );
   Module exported = c.Module(); // First module is the exported module
   exported.kind = "define";
@@ -975,6 +981,11 @@ buffer compile (Node program, string filename) {
         c.error("Export overrides previous export", node.line);
 
       c.exported = c.Item("module", child) as any;
+    }
+
+    // TODO: How does C call it?
+    else if (node.tp == "annotation") {
+      c.meta_node.push(node.child(0));
     }
   }
 
@@ -1234,6 +1245,25 @@ void writeCode (Compiler c) {
   }
 }
 
+void writeMetaNode (Compiler c, Node node) {
+  Writer w = c.writer;
+  if (node.tp == "str") {
+    w.num(strlen(node.val)*4 + 2);
+    w.rawstr(node.val);
+  } else if (node.tp == "list") {
+    int len = node.len();
+    w.num(len*4);
+
+    int i = 0;
+    while (i < len) {
+      writeMetaNode(c, node.child(i));
+      i = i+1;
+    }
+  } else {
+    error("Cannot write a metadata node of type " + node.tp);
+  }
+}
+
 void writeMetadata (Compiler c) {
   Writer w = c.writer;
 
@@ -1247,7 +1277,7 @@ void writeMetadata (Compiler c) {
     i = i+1;
   }
 
-  int itemcount = fcount + 2; // "source map" + file + functions
+  int itemcount = fcount + 2 + c.meta_node.len(); // "source map" + file + functions
 
   w.num(4); // 1 items (1<<2)
     w.num(itemcount*4); // items
@@ -1298,6 +1328,12 @@ void writeMetadata (Compiler c) {
           j = j+1;
         }
     }
+    i = i+1;
+  }
+
+  int i = 0;
+  while (i < c.meta_node.len()) {
+    writeMetaNode(c, c.meta_node.child(i));
     i = i+1;
   }
 }
