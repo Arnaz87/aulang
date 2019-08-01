@@ -580,12 +580,12 @@ Node parse_metadata (Parser p) {
     check(next(p), ")");
     return node;
   } else if (
-    (peek_tp(p) == "name") || (peek_tp(p) == "str")
+    (peek_tp(p) == "name") || (peek_tp(p) == "str") || (peek_tp(p) == "num")
   ) {
     token tk = next(p);
     return newNode(tk_tp(tk), tk_val(tk));
   } else {
-    error("Expected name, string or '('", peek(p));
+    error("Expected a name, int, string or '('", peek(p));
   }
 }
 

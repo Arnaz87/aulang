@@ -134,6 +134,7 @@ import aulang.codegen {
   }
 
   RetInst voidRetInst (Node);
+  int atoi (string);
 }
 
 // =============================== //
@@ -1250,6 +1251,8 @@ void writeMetaNode (Compiler c, Node node) {
   if (node.tp == "str") {
     w.num(strlen(node.val)*4 + 2);
     w.rawstr(node.val);
+  } else if (node.tp == "num") {
+    w.num((atoi(node.val)*2) + 1);
   } else if (node.tp == "list") {
     int len = node.len();
     w.num(len*4);
