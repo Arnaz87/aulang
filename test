@@ -26,6 +26,7 @@ if [ -z $1 ]; then
   done
 
   for FILE in tests/fail/*.au; do
+    echo $FILE
     auro --dir dist aulang "$FILE" tests/out >> /dev/null
     if [ $? != "1" ]; then
       echo "$FILE incorrectly succedded compiling"

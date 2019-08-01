@@ -1,11 +1,5 @@
-module anymod = import auro.any;
-module anystr_mod = anymod({ `0` = string; });
-
-type any = anymod.any;
-any anystr (string) = anystr_mod.`new`;
-string getstr (any) = anystr_mod.get;
-
 void main () {
-  any a = anystr("bar");
-  println(getstr(a));
+  println("Hello World!");
 }
+
+#metadata (one, two, (tree, "four"));

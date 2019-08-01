@@ -114,6 +114,7 @@ bool isKw (string s) {
 bool isOp (char ch) {
   int code = codeof(ch);
   return
+    (code == 35) || // #
     (code == 40) || // (
     (code == 41) || // )
     (code == 42) || // *
