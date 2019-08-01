@@ -299,7 +299,7 @@ struct Compiler {
       Imported imp = new Imported(mod, node.val);
 
       return (imp as any) as any?;
-    } else if ((node.tp == "item") || (node.tp == "var")) {
+    } else if ((node.tp == "item") || (node.tp == "var") || (node.tp == "name")) {
       any? a = this.items[node.val];
       if (!a.isnull()) return a;
 
@@ -1259,6 +1259,19 @@ void writeMetaNode (Compiler c, Node node) {
       writeMetaNode(c, node.child(i));
       i = i+1;
     }
+  } else if (node.tp == "name") {
+    int ix;
+    any item = c.getItem(new Item("item", node) as any);
+
+    if (item is Function) {
+      ix = (item as Function).id;
+    } else if (item is Type) {
+      ix = (item as Type).id;
+    } else {
+      c.error(node.val + " is not a known item (function or type)", node.line);
+    }
+
+    w.num((ix*2)+1);
   } else {
     error("Cannot write a metadata node of type " + node.tp);
   }
