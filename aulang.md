@@ -40,6 +40,9 @@ type int_arr = int_arr_mod.array;
 void println (string msg) = system.println;
 // Or defined here
 void main () {}
+// Or not defined at all (useful for documentation or platform
+// specific functions throught metadata)
+void main ();
 
 // Any non ternary nor logic expression is valid
 int my_const = 40 + 2;

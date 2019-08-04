@@ -648,7 +648,7 @@ Node parseTopLevel (Parser p) {
       if (maybe(p, "=")) {
         Node_push(node, parseTopLevelItem(p));
         check(next(p), ";");
-      } else {
+      } else if (!maybe(p, ";")) {
         Node_push(node, parseBlock(p));
       }
     } else if (!(get_tp(node) == "decl_assign")) {

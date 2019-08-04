@@ -958,16 +958,19 @@ buffer compile (Node program, string filename) {
         i = i+1;
       }
 
-      Node body = node.child(2);
+      if (node.len() == 3) {
+        Node body = node.child(2);
 
-      if (body.tp == "field") {
-        f.name = body.val;
-        f.mod = c.Item("module", body.child(0)) as any;
-      } else if (body.tp == "block") {
-        f.name = node.val;
-        f.code = compile_function(body, node) as any[]?;
+        if (body.tp == "field") {
+          f.name = body.val;
+          f.mod = c.Item("module", body.child(0)) as any;
+        } else if (body.tp == "block") {
+          f.name = node.val;
+          f.code = compile_function(body, node) as any[]?;
+        } else {
+        }
       } else {
-        c.error("Currently only imported functions are supported", node.line);
+        // No body, do nothing with the function
       }
 
       c.items[node.val] = f as any;
@@ -1104,8 +1107,12 @@ void writeFunctions (Compiler c) {
     Function f = c.functions[i];
     i = i+1;
     if (f.code.isnull()) {
-      Module mod = c.getItem(f.mod) as Module;
-      w.num(mod.id + 2);
+      if (f.mod is bool) {
+        w.byte(0);
+      } else {
+        Module mod = c.getItem(f.mod) as Module;
+        w.num(mod.id + 2);
+      }
     } else {
       w.byte(1);
     }
