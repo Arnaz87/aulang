@@ -605,14 +605,13 @@ Node parseTopLevel (Parser p) {
   bool ispriv = maybe(p, "private");
   Node node;
   if (maybe(p, "#")) {
-    // TODO: ¿como lo llama c?
     string name = getname(p);
-    node = newNode("annotation", name);
+    node = newNode("directive", name);
     if (name == "metadata") {
       Node_push(node, parse_metadata(p));
       check(next(p), ";");
     } else {
-      error("unknown annotation " + name, _tk);
+      error("unknown directive " + name, _tk);
     }
   } else if (maybe(p, "struct")) {
     Node typenode = newNode("struct", parseLongName(p));

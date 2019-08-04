@@ -1,2 +1,4 @@
-//void main () { println("Hello World!"); }
-void main ();
+#metadata ("One", "Two");
+void main () { println("Hello World!"); }
+void foo ();
+

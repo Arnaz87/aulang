@@ -987,8 +987,7 @@ buffer compile (Node program, string filename) {
       c.exported = c.Item("module", child) as any;
     }
 
-    // TODO: How does C call it?
-    else if (node.tp == "annotation") {
+    else if (node.tp == "directive") {
       c.meta_node.push(node.child(0));
     }
   }
@@ -1133,7 +1132,7 @@ void writeFunctions (Compiler c) {
       j = j+1;
     }
 
-    if (f.code.isnull()) {
+    if (f.code.isnull() && !(f.mod is bool)) {
       w.str(f.name);
     } else {
       code_functions.push(f);

@@ -84,4 +84,4 @@ Function calls that return multiple values, when used in expressions an not in m
 #metadata ("one", 2, (main, string));
 ~~~
 
-Each metadata statement declares an individual metadata node, which will be added to all the others. A node can be a string, an integer, a parenthezised list of nodes, or a function or type, which when compiled point to their ids.
+Each metadata directive declares an individual metadata node, which will be added to all the others. A node can be a string, an integer, a parenthezised list of nodes, or a function/type/module name, which when compiled point to their ids.
