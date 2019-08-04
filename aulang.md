@@ -74,3 +74,11 @@ Arithmetic and relation operations are overloaded for ints and floats. The addit
 Values aren't casted implicitly, nor is there an explicit cast expression, if casting is desired it must be trough library functions.
 
 Function calls that return multiple values, when used in expressions an not in multi assignments, only use the first result and discard the rest.
+
+# Metadata
+
+~~~c
+#metadata ("one", 2, (main, string));
+~~~
+
+Each metadata statement declares an individual metadata node, which will be added to all the others. A node can be a string, an integer, a parenthezised list of nodes, or a function or type, which when compiled point to their ids.
