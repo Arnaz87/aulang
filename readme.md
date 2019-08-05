@@ -14,13 +14,10 @@ Running `bash build.sh bootstrap` compiles the source code with whatever version
 
 **TODO**:
 
-- Metadata support
-- Operator precedence
 - Good typechecking
 - char type
 - Multiple sized primitives
 - Module independent arrays
-- Module expressions
 - for, switch, do while, continue *(Is it better to not include them?)*
 - Record type
 - Union type
