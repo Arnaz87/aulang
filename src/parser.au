@@ -179,6 +179,21 @@ bool isBinop (string ty) {
     (ty == "||");
 }
 
+int getPrecedence (string op) {
+  if (op == "+") return 4;
+  if (op == "-") return 4;
+  if (op == "*") return 5;
+  if (op == "/") return 5;
+  if (op == "<") return 3;
+  if (op == ">") return 3;
+  if (op == "<=") return 3;
+  if (op == "==") return 3;
+  if (op == ">=") return 3;
+  if (op == "!=") return 3;
+  if (op == "&&") return 2;
+  if (op == "||") return 1;
+}
+
 Node parseBaseExpr (Parser p) {
   int line = line(p);
   Node node;
@@ -255,11 +270,25 @@ Node parseSuffix (Parser p) {
   return base;
 }
 
-Node parseExpr (Parser p) {
-  Node left = parseSuffix(p);
-  while (isBinop(peek_tp(p))) {
-    string op = tk_tp(next(p));
+Node parseBinExpr (Parser p, Node left, int prev_prec) {
+  // FRIGGIN BLACK MAGIC RIGHT HERE
+  while (true) {
+    string op = peek_tp(p);
+    if (!isBinop(op)) break;
+    
+    int prec = getPrecedence(op);
+    if (prec < prev_prec) break;
+
+    next(p); // consume op here
+
     Node right = parseSuffix(p);
+
+    string next_op = peek_tp(p);
+    if (isBinop(next_op) && (getPrecedence(next_op) > prec)) {
+      right = parseBinExpr(p, right, getPrecedence(next_op));
+    }
+
+    // Build expression node
     Node node = newNode("binop", op);
     set_line(node, get_line(left));
     if (op == "||") set_tp(node, "logic");
@@ -269,6 +298,10 @@ Node parseExpr (Parser p) {
     left = node;
   }
   return left;
+}
+
+Node parseExpr (Parser p) {
+  return parseBinExpr(p, parseSuffix(p), 0);
 }
 
 Node parseExprList (Parser p, string end) {
