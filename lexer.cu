@@ -19,15 +19,14 @@ void error (string str, int line) {
   exit(1);
 }
 
-import auro.array(token) {
+import auro.utils.arraylist(token) {
   type `` as TkArr {
-    //new (token, int);
+    new ();
     token get (int);
     void set (int, token);
     int len ();
     void push (token);
   }
-  TkArr `new` (token, int) as newTkArr;
 }
 
 struct token {
@@ -170,7 +169,7 @@ TkArr tokens (string input) {
   // Fix nasty bug where the last character is omited
   input = input + " ";
 
-  TkArr arr = newTkArr(new token("", "", 0), 0);
+  TkArr arr = new TkArr();
 
   int len = strlen(input);
   int pos = 0;
