@@ -361,7 +361,7 @@ string compileTypeName (Compiler this, Node node) {
       args.push(innerName);
       argnames.push("0");
 
-      string basemod = this.pushModule(globalModule("auro\x1farray", node.line));
+      string basemod = this.pushModule(globalModule("auro\x1futils\x1farraylist", node.line));
       string argmod = this.pushModule(defineModule(args, argnames, node.line));
       string moduleid = this.pushModule(buildModule(basemod, argmod, node.line));
 
@@ -401,7 +401,7 @@ string compileTypeName (Compiler this, Node node) {
       Function emptyfn = newFunction(this);
       emptyfn.mod = moduleid;
       emptyfn.outs.push(name);
-      emptyfn.name = "empty";
+      emptyfn.name = "new";
       tp.constructor = emptyfn.id;
     }
     return name;

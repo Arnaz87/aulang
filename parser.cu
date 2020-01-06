@@ -15,13 +15,13 @@ import auro.string {
   string itos (int);
 }
 
-import auro.array (NodeShell) {
+import auro.utils.arraylist (NodeShell) {
   type `` as NodeArr {
     NodeShell get (int);
     void push (NodeShell);
     int len ();
   }
-  NodeArr empty () as EmptyNodeArr;
+  NodeArr `new` () as EmptyNodeArr;
 }
 
 type NodeShell (Node);
@@ -76,7 +76,7 @@ import culang.lexer {
   }
 }
 
-import auro.array(token) {
+import auro.utils.arraylist(token) {
   type `` as TkArr {
     token get (int);
     int len ();
